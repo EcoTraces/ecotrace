@@ -134,7 +134,7 @@ class BillingTransaction {
       tax: (x['tax'] as num? ?? 0).toDouble(),
       serviceCharge: (x['serviceCharge'] as num? ?? 0).toDouble(),
       total: (x['total'] as num? ?? 0).toDouble(),
-      currency: x['currency'] ?? 'USD',
+      currency: x['currency'] ?? 'SLE',
       providerReference: x['providerReference'] ?? '',
       maskedAccount: x['maskedAccount'] ?? '',
       failureReason: x['failureReason'] ?? '',
@@ -166,7 +166,7 @@ class BillingInvoice {
       customerId: x['customerId'] ?? '',
       description: x['description'] ?? '',
       amount: (x['amount'] as num? ?? 0).toDouble(),
-      currency: x['currency'] ?? 'USD',
+      currency: x['currency'] ?? 'SLE',
       status: InvoiceStatus.values.byName(x['status'] ?? 'issued'),
       dueAt: (x['dueAt'] as Timestamp?)?.toDate(),
     );

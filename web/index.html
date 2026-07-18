@@ -31,8 +31,60 @@
 
   <title>wastemanagementsystem</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: #f7faf8;
+      color: #17352a;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    #ecotrace-loading {
+      min-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    .ecotrace-loading-card {
+      padding: 32px;
+      max-width: 420px;
+    }
+    .ecotrace-mark {
+      color: #167d57;
+      font-size: 56px;
+      line-height: 1;
+    }
+    .ecotrace-spinner {
+      width: 34px;
+      height: 34px;
+      margin: 22px auto;
+      border: 4px solid #cce5da;
+      border-top-color: #167d57;
+      border-radius: 50%;
+      animation: ecotrace-spin .8s linear infinite;
+    }
+    @keyframes ecotrace-spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
+  <div id="ecotrace-loading" role="status" aria-live="polite">
+    <div class="ecotrace-loading-card">
+      <div class="ecotrace-mark" aria-hidden="true">♻</div>
+      <h1>EcoTrace</h1>
+      <div class="ecotrace-spinner" aria-hidden="true"></div>
+      <p id="ecotrace-loading-message">Loading the application…</p>
+    </div>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      document.getElementById('ecotrace-loading')?.remove();
+    });
+    window.setTimeout(function () {
+      const message = document.getElementById('ecotrace-loading-message');
+      if (message) message.textContent = 'Still loading. The first debug launch can take longer on a slow network…';
+    }, 15000);
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

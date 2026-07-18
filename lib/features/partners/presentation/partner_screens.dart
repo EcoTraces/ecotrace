@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../core/app_currency.dart';
 import '../data/partner_repository.dart';
 import '../domain/partner.dart';
 
@@ -104,7 +105,7 @@ class PartnerDashboardScreen extends StatelessWidget {
                 ),
                 _metric(
                   'Recorded spend',
-                  analytics.totalSpend.toStringAsFixed(2),
+                  AppCurrency.format(analytics.totalSpend),
                   Icons.payments_outlined,
                 ),
               ],
@@ -187,7 +188,7 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
       address = TextEditingController(),
       areas = TextEditingController(),
       pricing = TextEditingController(),
-      currency = TextEditingController(text: 'USD'),
+      currency = TextEditingController(text: 'SLE'),
       capacity = TextEditingController(),
       paymentMethod = TextEditingController(),
       payee = TextEditingController(),
@@ -292,7 +293,11 @@ class _RegisterPartnerScreenState extends State<RegisterPartnerScreen> {
             Expanded(
               child: TextField(
                 controller: currency,
-                decoration: const InputDecoration(labelText: 'Currency'),
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'Currency',
+                  helperText: 'Sierra Leone leone (Le)',
+                ),
               ),
             ),
             const SizedBox(width: 10),
@@ -453,7 +458,7 @@ class PartnerDetailScreen extends StatelessWidget {
                                 'Capacity: ${partner.facilityCapacityKg.toStringAsFixed(1)} kg',
                               ),
                               Text(
-                                'Pricing: ${partner.pricingInformation} (${partner.currency})',
+                                'Pricing: ${partner.pricingInformation} (Sierra Leone leone)',
                               ),
                               Text(
                                 'Payment: ${partner.paymentMethod} • ${partner.payeeName} • ${partner.paymentTerms}',
@@ -577,7 +582,7 @@ class PartnerDetailScreen extends StatelessWidget {
                               '${contract.contractNumber} • ${contract.title}',
                             ),
                             subtitle: Text(
-                              '${contract.status.name} • ${contract.startAt} to ${contract.endAt}\nSLA ${contract.slaTargetHours} h • Minimum rating ${contract.minimumQualityRating} • ${contract.currency} ${contract.contractValue}',
+                              '${contract.status.name} • ${contract.startAt} to ${contract.endAt}\nSLA ${contract.slaTargetHours} h • Minimum rating ${contract.minimumQualityRating} • ${AppCurrency.format(contract.contractValue, currencyCode: contract.currency)}',
                             ),
                             isThreeLine: true,
                           ),
@@ -592,7 +597,7 @@ class PartnerDetailScreen extends StatelessWidget {
                           'Rating ${partner.performanceRating.toStringAsFixed(2)} / 5',
                         ),
                         subtitle: Text(
-                          '${partner.completedServiceCount} services • ${partner.slaCompliancePercent.toStringAsFixed(1)}% on time • Spend ${partner.currency} ${partner.totalSpend.toStringAsFixed(2)}',
+                          '${partner.completedServiceCount} services • ${partner.slaCompliancePercent.toStringAsFixed(1)}% on time • Spend ${AppCurrency.format(partner.totalSpend, currencyCode: partner.currency)}',
                         ),
                       ),
                       for (final service in services)
@@ -606,7 +611,7 @@ class PartnerDetailScreen extends StatelessWidget {
                             '${service.reference} • ${service.serviceCategory.name}',
                           ),
                           subtitle: Text(
-                            '${service.actualHours} / ${service.targetHours} hours • Rating ${service.qualityRating} • Cost ${service.serviceCost}\n${service.notes}',
+                            '${service.actualHours} / ${service.targetHours} hours • Rating ${service.qualityRating} • Cost ${AppCurrency.format(service.serviceCost, currencyCode: partner.currency)}\n${service.notes}',
                           ),
                           isThreeLine: true,
                         ),
@@ -791,7 +796,7 @@ class PartnerDetailScreen extends StatelessWidget {
 
   Future<void> _commercial(BuildContext context, Partner partner) async {
     final pricing = TextEditingController(text: partner.pricingInformation),
-        currency = TextEditingController(text: partner.currency),
+        currency = TextEditingController(text: AppCurrency.code),
         capacity = TextEditingController(text: '${partner.facilityCapacityKg}'),
         method = TextEditingController(text: partner.paymentMethod),
         payee = TextEditingController(text: partner.payeeName),
@@ -808,7 +813,11 @@ class PartnerDetailScreen extends StatelessWidget {
         ),
         TextField(
           controller: currency,
-          decoration: const InputDecoration(labelText: 'Currency'),
+          readOnly: true,
+          decoration: const InputDecoration(
+            labelText: 'Currency',
+            helperText: 'Sierra Leone leone (Le)',
+          ),
         ),
         TextField(
           controller: capacity,
@@ -862,7 +871,7 @@ class PartnerDetailScreen extends StatelessWidget {
     final number = TextEditingController(),
         title = TextEditingController(),
         value = TextEditingController(),
-        currency = TextEditingController(text: partner.currency),
+        currency = TextEditingController(text: AppCurrency.code),
         hours = TextEditingController(text: '48'),
         rating = TextEditingController(text: '4'),
         terms = TextEditingController();
@@ -912,12 +921,16 @@ class PartnerDetailScreen extends StatelessWidget {
                         decimal: true,
                       ),
                       decoration: const InputDecoration(
-                        labelText: 'Contract value',
+                        labelText: 'Contract value (Le)',
                       ),
                     ),
                     TextField(
                       controller: currency,
-                      decoration: const InputDecoration(labelText: 'Currency'),
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Currency',
+                        helperText: 'Sierra Leone leone (Le)',
+                      ),
                     ),
                     TextField(
                       controller: hours,
@@ -1052,7 +1065,7 @@ class PartnerDetailScreen extends StatelessWidget {
                         decimal: true,
                       ),
                       decoration: const InputDecoration(
-                        labelText: 'Service cost',
+                        labelText: 'Service cost (Le)',
                       ),
                     ),
                     TextField(

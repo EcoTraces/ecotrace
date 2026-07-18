@@ -63,6 +63,14 @@ String _errorMessage(Object error) {
       'email-already-in-use' => 'An account already uses this email address.',
       'invalid-email' => 'Enter a valid email address.',
       'weak-password' => 'Use a stronger password with at least 8 characters.',
+      'operation-not-allowed' =>
+        'Email/password authentication is not enabled for this Firebase project.',
+      'configuration-not-found' =>
+        'Firebase Authentication has not been configured for this project.',
+      'unauthorized-domain' =>
+        'This web address is not authorized in Firebase Authentication.',
+      'network-request-failed' =>
+        'Firebase could not be reached. Check the network connection and retry.',
       'too-many-requests' => 'Too many attempts. Please wait and try again.',
       _ => error.message ?? 'Authentication failed.',
     };

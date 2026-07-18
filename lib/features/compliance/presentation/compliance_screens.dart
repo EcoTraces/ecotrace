@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../core/app_currency.dart';
 import '../data/compliance_repository.dart';
 import '../domain/compliance_record.dart';
 
@@ -492,7 +493,7 @@ class ComplianceDashboardScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.payments_outlined),
             title: Text(
-              '${penalty.referenceNumber} • ${penalty.currency} ${penalty.amount.toStringAsFixed(2)}',
+              '${penalty.referenceNumber} • ${AppCurrency.format(penalty.amount, currencyCode: penalty.currency)}',
             ),
             subtitle: Text('${penalty.status.name} • Due ${penalty.dueAt}'),
             trailing: canManage
@@ -1157,7 +1158,7 @@ class ComplianceDashboardScreen extends StatelessWidget {
   ) async {
     final reference = TextEditingController(),
         amount = TextEditingController(),
-        currency = TextEditingController(text: 'USD'),
+        currency = TextEditingController(text: 'SLE'),
         notes = TextEditingController();
     DateTime due = DateTime.now().add(const Duration(days: 30));
     final ok =
@@ -1184,7 +1185,7 @@ class ComplianceDashboardScreen extends StatelessWidget {
                             decimal: true,
                           ),
                           decoration: const InputDecoration(
-                            labelText: 'Amount',
+                            labelText: 'Amount (Le)',
                           ),
                         ),
                       ),
@@ -1192,8 +1193,10 @@ class ComplianceDashboardScreen extends StatelessWidget {
                       Expanded(
                         child: TextField(
                           controller: currency,
+                          readOnly: true,
                           decoration: const InputDecoration(
                             labelText: 'Currency',
+                            helperText: 'Sierra Leone leone (Le)',
                           ),
                         ),
                       ),
@@ -1332,7 +1335,7 @@ class ComplianceDashboardScreen extends StatelessWidget {
           pw.Header(level: 1, text: 'Penalty records'),
           ...penalties.map(
             (penalty) => pw.Text(
-              '${penalty.referenceNumber}: ${penalty.currency} ${penalty.amount}; ${penalty.status.name}; due ${penalty.dueAt}',
+              '${penalty.referenceNumber}: ${AppCurrency.format(penalty.amount, currencyCode: penalty.currency)}; ${penalty.status.name}; due ${penalty.dueAt}',
             ),
           ),
         ],

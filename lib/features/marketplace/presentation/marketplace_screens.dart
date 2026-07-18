@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../core/app_currency.dart';
 import '../../recovery/domain/recovered_material.dart';
 import '../../repairs/domain/repair_job.dart';
 import '../data/marketplace_repository.dart';
@@ -165,7 +166,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     ),
                     isThreeLine: true,
                     trailing: Text(
-                      '${listing.currency} ${listing.unitPrice.toStringAsFixed(2)}\nper ${listing.unit}',
+                      '${AppCurrency.format(listing.unitPrice, currencyCode: listing.currency)}\nper ${listing.unit}',
                       textAlign: TextAlign.end,
                     ),
                   ),
@@ -212,7 +213,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             leading: const Icon(Icons.shopping_bag_outlined),
             title: Text('${order.orderNumber} • ${order.listingTitle}'),
             subtitle: Text(
-              '${order.quantity} ${order.unit} • ${order.currency} ${order.totalAmount.toStringAsFixed(2)}\n${order.status.name} • Payment ${order.paymentStatus.name}',
+              '${order.quantity} ${order.unit} • ${AppCurrency.format(order.totalAmount, currencyCode: order.currency)}\n${order.status.name} • Payment ${order.paymentStatus.name}',
             ),
             children: [
               ListTile(
@@ -340,10 +341,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           child: ListTile(
             leading: const Icon(Icons.request_quote_outlined),
             title: Text(
-              '${quote.quantity} units • ${quote.currency} ${quote.requestedUnitPrice.toStringAsFixed(2)} requested',
+              '${quote.quantity} units • ${AppCurrency.format(quote.requestedUnitPrice, currencyCode: quote.currency)} requested',
             ),
             subtitle: Text(
-              '${quote.status.name} • ${quote.message}${quote.quotedUnitPrice <= 0 ? '' : '\nQuoted ${quote.currency} ${quote.quotedUnitPrice.toStringAsFixed(2)}'}',
+              '${quote.status.name} • ${quote.message}${quote.quotedUnitPrice <= 0 ? '' : '\nQuoted ${AppCurrency.format(quote.quotedUnitPrice, currencyCode: quote.currency)}'}',
             ),
             trailing:
                 quote.sellerId == widget.currentUserId &&
@@ -410,10 +411,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             _metric('Active listings', '${analytics.activeListings}'),
             _metric('Orders', '${analytics.orders}'),
             _metric('Completed', '${analytics.completedOrders}'),
-            _metric('Gross sales', analytics.grossSales.toStringAsFixed(2)),
+            _metric('Gross sales', AppCurrency.format(analytics.grossSales)),
             _metric(
               'Average order',
-              analytics.averageOrderValue.toStringAsFixed(2),
+              AppCurrency.format(analytics.averageOrderValue),
             ),
             _metric('Units sold', analytics.unitsSold.toStringAsFixed(2)),
           ],
@@ -427,7 +428,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             subtitle: Text(
               '${listing.status.name} • ${listing.availableQuantity}/${listing.totalQuantity} ${listing.unit}',
             ),
-            trailing: Text('${listing.currency} ${listing.unitPrice}'),
+            trailing: Text(
+              AppCurrency.format(
+                listing.unitPrice,
+                currencyCode: listing.currency,
+              ),
+            ),
           ),
       ],
     );
@@ -587,7 +593,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         controller: price,
         keyboardType: TextInputType.number,
         decoration: InputDecoration(
-          labelText: 'Requested unit price (${listing.currency})',
+          labelText: AppCurrency.inputLabel('Requested unit price'),
         ),
       ),
       TextField(
@@ -623,7 +629,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         content: TextField(
           controller: price,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Quoted unit price'),
+          decoration: const InputDecoration(
+            labelText: 'Quoted unit price (Le)',
+          ),
         ),
         actions: [
           TextButton(
@@ -865,10 +873,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             pw.Text('Seller: ${order.sellerName}'),
             pw.Text('Quantity: ${order.quantity} ${order.unit}'),
             pw.Text(
-              'Unit price: ${order.currency} ${order.unitPrice.toStringAsFixed(2)}',
+              'Unit price: ${AppCurrency.format(order.unitPrice, currencyCode: order.currency)}',
             ),
             pw.Text(
-              'Total: ${order.currency} ${order.totalAmount.toStringAsFixed(2)}',
+              'Total: ${AppCurrency.format(order.totalAmount, currencyCode: order.currency)}',
             ),
             pw.Text(
               'Payment: ${order.paymentStatus.name} • ${order.paymentMethod} • ${order.paymentReference}',
@@ -908,7 +916,7 @@ class _CreateMarketplaceListingScreenState
   RecoveredMaterialLot? material;
   final description = TextEditingController(),
       price = TextEditingController(),
-      currency = TextEditingController(text: 'USD');
+      currency = TextEditingController(text: 'SLE');
   @override
   void dispose() {
     description.dispose();
@@ -994,13 +1002,17 @@ class _CreateMarketplaceListingScreenState
           keyboardType: TextInputType.number,
           decoration: InputDecoration(
             labelText: type == MarketplaceListingType.refurbishedDevice
-                ? 'Device price'
-                : 'Price per kg',
+                ? 'Device price (Le)'
+                : 'Price per kg (Le)',
           ),
         ),
         TextField(
           controller: currency,
-          decoration: const InputDecoration(labelText: 'Currency'),
+          readOnly: true,
+          decoration: const InputDecoration(
+            labelText: 'Currency',
+            helperText: 'Sierra Leone leone (Le)',
+          ),
         ),
         const SizedBox(height: 18),
         FilledButton(onPressed: _save, child: const Text('Publish listing')),

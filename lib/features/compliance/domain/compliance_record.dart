@@ -295,7 +295,7 @@ class PenaltyRecord {
       violationId: data['violationId'] ?? '',
       referenceNumber: data['referenceNumber'] ?? '',
       amount: (data['amount'] as num? ?? 0).toDouble(),
-      currency: data['currency'] ?? 'USD',
+      currency: data['currency'] ?? 'SLE',
       status: PenaltyStatus.values.byName(
         data['status'] ?? PenaltyStatus.issued.name,
       ),

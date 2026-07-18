@@ -120,7 +120,7 @@ class MarketplaceListing {
       category: data['category'] ?? '',
       grade: data['grade'] ?? '',
       unitPrice: (data['unitPrice'] as num? ?? 0).toDouble(),
-      currency: data['currency'] ?? 'USD',
+      currency: data['currency'] ?? 'SLE',
       unit: data['unit'] ?? 'item',
       totalQuantity: (data['totalQuantity'] as num? ?? 0).toDouble(),
       availableQuantity: (data['availableQuantity'] as num? ?? 0).toDouble(),
@@ -161,7 +161,7 @@ class PriceQuotation {
       quantity: (data['quantity'] as num? ?? 0).toDouble(),
       requestedUnitPrice: (data['requestedUnitPrice'] as num? ?? 0).toDouble(),
       quotedUnitPrice: (data['quotedUnitPrice'] as num? ?? 0).toDouble(),
-      currency: data['currency'] ?? 'USD',
+      currency: data['currency'] ?? 'SLE',
       message: data['message'] ?? '',
       status: QuoteStatus.values.byName(
         data['status'] ?? QuoteStatus.requested.name,
@@ -236,7 +236,7 @@ class MarketplaceOrder {
       unit: data['unit'] ?? 'item',
       unitPrice: (data['unitPrice'] as num? ?? 0).toDouble(),
       totalAmount: (data['totalAmount'] as num? ?? 0).toDouble(),
-      currency: data['currency'] ?? 'USD',
+      currency: data['currency'] ?? 'SLE',
       status: MarketplaceOrderStatus.values.byName(
         data['status'] ?? MarketplaceOrderStatus.placed.name,
       ),

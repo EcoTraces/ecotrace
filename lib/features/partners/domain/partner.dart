@@ -126,7 +126,7 @@ class Partner {
         data['serviceAreas'] as List? ?? const [],
       ),
       pricingInformation: data['pricingInformation'] ?? '',
-      currency: data['currency'] ?? 'USD',
+      currency: data['currency'] ?? 'SLE',
       facilityCapacityKg: (data['facilityCapacityKg'] as num? ?? 0).toDouble(),
       paymentMethod: data['paymentMethod'] ?? '',
       payeeName: data['payeeName'] ?? '',
@@ -209,7 +209,7 @@ class PartnerContract {
       startAt: (data['startAt'] as Timestamp?)?.toDate(),
       endAt: (data['endAt'] as Timestamp?)?.toDate(),
       contractValue: (data['contractValue'] as num? ?? 0).toDouble(),
-      currency: data['currency'] ?? 'USD',
+      currency: data['currency'] ?? 'SLE',
       slaTargetHours: (data['slaTargetHours'] as num? ?? 0).toDouble(),
       minimumQualityRating: (data['minimumQualityRating'] as num? ?? 0)
           .toDouble(),

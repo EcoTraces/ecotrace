@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/app_currency.dart';
 import '../../inventory/data/inventory_repository.dart';
 import '../../inventory/domain/inventory_item.dart';
 import '../data/repair_repository.dart';
@@ -438,7 +439,7 @@ class RepairJobScreen extends StatelessWidget {
                           leading: const Icon(Icons.settings_outlined),
                           title: Text('${part.name} × ${part.quantity}'),
                           subtitle: Text(
-                            '${part.partNumber} • ${part.totalCost.toStringAsFixed(2)}',
+                            '${part.partNumber} • ${AppCurrency.format(part.totalCost)}',
                           ),
                         ),
                       )
@@ -531,7 +532,9 @@ class RepairJobScreen extends StatelessWidget {
         TextField(
           controller: estimate,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Estimated repair cost'),
+          decoration: const InputDecoration(
+            labelText: 'Estimated repair cost (Le)',
+          ),
         ),
       ],
     );
@@ -621,7 +624,7 @@ class RepairJobScreen extends StatelessWidget {
         TextField(
           controller: cost,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Unit cost'),
+          decoration: const InputDecoration(labelText: 'Unit cost (Le)'),
         ),
       ],
     );
@@ -903,7 +906,7 @@ class RepairJobScreen extends StatelessWidget {
                           decimal: true,
                         ),
                         decoration: const InputDecoration(
-                          labelText: 'Approved resale price',
+                          labelText: 'Approved resale price (Le)',
                         ),
                       ),
                     const SizedBox(height: 12),
@@ -995,10 +998,12 @@ class _CostCard extends StatelessWidget {
         runSpacing: 8,
         children: [
           Text(
-            'Repair estimate: ${job.estimatedRepairCost.toStringAsFixed(2)}',
+            'Repair estimate: ${AppCurrency.format(job.estimatedRepairCost)}',
           ),
-          Text('Parts used: ${job.actualPartsCost.toStringAsFixed(2)}'),
-          Text('Projected total: ${job.projectedTotalCost.toStringAsFixed(2)}'),
+          Text('Parts used: ${AppCurrency.format(job.actualPartsCost)}'),
+          Text(
+            'Projected total: ${AppCurrency.format(job.projectedTotalCost)}',
+          ),
         ],
       ),
     ),
@@ -1142,7 +1147,9 @@ class _RefurbishmentCard extends StatelessWidget {
           if (job.disposition == RefurbishedDisposition.donation)
             Text('Recipient: ${job.donationRecipient}'),
           if (job.disposition == RefurbishedDisposition.resale)
-            Text('Resale price: ${job.resalePrice?.toStringAsFixed(2) ?? '—'}'),
+            Text(
+              'Resale price: ${job.resalePrice == null ? '—' : AppCurrency.format(job.resalePrice!)}',
+            ),
         ],
       ),
     ),

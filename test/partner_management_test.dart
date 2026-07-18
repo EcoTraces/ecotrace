@@ -25,7 +25,7 @@ void main() {
     serviceCategories: const [PartnerServiceCategory.electronicsRecycling],
     serviceAreas: const ['North'],
     pricingInformation: 'Per kilogram',
-    currency: 'USD',
+    currency: 'SLE',
     facilityCapacityKg: capacity,
     paymentMethod: 'Transfer',
     payeeName: 'Partner',

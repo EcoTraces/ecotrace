@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../admin/data/admin_repository.dart';
@@ -64,8 +66,9 @@ class RoleWorkspaceScreen extends StatelessWidget {
   final AuthRepository authRepository;
   final UserProfile profile;
 
-  ApplicationInterface get application =>
-      WorkspaceCatalog.interfaceFor(profile.role);
+  static const _sideMenuGreen = Color(0xFF003D36);
+  static const _activeMenuGreen = Color(0xFF138A4B);
+
   List<WorkspaceDestination> get destinations =>
       WorkspaceCatalog.destinationsFor(profile.role);
   bool get isAdministrator =>
@@ -79,28 +82,41 @@ class RoleWorkspaceScreen extends StatelessWidget {
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 1000;
         return Scaffold(
-          appBar: AppBar(
-            title: Text(application.title),
-            actions: [
-              IconButton(
-                tooltip: 'Notifications',
-                onPressed: () =>
-                    _open(context, WorkspaceDestination.notifications),
-                icon: const Icon(Icons.notifications_outlined),
-              ),
-              IconButton(
-                tooltip: 'Profile',
-                onPressed: () => _open(context, WorkspaceDestination.profile),
-                icon: const Icon(Icons.account_circle_outlined),
-              ),
-            ],
-          ),
-          drawer: wide ? null : Drawer(child: menu),
+          appBar: wide
+              ? null
+              : AppBar(
+                  title: const Text('EcoTrace'),
+                  actions: [
+                    const _LiveClock(compact: true),
+                    IconButton(
+                      tooltip: 'Notifications',
+                      onPressed: () =>
+                          _open(context, WorkspaceDestination.notifications),
+                      icon: const Icon(Icons.notifications_outlined),
+                    ),
+                    IconButton(
+                      tooltip: 'Profile',
+                      onPressed: () =>
+                          _open(context, WorkspaceDestination.profile),
+                      icon: const Icon(Icons.account_circle_outlined),
+                    ),
+                  ],
+                ),
+          drawer: wide
+              ? null
+              : Drawer(backgroundColor: _sideMenuGreen, child: menu),
           body: Row(
             children: [
-              if (wide) SizedBox(width: 300, child: menu),
-              if (wide) const VerticalDivider(width: 1),
-              Expanded(child: _dashboard(context)),
+              if (wide) SizedBox(width: 280, child: menu),
+              Expanded(
+                child: Column(
+                  children: [
+                    _dashboardHeader(context, compact: !wide),
+                    const Divider(height: 1),
+                    Expanded(child: _dashboard(context)),
+                  ],
+                ),
+              ),
             ],
           ),
         );
@@ -109,53 +125,280 @@ class RoleWorkspaceScreen extends StatelessWidget {
   }
 
   Widget _navigation(BuildContext context) => Builder(
-    builder: (menuContext) => NavigationDrawer(
-      selectedIndex: 0,
-      onDestinationSelected: (index) {
-        if (Scaffold.maybeOf(menuContext)?.isDrawerOpen ?? false) {
-          Navigator.pop(menuContext);
-        }
-        final destination = destinations[index];
-        if (destination != WorkspaceDestination.dashboard) {
-          _open(context, destination);
-        }
-      },
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(28, 24, 16, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.recycling, size: 38),
-              const SizedBox(height: 8),
-              Text(
-                profile.displayName.isEmpty
-                    ? profile.email
-                    : profile.displayName,
-                style: Theme.of(context).textTheme.titleMedium,
+    builder: (menuContext) => ColoredBox(
+      color: _sideMenuGreen,
+      child: SafeArea(
+        child: Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 24, 20, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.recycling, size: 38, color: Color(0xFF20C45A)),
+                      SizedBox(width: 8),
+                      Text(
+                        'EcoTrace',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 25,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.7,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 7),
+                  Text(
+                    'E-Waste Recovery &\nCircular Economy Platform',
+                    style: TextStyle(
+                      color: Color(0xCCFFFFFF),
+                      fontSize: 11,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
               ),
-              Text(profile.role.label),
-            ],
+            ),
+            const Divider(height: 1, color: Color(0x26FFFFFF)),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
+                itemCount: destinations.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 4),
+                itemBuilder: (context, index) {
+                  final destination = destinations[index];
+                  final selected =
+                      destination == WorkspaceDestination.dashboard;
+                  return Material(
+                    color: selected ? _activeMenuGreen : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () {
+                        if (Scaffold.maybeOf(menuContext)?.isDrawerOpen ??
+                            false) {
+                          Navigator.pop(menuContext);
+                        }
+                        if (destination != WorkspaceDestination.dashboard) {
+                          _open(context, destination);
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 11,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _icon(destination),
+                              size: 19,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 13),
+                            Expanded(
+                              child: Text(
+                                destination.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 4, 14, 10),
+              child: TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(42),
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                onPressed: authRepository.signOut,
+                icon: const Icon(Icons.logout, size: 19),
+                label: const Text('Sign out'),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(14, 0, 14, 18),
+              child: _SustainabilityCard(),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  Widget _dashboardHeader(BuildContext context, {required bool compact}) {
+    final name = profile.displayName.isEmpty
+        ? profile.email.split('@').first
+        : profile.displayName;
+    final introduction = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Dashboard Overview',
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.5,
           ),
         ),
-        ...destinations.map(
-          (destination) => NavigationDrawerDestination(
-            icon: Icon(_icon(destination)),
-            label: Text(destination.label),
-          ),
-        ),
-        const Padding(padding: EdgeInsets.all(12), child: Divider()),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: TextButton.icon(
-            onPressed: authRepository.signOut,
-            icon: const Icon(Icons.logout),
-            label: const Text('Sign out'),
+        const SizedBox(height: 4),
+        Text(
+          "Welcome back, $name! Here's what's happening in EcoTrace today.",
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ],
-    ),
-  );
+    );
+
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          compact ? 18 : 28,
+          compact ? 18 : 22,
+          compact ? 18 : 28,
+          compact ? 16 : 20,
+        ),
+        child: compact
+            ? Align(alignment: Alignment.centerLeft, child: introduction)
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  final controls = Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      SizedBox(
+                        width: 210,
+                        height: 42,
+                        child: TextField(
+                          textInputAction: TextInputAction.search,
+                          onSubmitted: (value) =>
+                              _searchDestination(context, value),
+                          decoration: InputDecoration(
+                            hintText: 'Search modules...',
+                            prefixIcon: const Icon(Icons.search, size: 20),
+                            contentPadding: EdgeInsets.zero,
+                            filled: true,
+                            fillColor: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerLowest,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outlineVariant,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outlineVariant,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      IconButton.outlined(
+                        tooltip: 'Notifications',
+                        onPressed: () =>
+                            _open(context, WorkspaceDestination.notifications),
+                        icon: const Icon(Icons.notifications_none, size: 21),
+                      ),
+                      _HeaderUserMenu(
+                        name: name,
+                        role: profile.role.label,
+                        initials: _profileInitials,
+                        onProfile: () =>
+                            _open(context, WorkspaceDestination.profile),
+                        onSignOut: authRepository.signOut,
+                      ),
+                      const _LiveClock(),
+                    ],
+                  );
+                  if (constraints.maxWidth >= 1050) {
+                    return Row(
+                      children: [
+                        Expanded(child: introduction),
+                        const SizedBox(width: 24),
+                        controls,
+                      ],
+                    );
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      introduction,
+                      const SizedBox(height: 18),
+                      Align(alignment: Alignment.centerRight, child: controls),
+                    ],
+                  );
+                },
+              ),
+      ),
+    );
+  }
+
+  String get _profileInitials {
+    final source = profile.displayName.trim().isEmpty
+        ? profile.email.split('@').first
+        : profile.displayName.trim();
+    final parts = source
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) return 'ET';
+    if (parts.length == 1) {
+      return parts.first.substring(0, 1).toUpperCase();
+    }
+    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
+        .toUpperCase();
+  }
+
+  void _searchDestination(BuildContext context, String value) {
+    final query = value.trim().toLowerCase();
+    if (query.isEmpty) return;
+    final matches = destinations.where(
+      (destination) => destination.label.toLowerCase().contains(query),
+    );
+    if (matches.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No dashboard module found for "$value".')),
+      );
+      return;
+    }
+    final destination = matches.first;
+    if (destination != WorkspaceDestination.dashboard) {
+      _open(context, destination);
+    }
+  }
 
   Widget _dashboard(BuildContext context) {
     final actions = destinations
@@ -164,31 +407,7 @@ class RoleWorkspaceScreen extends StatelessWidget {
     return CustomScrollView(
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-          sliver: SliverToBoxAdapter(
-            child: Card(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome, ${profile.displayName.isEmpty ? profile.email : profile.displayName}',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${application.title} • ${profile.role.label}\nSelect a workspace below to continue.',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
           sliver: SliverGrid.builder(
             itemCount: actions.length,
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -222,6 +441,10 @@ class RoleWorkspaceScreen extends StatelessWidget {
               );
             },
           ),
+        ),
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 24),
+          sliver: SliverToBoxAdapter(child: _ImpactFooter()),
         ),
       ],
     );
@@ -485,6 +708,404 @@ class RoleWorkspaceScreen extends StatelessWidget {
     WorkspaceDestination.collectionHistory ||
     WorkspaceDestination.collections => Icons.assignment_outlined,
   };
+}
+
+class _ImpactFooter extends StatelessWidget {
+  const _ImpactFooter();
+
+  static const _items = [
+    _ImpactFooterItem(
+      icon: Icons.eco,
+      title: 'Environmental Impact',
+      description: 'Reduces pollution and conserves natural resources.',
+    ),
+    _ImpactFooterItem(
+      icon: Icons.trending_up,
+      title: 'Economic Impact',
+      description:
+          'Creates green jobs and supports resource recovery industries.',
+    ),
+    _ImpactFooterItem(
+      icon: Icons.groups,
+      title: 'Social Impact',
+      description: 'Protects public health and promotes community awareness.',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final footerWidth = constraints.maxWidth < 900
+          ? 900.0
+          : constraints.maxWidth;
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: ColoredBox(
+          color: const Color(0xFF06253F),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: footerWidth,
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var index = 0; index < _items.length; index++) ...[
+                      Expanded(child: _items[index]),
+                      if (index < _items.length - 1)
+                        const VerticalDivider(
+                          width: 1,
+                          thickness: 1,
+                          indent: 18,
+                          endIndent: 18,
+                          color: Color(0x33FFFFFF),
+                        ),
+                    ],
+                    const SizedBox(width: 260, child: _CleanerFutureCallout()),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _ImpactFooterItem extends StatelessWidget {
+  const _ImpactFooterItem({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+    child: Row(
+      children: [
+        Icon(icon, size: 38, color: const Color(0xFF9CD66D)),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                description,
+                style: const TextStyle(
+                  color: Color(0xCCFFFFFF),
+                  fontSize: 11,
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _CleanerFutureCallout extends StatelessWidget {
+  const _CleanerFutureCallout();
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: const Color(0xFF18763A),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.recycling, size: 40, color: Colors.white),
+          const SizedBox(width: 13),
+          Flexible(
+            child: Text(
+              'Together for a\nCleaner Future!',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                height: 1.2,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _SustainabilityCard extends StatelessWidget {
+  const _SustainabilityCard();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: const Color(0x1A20C45A),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: const Color(0x8020C45A)),
+    ),
+    child: const Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 17,
+              backgroundColor: Color(0xFF86D888),
+              child: Icon(Icons.eco, size: 20, color: Color(0xFF075B35)),
+            ),
+            SizedBox(width: 9),
+            Flexible(
+              child: Text(
+                'Together for a\nCleaner Future',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 10),
+        Text(
+          'Reduce. Reuse. Recycle.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Color(0xCCFFFFFF), fontSize: 10),
+        ),
+      ],
+    ),
+  );
+}
+
+class _HeaderUserMenu extends StatelessWidget {
+  const _HeaderUserMenu({
+    required this.name,
+    required this.role,
+    required this.initials,
+    required this.onProfile,
+    required this.onSignOut,
+  });
+
+  final String name;
+  final String role;
+  final String initials;
+  final VoidCallback onProfile;
+  final VoidCallback onSignOut;
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<String>(
+    tooltip: 'Account menu',
+    onSelected: (value) {
+      if (value == 'profile') onProfile();
+      if (value == 'signOut') onSignOut();
+    },
+    itemBuilder: (context) => const [
+      PopupMenuItem(
+        value: 'profile',
+        child: ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.person_outline),
+          title: Text('Profile'),
+        ),
+      ),
+      PopupMenuItem(
+        value: 'signOut',
+        child: ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.logout),
+          title: Text('Sign out'),
+        ),
+      ),
+    ],
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 180),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 19,
+              backgroundColor: const Color(0xFFDBEDE3),
+              foregroundColor: const Color(0xFF075B35),
+              child: Text(
+                initials,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+            const SizedBox(width: 9),
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    role,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.keyboard_arrow_down, size: 18),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _LiveClock extends StatefulWidget {
+  const _LiveClock({this.compact = false});
+
+  final bool compact;
+
+  @override
+  State<_LiveClock> createState() => _LiveClockState();
+}
+
+class _LiveClockState extends State<_LiveClock> {
+  static const _weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+  static const _months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  late DateTime _now;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _now = DateTime.now();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String get _time {
+    final hour = _now.hour % 12 == 0 ? 12 : _now.hour % 12;
+    final period = _now.hour < 12 ? 'AM' : 'PM';
+    return '${_twoDigits(hour)}:${_twoDigits(_now.minute)}:'
+        '${_twoDigits(_now.second)} $period';
+  }
+
+  String get _date =>
+      '${_weekdays[_now.weekday - 1]}, ${_months[_now.month - 1]} '
+      '${_now.day}, ${_now.year}';
+
+  String _twoDigits(int value) => value.toString().padLeft(2, '0');
+
+  @override
+  Widget build(BuildContext context) {
+    final showDate = !widget.compact && MediaQuery.sizeOf(context).width >= 720;
+    final textColor = Theme.of(context).colorScheme.onSurface;
+    return Semantics(
+      label: 'Local date and time: $_date, $_time',
+      liveRegion: true,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.compact ? 4 : 11,
+          vertical: widget.compact ? 3 : 7,
+        ),
+        decoration: widget.compact
+            ? null
+            : BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!widget.compact) ...[
+              Icon(Icons.calendar_month_outlined, size: 19, color: textColor),
+              const SizedBox(width: 7),
+            ],
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  widget.compact
+                      ? _time.replaceFirst(RegExp(r'\s[AP]M$'), '')
+                      : _time,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: widget.compact ? 11 : 12,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                if (showDate)
+                  Text(_date, style: TextStyle(color: textColor, fontSize: 11)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ProfileScreen extends StatelessWidget {

@@ -5,6 +5,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+
+import '../../../core/app_currency.dart';
 import '../data/analytics_repository.dart';
 import '../domain/analytics_snapshot.dart';
 
@@ -84,7 +86,7 @@ class _A extends State<AnalyticsReportingScreen> {
                       child: Column(
                         children: [
                           Text(
-                            e.value.toStringAsFixed(1),
+                            _metricValue(e.key, e.value),
                             style: const TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
@@ -152,7 +154,11 @@ class _A extends State<AnalyticsReportingScreen> {
         ListTile(
           title: Text('${r['dataset']} • ${r['reference']}'),
           subtitle: Text('${r['status']}'),
-          trailing: Text('${r['value']}'),
+          trailing: Text(
+            r['dataset'] == 'Financial' && r['value'] is num
+                ? AppCurrency.format(r['value']! as num)
+                : '${r['value']}',
+          ),
         ),
       StreamBuilder<List<ReportSchedule>>(
         stream: widget.repository.watchSchedules(),
@@ -193,7 +199,7 @@ class _A extends State<AnalyticsReportingScreen> {
           pw.Header(text: 'EcoTrace Analytics Report'),
           pw.Text('$from to $to'),
           ...data!.metrics.entries.map(
-            (e) => pw.Text('${e.key}: ${e.value.toStringAsFixed(2)}'),
+            (e) => pw.Text('${e.key}: ${_metricValue(e.key, e.value)}'),
           ),
           pw.TableHelper.fromTextArray(
             headers: const ['Dataset', 'Reference', 'Status', 'Value'],
@@ -230,4 +236,7 @@ class _A extends State<AnalyticsReportingScreen> {
       recipients: ['administrator'],
     );
   }
+
+  String _metricValue(String key, double value) =>
+      key == 'revenue' ? AppCurrency.format(value) : value.toStringAsFixed(1);
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+
+import '../../../core/app_currency.dart';
 import '../data/billing_repository.dart';
 import '../domain/billing.dart';
 
@@ -71,7 +73,9 @@ class BillingScreen extends StatelessWidget {
                     ),
                     trailing: Column(
                       children: [
-                        Text('${x.currency} ${x.total.toStringAsFixed(2)}'),
+                        Text(
+                          AppCurrency.format(x.total, currencyCode: x.currency),
+                        ),
                         if (canManage)
                           PopupMenuButton<String>(
                             onSelected: (a) => a == 'confirm'
@@ -109,7 +113,9 @@ class BillingScreen extends StatelessWidget {
                   subtitle: Text('${x.status.name} • Due ${x.dueAt}'),
                   trailing: TextButton(
                     onPressed: () => _receipt(x),
-                    child: Text('${x.currency} ${x.amount}'),
+                    child: Text(
+                      AppCurrency.format(x.amount, currencyCode: x.currency),
+                    ),
                   ),
                 ),
             ],
@@ -128,7 +134,7 @@ class BillingScreen extends StatelessWidget {
         fee = TextEditingController(text: '5'),
         provider = TextEditingController(),
         masked = TextEditingController(),
-        currency = TextEditingController(text: 'USD');
+        currency = TextEditingController(text: 'SLE');
     final ok = await _f(c, 'Create payment', [
       DropdownButtonFormField(
         initialValue: purpose,
@@ -162,7 +168,7 @@ class BillingScreen extends StatelessWidget {
       ),
       TextField(
         controller: subtotal,
-        decoration: const InputDecoration(labelText: 'Subtotal'),
+        decoration: const InputDecoration(labelText: 'Subtotal (Le)'),
       ),
       TextField(
         controller: tax,
@@ -184,7 +190,14 @@ class BillingScreen extends StatelessWidget {
           labelText: 'Masked account (e.g. ****1234)',
         ),
       ),
-      TextField(controller: currency),
+      TextField(
+        controller: currency,
+        readOnly: true,
+        decoration: const InputDecoration(
+          labelText: 'Currency',
+          helperText: 'Sierra Leone leone (Le)',
+        ),
+      ),
     ]);
     if (ok) {
       await repository.createPayment(
@@ -212,14 +225,17 @@ class BillingScreen extends StatelessWidget {
     final ok = await _f(c, 'Invoice', [
       TextField(controller: customer),
       TextField(controller: desc),
-      TextField(controller: amount),
+      TextField(
+        controller: amount,
+        decoration: const InputDecoration(labelText: 'Amount (Le)'),
+      ),
     ]);
     if (ok) {
       await repository.invoice(
         customerId: customer.text,
         description: desc.text,
         amount: double.tryParse(amount.text) ?? 0,
-        currency: 'USD',
+        currency: 'SLE',
         dueAt: DateTime.now().add(const Duration(days: 30)),
       );
     }
@@ -234,7 +250,7 @@ class BillingScreen extends StatelessWidget {
             pw.Header(text: 'EcoTrace Invoice'),
             pw.Text(x.number),
             pw.Text(x.description),
-            pw.Text('${x.currency} ${x.amount}'),
+            pw.Text(AppCurrency.format(x.amount, currencyCode: x.currency)),
             pw.Text('Status ${x.status.name}'),
             pw.Text('Due ${x.dueAt}'),
           ],
@@ -253,7 +269,7 @@ Widget _m(String a, double b) => SizedBox(
       child: Column(
         children: [
           Text(
-            b.toStringAsFixed(2),
+            AppCurrency.format(b),
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           Text(a),

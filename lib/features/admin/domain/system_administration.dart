@@ -80,7 +80,7 @@ class SystemConfiguration {
       'waterProtectedLitresPerHazardousKg': 1000,
     },
     settings: {
-      'currency': 'USD',
+      'currency': 'SLE',
       'timezone': 'UTC',
       'supportEmail': '',
       'maintenanceMode': 'false',
@@ -102,7 +102,11 @@ class SystemConfiguration {
       pickupFees: _numbers(data['pickupFees']),
       rewardRules: _numbers(data['rewardRules']),
       environmentalFormulas: _numbers(data['environmentalFormulas']),
-      settings: Map<String, String>.from(data['settings'] as Map? ?? const {}),
+      settings: {
+        ...defaults.settings,
+        ...Map<String, String>.from(data['settings'] as Map? ?? const {}),
+        'currency': 'SLE',
+      },
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
   }
@@ -117,7 +121,7 @@ class SystemConfiguration {
     'pickupFees': pickupFees,
     'rewardRules': rewardRules,
     'environmentalFormulas': environmentalFormulas,
-    'settings': settings,
+    'settings': {...settings, 'currency': 'SLE'},
   };
 
   double pickupTotal({

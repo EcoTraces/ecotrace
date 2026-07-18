@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/app_currency.dart';
 import '../../recycling/domain/recycling_batch.dart';
 import '../data/resource_recovery_repository.dart';
 import '../domain/recovered_material.dart';
@@ -73,8 +74,8 @@ class ResourceRecoveryDashboardScreen extends StatelessWidget {
                       children: [
                         Text('Material lots: ${lots.length}'),
                         Text('Recovered: ${weight.toStringAsFixed(2)} kg'),
-                        Text('Market value: ${value.toStringAsFixed(2)}'),
-                        Text('Sales revenue: ${revenue.toStringAsFixed(2)}'),
+                        Text('Market value: ${AppCurrency.format(value)}'),
+                        Text('Sales revenue: ${AppCurrency.format(revenue)}'),
                         Text(
                           'Sales-ready: ${lots.where((lot) => lot.status == MaterialLotStatus.salesReady).length}',
                         ),
@@ -109,7 +110,7 @@ class ResourceRecoveryDashboardScreen extends StatelessWidget {
                   leading: const Icon(Icons.inventory_2_outlined),
                   title: Text('${lot.lotCode} • ${lot.material.label}'),
                   subtitle: Text(
-                    '${lot.weightKg.toStringAsFixed(2)} kg • ${lot.qualityGrade.name} • ${lot.status.name}\nValue ${lot.estimatedMarketValue.toStringAsFixed(2)} • ${lot.storageLocation}',
+                    '${lot.weightKg.toStringAsFixed(2)} kg • ${lot.qualityGrade.name} • ${lot.status.name}\nValue ${AppCurrency.format(lot.estimatedMarketValue)} • ${lot.storageLocation}',
                   ),
                   children: [
                     Wrap(
@@ -300,7 +301,7 @@ class ResourceRecoveryDashboardScreen extends StatelessWidget {
                         decimal: true,
                       ),
                       decoration: const InputDecoration(
-                        labelText: 'Market value per kg',
+                        labelText: 'Market value per kg (Le)',
                       ),
                     ),
                   ],
@@ -373,7 +374,7 @@ class ResourceRecoveryDashboardScreen extends StatelessWidget {
                       decimal: true,
                     ),
                     decoration: const InputDecoration(
-                      labelText: 'Default market value per kg',
+                      labelText: 'Default market value per kg (Le)',
                     ),
                   ),
                   SwitchListTile(
@@ -581,7 +582,7 @@ class ResourceRecoveryDashboardScreen extends StatelessWidget {
       TextField(
         controller: revenue,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: const InputDecoration(labelText: 'Sale revenue'),
+        decoration: const InputDecoration(labelText: 'Sale revenue (Le)'),
       ),
     ]);
     if (ok && context.mounted) {
