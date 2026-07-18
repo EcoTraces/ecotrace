@@ -1,0 +1,212 @@
+import 'package:flutter/material.dart';
+import '../../inventory/domain/inventory_item.dart';
+import '../data/assessment_repository.dart';
+import '../domain/assessment.dart';
+
+class AssessmentScreen extends StatefulWidget {
+  const AssessmentScreen({
+    super.key,
+    required this.item,
+    required this.repository,
+    required this.canApprove,
+  });
+  final InventoryItem item;
+  final AssessmentRepository repository;
+  final bool canApprove;
+  @override
+  State<AssessmentScreen> createState() => _AssessmentState();
+}
+
+class _AssessmentState extends State<AssessmentScreen> {
+  DeviceCategory category = DeviceCategory.accessories;
+  TreatmentRecommendation recommendation = TreatmentRecommendation.recycle;
+  final materials = TextEditingController(
+        text: 'metals:45, plastics:30, glass:15, other:10',
+      ),
+      hazards = TextEditingController(),
+      value = TextEditingController(text: '0'),
+      notes = TextEditingController();
+  double reuse = 50, repair = 50, confidence = .5;
+  bool busy = false;
+  void _assist() {
+    final x = widget.repository.assistedSuggestion(widget.item);
+    setState(() {
+      category = x['category'];
+      hazards.text = (x['hazards'] as List<String>).join(', ');
+      confidence = x['confidence'];
+      materials.text = (x['materials'] as Map<String, double>).entries
+          .map((e) => '${e.key}:${e.value}')
+          .join(', ');
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Assisted suggestion generated. A technician must verify it.',
+        ),
+      ),
+    );
+  }
+
+  Map<String, double> _materials() => {
+    for (final part in materials.text.split(','))
+      if (part.contains(':'))
+        part.split(':').first.trim():
+            double.tryParse(part.split(':').last.trim()) ?? 0,
+  };
+  Future<void> _submit() async {
+    setState(() => busy = true);
+    try {
+      await widget.repository.submit(
+        item: widget.item,
+        category: category,
+        materials: _materials(),
+        hazards: hazards.text
+            .split(',')
+            .map((x) => x.trim())
+            .where((x) => x.isNotEmpty)
+            .toList(),
+        reusability: reuse.round(),
+        repairability: repair.round(),
+        recommendation: recommendation,
+        recoveryValue: double.tryParse(value.text) ?? 0,
+        confidence: confidence,
+        notes: notes.text,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Assessment submitted for approval.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext c) => Scaffold(
+    appBar: AppBar(title: Text('Assessment • ${widget.item.itemCode}')),
+    body: ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        OutlinedButton.icon(
+          onPressed: _assist,
+          icon: const Icon(Icons.auto_awesome),
+          label: const Text('Generate assisted classification'),
+        ),
+        DropdownButtonFormField(
+          initialValue: category,
+          decoration: const InputDecoration(labelText: 'Device category'),
+          items: DeviceCategory.values
+              .map((x) => DropdownMenuItem(value: x, child: Text(x.name)))
+              .toList(),
+          onChanged: (x) => setState(() => category = x!),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: materials,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: 'Material composition (%)',
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: hazards,
+          maxLines: 2,
+          decoration: const InputDecoration(labelText: 'Hazardous components'),
+        ),
+        Text('Reusability: ${reuse.round()}%'),
+        Slider(
+          value: reuse,
+          max: 100,
+          onChanged: (x) => setState(() => reuse = x),
+        ),
+        Text('Repairability: ${repair.round()}%'),
+        Slider(
+          value: repair,
+          max: 100,
+          onChanged: (x) => setState(() => repair = x),
+        ),
+        DropdownButtonFormField(
+          initialValue: recommendation,
+          decoration: const InputDecoration(
+            labelText: 'Treatment recommendation',
+          ),
+          items: TreatmentRecommendation.values
+              .map((x) => DropdownMenuItem(value: x, child: Text(x.name)))
+              .toList(),
+          onChanged: (x) => setState(() => recommendation = x!),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: value,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Estimated recovery value',
+          ),
+        ),
+        Text('Confidence: ${(confidence * 100).round()}%'),
+        Slider(
+          value: confidence,
+          onChanged: (x) => setState(() => confidence = x),
+        ),
+        TextField(
+          controller: notes,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Assessment notes'),
+        ),
+        const SizedBox(height: 12),
+        FilledButton(
+          onPressed: busy ? null : _submit,
+          child: const Text('Submit assessment'),
+        ),
+        const Divider(height: 32),
+        Text('Assessment history', style: Theme.of(c).textTheme.titleLarge),
+        StreamBuilder<List<ItemAssessment>>(
+          stream: widget.repository.watch(widget.item.id),
+          builder: (c, s) => Column(
+            children: (s.data ?? [])
+                .map(
+                  (a) => Card(
+                    child: ListTile(
+                      title: Text(
+                        '${a.category.name} • ${a.recommendation.name}',
+                      ),
+                      subtitle: Text(
+                        '${a.status.name} • confidence ${(a.confidence * 100).round()}% • value ${a.recoveryValue}',
+                      ),
+                      trailing:
+                          widget.canApprove &&
+                              a.status == AssessmentStatus.pendingSupervisor
+                          ? PopupMenuButton<bool>(
+                              onSelected: (approved) =>
+                                  widget.repository.review(
+                                    widget.item.id,
+                                    a.id,
+                                    approved: approved,
+                                    reason: approved
+                                        ? null
+                                        : 'Supervisor rejected assessment',
+                                  ),
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: true,
+                                  child: Text('Approve'),
+                                ),
+                                PopupMenuItem(
+                                  value: false,
+                                  child: Text('Reject'),
+                                ),
+                              ],
+                            )
+                          : null,
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+      ],
+    ),
+  );
+}

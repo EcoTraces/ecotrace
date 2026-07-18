@@ -1,0 +1,139 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function organization(orgId) {
+      return firestore.get(/databases/(default)/documents/organizations/$(orgId));
+    }
+
+    function isMember(orgId) {
+      return signedIn() && request.auth.uid in organization(orgId).data.memberIds;
+    }
+
+    function isOwner(orgId) {
+      return signedIn() && organization(orgId).data.ownerId == request.auth.uid;
+    }
+
+    function isAdministrator() {
+      return signedIn() && request.auth.token.role in [
+        'administrator',
+        'superAdministrator'
+      ];
+    }
+
+    function isInventoryOperator() {
+      return signedIn() && request.auth.token.role in [
+        'collector', 'collectionCentreOperator', 'repairTechnician',
+        'recycler', 'environmentalOfficer', 'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isDispatchSupervisor() {
+      return signedIn() && request.auth.token.role in [
+        'collectionCentreOperator', 'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isReverseOperator() {
+      return signedIn() && request.auth.token.role in [
+        'collector', 'driver', 'collectionCentreOperator',
+        'repairTechnician', 'recycler', 'environmentalOfficer',
+        'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isSupportAgent() {
+      return signedIn() && request.auth.token.role in [
+        'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isComplianceManager() {
+      return signedIn() && request.auth.token.role in [
+        'environmentalOfficer', 'administrator', 'superAdministrator'
+      ];
+    }
+
+    match /organizationDocuments/{organizationId}/{fileName} {
+      allow read: if isMember(organizationId) || isAdministrator();
+      allow create, update: if (isOwner(organizationId) || isAdministrator())
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType in [
+          'application/pdf',
+          'image/png',
+          'image/jpeg'
+        ];
+      allow delete: if isOwner(organizationId) || isAdministrator();
+    }
+
+    match /pickupImages/{userId}/{pickupId}/{fileName} {
+      allow read: if signedIn() && (request.auth.uid == userId || isAdministrator());
+      allow create, update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if signedIn() && (request.auth.uid == userId || isAdministrator());
+    }
+
+    match /inventoryImages/{itemId}/{fileName} {
+      allow read: if isInventoryOperator();
+      allow create, update: if isInventoryOperator()
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isAdministrator();
+    }
+
+    match /collectionEvidence/{scheduleId}/{fileName} {
+      allow read: if isDispatchSupervisor();
+      allow create, update: if isDispatchSupervisor()
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isAdministrator();
+    }
+
+    match /reverseLogistics/{transferId}/{allFiles=**} {
+      allow read: if isReverseOperator();
+      allow create, update: if isReverseOperator()
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isAdministrator();
+    }
+
+    match /supportTickets/{userId}/{ticketId}/{allFiles=**} {
+      allow read: if isSupportAgent()
+        || (signedIn() && request.auth.uid == userId);
+      allow create, update: if (isSupportAgent()
+          || (signedIn() && request.auth.uid == userId))
+        && request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isAdministrator();
+    }
+
+    match /compliance/{allFiles=**} {
+      allow read: if isComplianceManager();
+      allow create, update: if isComplianceManager()
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isAdministrator();
+    }
+
+    match /partners/{partnerId}/{allFiles=**} {
+      allow read: if isComplianceManager();
+      allow create, update: if isComplianceManager()
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isAdministrator();
+    }
+    match /donations/{requestId}/{allFiles=**} { allow read: if signedIn(); allow create, update: if isComplianceManager() && request.resource.size < 8 * 1024 * 1024 && request.resource.contentType.matches('image/.*'); allow delete: if isAdministrator(); }
+    match /safetyIncidents/{incidentId}/{fileName} { allow read: if isReverseOperator(); allow create, update: if isReverseOperator() && request.resource.size < 8 * 1024 * 1024 && request.resource.contentType.matches('image/.*'); allow delete: if isAdministrator(); }
+    match /managedDocuments/{ownerId}/{documentId}/{fileName} { allow read: if isComplianceManager() || (signedIn() && request.auth.uid == ownerId); allow create, update: if (isComplianceManager() || (signedIn() && request.auth.uid == ownerId)) && request.resource.size < 20 * 1024 * 1024; allow delete: if isAdministrator(); }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

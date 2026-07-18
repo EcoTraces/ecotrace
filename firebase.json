@@ -1,0 +1,47 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "wastemanagementsystem-902eb",
+          "appId": "1:900123114350:android:b84a9ceb2800b4a2efdf7f",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "wastemanagementsystem-902eb",
+          "configurations": {
+            "android": "1:900123114350:android:b84a9ceb2800b4a2efdf7f",
+            "ios": "1:900123114350:ios:7f069b36689bc5bfefdf7f",
+            "macos": "1:900123114350:ios:7f069b36689bc5bfefdf7f",
+            "web": "1:900123114350:web:23b7ccb9629b7e48efdf7f",
+            "windows": "1:900123114350:web:18a4086954b86088efdf7f"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "storage": {
+      "port": 9199
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    },
+    "singleProjectMode": true
+  }
+}

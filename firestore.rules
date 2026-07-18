@@ -1,0 +1,929 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isAdministrator() {
+      return signedIn() && request.auth.token.role in [
+        'administrator',
+        'superAdministrator'
+      ];
+    }
+
+    function isInventoryOperator() {
+      return signedIn() && request.auth.token.role in [
+        'collector', 'collectionCentreOperator', 'repairTechnician',
+        'recycler', 'environmentalOfficer', 'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isDispatchOperator() {
+      return signedIn() && request.auth.token.role in [
+        'collector', 'driver', 'collectionCentreOperator',
+        'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isDispatchSupervisor() {
+      return signedIn() && request.auth.token.role in [
+        'collectionCentreOperator', 'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isCentreOperator() {
+      return signedIn() && request.auth.token.role in [
+        'collectionCentreOperator', 'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isRepairOperator() {
+      return signedIn() && request.auth.token.role in [
+        'repairTechnician', 'environmentalOfficer',
+        'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isRepairSupervisor() {
+      return signedIn() && request.auth.token.role in [
+        'environmentalOfficer', 'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isRecyclingOperator() {
+      return signedIn() && request.auth.token.role in [
+        'recycler', 'environmentalOfficer',
+        'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isRecyclingSupervisor() {
+      return signedIn() && request.auth.token.role in [
+        'environmentalOfficer', 'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isHazardousOperator() {
+      return signedIn() && request.auth.token.role in [
+        'recycler', 'environmentalOfficer',
+        'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isHazardousSupervisor() {
+      return signedIn() && request.auth.token.role in [
+        'environmentalOfficer', 'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isReverseOperator() {
+      return signedIn() && request.auth.token.role in [
+        'collector', 'driver', 'collectionCentreOperator',
+        'repairTechnician', 'recycler', 'environmentalOfficer',
+        'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isReverseSupervisor() {
+      return signedIn() && request.auth.token.role in [
+        'collectionCentreOperator', 'environmentalOfficer',
+        'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isReverseReceiver() {
+      return signedIn() && request.auth.token.role in [
+        'collectionCentreOperator', 'repairTechnician', 'recycler',
+        'environmentalOfficer', 'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isAssignedTransferDriver(transferId) {
+      return signedIn()
+        && request.auth.token.role == 'driver'
+        && get(/databases/$(database)/documents/reverseLogisticsTransfers/$(transferId)).data.driverId == request.auth.uid;
+    }
+
+    function isSupportAgent() {
+      return signedIn() && request.auth.token.role in [
+        'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isComplianceManager() {
+      return signedIn() && request.auth.token.role in [
+        'environmentalOfficer', 'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isMarketplaceSeller() {
+      return signedIn() && request.auth.token.role in [
+        'repairTechnician', 'recycler', 'environmentalOfficer',
+        'administrator', 'superAdministrator'
+      ];
+    }
+
+    function isAssignedRepairTechnician(jobId) {
+      return signedIn()
+        && request.auth.token.role == 'repairTechnician'
+        && get(/databases/$(database)/documents/repairJobs/$(jobId)).data.technicianId == request.auth.uid;
+    }
+
+    function organization(orgId) {
+      return get(/databases/$(database)/documents/organizations/$(orgId));
+    }
+
+    function organizationAfter(orgId) {
+      return getAfter(/databases/$(database)/documents/organizations/$(orgId));
+    }
+
+    function isOrganizationMember(orgId) {
+      return signedIn() && request.auth.uid in organization(orgId).data.memberIds;
+    }
+
+    function isOrganizationOwner(orgId) {
+      return signedIn() && organization(orgId).data.ownerId == request.auth.uid;
+    }
+
+    function validSelfServiceProfile(userId) {
+      return owns(userId)
+        && request.resource.data.keys().hasAll([
+          'email',
+          'displayName',
+          'role',
+          'accountStatus',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.role in [
+          'household',
+          'business',
+          'institution'
+        ]
+        && request.resource.data.accountStatus == 'active';
+    }
+
+    match /users/{userId} {
+      allow create: if validSelfServiceProfile(userId) || isAdministrator();
+      allow read: if owns(userId) || isAdministrator()
+        || isDispatchSupervisor() || isReverseSupervisor();
+      allow update: if isAdministrator()
+        || (owns(userId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['displayName', 'updatedAt']));
+      allow delete: if isAdministrator();
+
+      match /{subcollection}/{documentId} {
+        allow read: if owns(userId) || isAdministrator();
+        allow write: if isAdministrator()
+          || (owns(userId) && subcollection == 'devices')
+          || (isDispatchOperator() && subcollection == 'notifications');
+      }
+    }
+
+    match /organizations/{organizationId} {
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.memberIds == [request.auth.uid]
+        && request.resource.data.status == 'pendingVerification';
+      allow read: if signedIn()
+        && (request.auth.uid in resource.data.memberIds || isAdministrator());
+      allow update: if isAdministrator() || isDispatchSupervisor()
+        || (isOrganizationOwner(organizationId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name',
+            'registrationNumber',
+            'contactEmail',
+            'contactPhone',
+            'address',
+            'serviceAreas',
+            'updatedAt',
+            'submittedAt'
+          ]));
+      allow delete: if isAdministrator();
+
+      match /members/{memberId} {
+        allow read: if isOrganizationMember(organizationId) || isAdministrator();
+        allow create: if isAdministrator()
+          || (owns(memberId)
+            && organizationAfter(organizationId).data.ownerId == request.auth.uid
+            && request.resource.data.organizationRole == 'owner');
+        allow update, delete: if isOrganizationOwner(organizationId) || isAdministrator();
+      }
+
+      match /branches/{branchId} {
+        allow read: if isOrganizationMember(organizationId) || isAdministrator();
+        allow create, update, delete: if isOrganizationOwner(organizationId) || isAdministrator();
+      }
+
+      match /documents/{documentId} {
+        allow read: if isOrganizationMember(organizationId) || isAdministrator();
+        allow create, update, delete: if isOrganizationOwner(organizationId) || isAdministrator();
+      }
+    }
+
+    match /organizationInvitations/{invitationId} {
+      allow create: if signedIn()
+        && isOrganizationOwner(request.resource.data.organizationId)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.organizationRole in ['manager', 'staff', 'viewer'];
+      allow read: if signedIn()
+        && (isOrganizationOwner(resource.data.organizationId)
+          || request.auth.token.email == resource.data.email
+          || isAdministrator());
+      allow update, delete: if isAdministrator();
+    }
+
+    match /pickupRequests/{pickupId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'submitted'
+        && request.resource.data.quantity > 0
+        && request.resource.data.estimatedWeight >= 0;
+      allow read: if signedIn()
+        && (resource.data.userId == request.auth.uid || isAdministrator());
+      allow update: if isAdministrator()
+        || (signedIn() && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == resource.data.userId
+          && (
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+              && resource.data.status in ['submitted', 'approved', 'assigned', 'scheduled']
+              && request.resource.data.status == 'cancelled')
+            || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'scheduledAt', 'updatedAt'])
+              && resource.data.status in ['submitted', 'approved', 'scheduled']
+              && request.resource.data.status == 'submitted')
+            || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'ratedAt'])
+              && resource.data.status == 'completed'
+              && request.resource.data.rating is int
+              && request.resource.data.rating >= 1
+              && request.resource.data.rating <= 5)
+          ));
+      allow delete: if false;
+    }
+
+    match /inventoryItems/{itemId} {
+      allow read, create, update: if isInventoryOperator();
+      allow delete: if isAdministrator();
+      match /history/{eventId} {
+        allow read, create: if isInventoryOperator();
+        allow update, delete: if false;
+      }
+      match /assessments/{assessmentId} {
+        allow read: if isInventoryOperator();
+        allow create: if isInventoryOperator()
+          && request.resource.data.status == 'pendingSupervisor';
+        allow update: if signedIn() && request.auth.token.role in [
+          'environmentalOfficer', 'administrator', 'superAdministrator'
+        ] && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'reviewReason', 'reviewedAt'
+        ]);
+        allow delete: if false;
+      }
+      match /traceability/{eventId} {
+        allow read, create: if isInventoryOperator();
+        allow update, delete: if false;
+      }
+    }
+
+    match /inventoryBatches/{batchId} {
+      allow read, create, update: if isInventoryOperator();
+      allow delete: if isAdministrator();
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if isDispatchOperator() || isReverseOperator();
+      allow create: if isDispatchSupervisor();
+      allow update: if isDispatchSupervisor() || isReverseSupervisor()
+        || (isReverseReceiver()
+          && resource.data.availability == 'dispatched'
+          && request.resource.data.availability == 'available'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'availability', 'updatedAt'
+          ]));
+      allow delete: if isAdministrator();
+      match /events/{eventId} {
+        allow read: if isDispatchOperator();
+        allow create: if isDispatchSupervisor();
+        allow update, delete: if false;
+      }
+      match /trips/{tripId} {
+        allow read: if isDispatchOperator() || isReverseOperator();
+        allow create: if isDispatchSupervisor()
+          || isReverseSupervisor() || isReverseReceiver();
+        allow update, delete: if false;
+      }
+    }
+
+    match /collectionSchedules/{scheduleId} {
+      allow read: if isDispatchOperator();
+      allow create, update: if isDispatchSupervisor();
+      allow delete: if isAdministrator();
+    }
+
+    match /routePlans/{routeId} {
+      allow read: if isDispatchOperator();
+      allow create: if isDispatchSupervisor();
+      allow update: if isDispatchSupervisor()
+        || (signedIn()
+          && resource.data.driverId == request.auth.uid
+          && request.resource.data.driverId == resource.data.driverId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'startedAt', 'completedAt', 'currentLatitude',
+            'currentLongitude', 'lastLocationAt', 'updatedAt',
+            'deviationCount', 'stops'
+          ]));
+      allow delete: if isAdministrator();
+      match /locationHistory/{locationId} {
+        allow read: if isDispatchOperator();
+        allow create: if isDispatchSupervisor()
+          || get(/databases/$(database)/documents/routePlans/$(routeId)).data.driverId == request.auth.uid;
+        allow update, delete: if false;
+      }
+      match /alerts/{alertId} {
+        allow read, create: if isDispatchOperator();
+        allow update, delete: if false;
+      }
+      match /events/{eventId} {
+        allow read, create: if isDispatchOperator();
+        allow update, delete: if false;
+      }
+    }
+
+    match /collectionCentres/{centreId} {
+      // Centre contact, supported categories, location and hours are part of
+      // the authenticated citizen directory. Operational subcollections stay
+      // restricted below.
+      allow read: if signedIn();
+      allow create: if isCentreOperator()
+        && request.resource.data.capacityKg is number
+        && request.resource.data.capacityKg > 0
+        && request.resource.data.currentStockKg == 0
+        && request.resource.data.capacityAlertPercent > 0
+        && request.resource.data.capacityAlertPercent <= 100;
+      allow update: if isCentreOperator()
+        && request.resource.data.currentStockKg >= 0
+        && request.resource.data.currentStockKg <= request.resource.data.capacityKg;
+      allow delete: if isAdministrator();
+
+      match /storageSections/{sectionId} {
+        allow read: if isCentreOperator();
+        allow create: if isCentreOperator()
+          && request.resource.data.capacityKg is number
+          && request.resource.data.capacityKg > 0
+          && request.resource.data.currentStockKg == 0;
+        allow update: if isCentreOperator()
+          && request.resource.data.currentStockKg >= 0
+          && request.resource.data.currentStockKg <= request.resource.data.capacityKg;
+        allow delete: if isAdministrator();
+      }
+
+      match /receivingRecords/{recordId} {
+        allow read, create: if isCentreOperator();
+        allow update: if isCentreOperator()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'verified', 'verifiedWeightKg', 'verifiedAt'
+          ]);
+        allow delete: if false;
+      }
+
+      match /stockMovements/{movementId} {
+        allow read, create: if isCentreOperator();
+        allow update, delete: if false;
+      }
+
+      match /staffAssignments/{assignmentId} {
+        allow read, create, update: if isCentreOperator();
+        allow delete: if isAdministrator();
+      }
+
+      match /safetyInspections/{inspectionId} {
+        allow read, create: if isCentreOperator();
+        allow update, delete: if false;
+      }
+    }
+
+    match /repairJobs/{jobId} {
+      allow read: if isRepairOperator();
+      allow create: if isRepairOperator()
+        && request.resource.data.status == 'awaitingAssessment'
+        && request.resource.data.createdBy == request.auth.uid
+        && (isRepairSupervisor()
+          || request.resource.data.technicianId == request.auth.uid);
+      allow update: if isRepairSupervisor()
+        || (isAssignedRepairTechnician(jobId)
+          && request.resource.data.technicianId == resource.data.technicianId
+          && request.resource.data.itemId == resource.data.itemId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'diagnosis', 'faults', 'estimatedRepairCost',
+            'diagnosedAt', 'progressPercent', 'repairStartedAt',
+            'actualPartsCost', 'qualityTestingStartedAt', 'qualityChecks',
+            'qualityNotes', 'qualityTestedBy', 'qualityTestedAt',
+            'refurbishmentGrade', 'warrantyStart', 'warrantyEnd',
+            'completedAt', 'unrepairableReason', 'unrepairableBy',
+            'closedAt', 'updatedAt'
+          ])
+          && (
+            (request.resource.data.status == resource.data.status
+              && resource.data.status in [
+                'awaitingAssessment', 'diagnosed', 'repairInProgress'
+              ])
+            || (resource.data.status == 'awaitingAssessment'
+              && request.resource.data.status in ['diagnosed', 'unrepairable'])
+            || (resource.data.status == 'diagnosed'
+              && request.resource.data.status in ['diagnosed', 'unrepairable'])
+            || (resource.data.status == 'approved'
+              && request.resource.data.status in ['repairInProgress', 'unrepairable'])
+            || (resource.data.status == 'repairInProgress'
+              && request.resource.data.status in ['qualityTesting', 'unrepairable'])
+            || (resource.data.status == 'qualityTesting'
+              && request.resource.data.status in [
+                'completed', 'repairInProgress', 'unrepairable'
+              ])
+          ));
+      allow delete: if isAdministrator();
+
+      match /parts/{partId} {
+        allow read: if isRepairOperator();
+        allow create: if isRepairSupervisor()
+          || isAssignedRepairTechnician(jobId);
+        allow update, delete: if false;
+      }
+
+      match /progress/{eventId} {
+        allow read: if isRepairOperator();
+        allow create: if isRepairSupervisor()
+          || isAssignedRepairTechnician(jobId)
+          || (request.resource.data.type == 'assessmentCreated'
+            && request.resource.data.actorId == request.auth.uid);
+        allow update, delete: if false;
+      }
+    }
+
+    match /recyclingBatches/{batchId} {
+      allow read: if isRecyclingOperator();
+      allow create: if isRecyclingOperator()
+        && request.resource.data.inputWeightKg is number
+        && request.resource.data.inputWeightKg > 0
+        && request.resource.data.recoveredWeightKg == 0
+        && request.resource.data.hazardousWeightKg == 0
+        && request.resource.data.disposedWeightKg == 0
+        && request.resource.data.processingLossKg == 0;
+      allow update: if isRecyclingOperator()
+        && request.resource.data.inputWeightKg == resource.data.inputWeightKg
+        && request.resource.data.recoveredWeightKg >= 0
+        && request.resource.data.hazardousWeightKg >= 0
+        && request.resource.data.disposedWeightKg >= 0
+        && request.resource.data.processingLossKg >= 0
+        && request.resource.data.recoveredWeightKg
+          + request.resource.data.hazardousWeightKg
+          + request.resource.data.disposedWeightKg
+          + request.resource.data.processingLossKg
+          <= request.resource.data.inputWeightKg
+        && (request.resource.data.completionVerified != true
+          || isRecyclingSupervisor());
+      allow delete: if isAdministrator();
+
+      match /processRecords/{recordId} {
+        allow read, create: if isRecyclingOperator();
+        allow update, delete: if false;
+      }
+
+      match /finalDisposals/{recordId} {
+        allow read, create: if isRecyclingOperator();
+        allow update, delete: if false;
+      }
+    }
+
+    match /recoveredMaterialLots/{lotId} {
+      allow read: if isRecyclingOperator();
+      allow create: if isRecyclingOperator()
+        && request.resource.data.weightKg is number
+        && request.resource.data.weightKg > 0
+        && request.resource.data.unitMarketValue >= 0;
+      allow update: if isRecyclingOperator()
+        && request.resource.data.weightKg == resource.data.weightKg
+        && request.resource.data.unitMarketValue >= 0
+        && request.resource.data.saleRevenue >= 0;
+      allow delete: if isAdministrator();
+
+      match /transfers/{transferId} {
+        allow read, create: if isRecyclingOperator();
+        allow update, delete: if false;
+      }
+    }
+
+    match /materialCategories/{categoryId} {
+      allow read, create, update: if isRecyclingOperator();
+      allow delete: if isAdministrator();
+    }
+
+    match /materialBuyers/{buyerId} {
+      allow read, create, update: if isRecyclingOperator();
+      allow delete: if isAdministrator();
+    }
+
+    match /hazardousWasteRecords/{recordId} {
+      allow read: if isHazardousOperator();
+      allow create: if isHazardousOperator()
+        && request.resource.data.weightKg is number
+        && request.resource.data.weightKg > 0
+        && request.resource.data.status == 'identified';
+      allow update: if isHazardousOperator()
+        && request.resource.data.weightKg == resource.data.weightKg
+        && (request.resource.data.status != 'certified'
+          || isHazardousSupervisor());
+      allow delete: if isAdministrator();
+
+      match /incidents/{incidentId} {
+        allow read, create, update: if isHazardousOperator();
+        allow delete: if false;
+      }
+
+      match /transfers/{transferId} {
+        allow read, create: if isHazardousOperator();
+        allow update, delete: if false;
+      }
+
+      match /handlingRecords/{recordId} {
+        allow read, create: if isHazardousOperator();
+        allow update, delete: if false;
+      }
+
+      match /complianceDocuments/{documentId} {
+        allow read, create: if isHazardousOperator();
+        allow update, delete: if false;
+      }
+    }
+
+    match /hazardousSafetyTraining/{trainingId} {
+      allow read: if isHazardousOperator();
+      allow create, update: if isHazardousSupervisor();
+      allow delete: if isAdministrator();
+    }
+
+    match /reverseLogisticsTransfers/{transferId} {
+      allow read: if isReverseOperator();
+      allow create: if isReverseSupervisor()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.status == 'draft'
+        && request.resource.data.itemCount > 0
+        && request.resource.data.weightKg > 0
+        && request.resource.data.originName.size() > 0
+        && request.resource.data.destinationName.size() > 0;
+      allow update: if isReverseSupervisor()
+        || (isAssignedTransferDriver(transferId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'deliveryProofUrl', 'deliveryNotes', 'deliveredAt',
+            'resumeStatus', 'openExceptionCount', 'updatedAt'
+          ]))
+        || (isReverseOperator()
+          && request.resource.data.status == 'exceptionHold'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'resumeStatus', 'openExceptionCount', 'updatedAt'
+          ]))
+        || (isReverseReceiver()
+          && resource.data.status == 'delivered'
+          && request.resource.data.status == 'received'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'status', 'receivedBy', 'receiptNotes', 'receivedAt', 'updatedAt'
+          ]));
+      allow delete: if isAdministrator();
+
+      match /custodyEvents/{eventId} {
+        allow read, create: if isReverseOperator();
+        allow update, delete: if false;
+      }
+
+      match /exceptions/{exceptionId} {
+        allow read, create: if isReverseOperator();
+        allow update: if isReverseSupervisor();
+        allow delete: if false;
+      }
+    }
+
+    match /environmentalImpactReports/{reportId} {
+      allow read: if isRecyclingSupervisor();
+      allow create: if isRecyclingSupervisor()
+        && request.resource.data.generatedBy == request.auth.uid
+        && request.resource.data.totalCollectedKg >= 0
+        && request.resource.data.totalRecycledKg >= 0
+        && request.resource.data.landfillDiversionRate >= 0
+        && request.resource.data.landfillDiversionRate <= 100
+        && request.resource.data.factorVersion.size() > 0;
+      allow update: if false;
+      allow delete: if isAdministrator();
+    }
+
+    match /supportTickets/{ticketId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'submitted'
+        && request.resource.data.subject.size() > 0
+        && request.resource.data.description.size() > 0;
+      allow read: if isSupportAgent()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update: if isSupportAgent()
+        || (signedIn()
+          && resource.data.userId == request.auth.uid
+          && request.resource.data.userId == resource.data.userId
+          && (
+            (resource.data.status == 'resolved'
+              && request.resource.data.status == 'reopened'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'status', 'reopenedBy', 'reopenedAt', 'updatedAt'
+              ]))
+            || (resource.data.status == 'resolved'
+              && request.resource.data.status == 'closed'
+              && request.resource.data.satisfactionRating is int
+              && request.resource.data.satisfactionRating >= 1
+              && request.resource.data.satisfactionRating <= 5
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'satisfactionRating', 'satisfactionComment', 'status',
+                'ratedAt', 'updatedAt'
+              ]))
+            || (resource.data.status == 'waitingForUser'
+              && request.resource.data.status == 'inProgress'
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'status', 'updatedAt'
+              ]))
+            || (request.resource.data.status == resource.data.status
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'updatedAt'
+              ]))
+          ));
+      allow delete: if isAdministrator();
+
+      match /messages/{messageId} {
+        allow read: if isSupportAgent()
+          || (signedIn()
+            && get(/databases/$(database)/documents/supportTickets/$(ticketId)).data.userId == request.auth.uid
+            && resource.data.internal == false);
+        allow create: if isSupportAgent()
+          || (signedIn()
+            && get(/databases/$(database)/documents/supportTickets/$(ticketId)).data.userId == request.auth.uid
+            && request.resource.data.senderId == request.auth.uid
+            && request.resource.data.internal == false);
+        allow update, delete: if false;
+      }
+    }
+
+    match /supportKnowledgeBase/{articleId} {
+      allow read: if isSupportAgent()
+        || (signedIn() && resource.data.published == true);
+      allow create: if isSupportAgent();
+      allow update: if isSupportAgent()
+        || (signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'viewCount'
+          ])
+          && request.resource.data.viewCount == resource.data.viewCount + 1);
+      allow delete: if isAdministrator();
+    }
+
+    match /regulatoryBodies/{bodyId} {
+      allow read, create, update: if isComplianceManager();
+      allow delete: if isAdministrator();
+    }
+
+    match /complianceDocuments/{documentId} {
+      allow read: if isComplianceManager();
+      allow create: if isComplianceManager()
+        && request.resource.data.title.size() > 0
+        && request.resource.data.referenceNumber.size() > 0;
+      allow update: if isComplianceManager();
+      allow delete: if isAdministrator();
+    }
+
+    match /complianceRequirements/{requirementId} {
+      allow read, create, update: if isComplianceManager();
+      allow delete: if isAdministrator();
+    }
+
+    match /complianceInspections/{inspectionId} {
+      allow read, create, update: if isComplianceManager();
+      allow delete: if isAdministrator();
+    }
+
+    match /complianceViolations/{violationId} {
+      allow read, create, update: if isComplianceManager();
+      allow delete: if isAdministrator();
+    }
+
+    match /compliancePenalties/{penaltyId} {
+      allow read: if isComplianceManager();
+      allow create: if isComplianceManager()
+        && request.resource.data.amount >= 0;
+      allow update: if isComplianceManager();
+      allow delete: if isAdministrator();
+    }
+
+    match /servicePartners/{partnerId} {
+      allow read: if isComplianceManager();
+      allow create: if isComplianceManager()
+        && request.resource.data.name.size() > 0
+        && request.resource.data.status == 'pendingVerification'
+        && request.resource.data.facilityCapacityKg >= 0;
+      allow update: if isComplianceManager()
+        && request.resource.data.facilityCapacityKg >= 0
+        && request.resource.data.performanceRating >= 0
+        && request.resource.data.performanceRating <= 5
+        && request.resource.data.complianceScore >= 0
+        && request.resource.data.complianceScore <= 100;
+      allow delete: if isAdministrator();
+
+      match /documents/{documentId} {
+        allow read, create, update: if isComplianceManager();
+        allow delete: if isAdministrator();
+      }
+
+      match /contracts/{contractId} {
+        allow read, create, update: if isComplianceManager();
+        allow delete: if isAdministrator();
+      }
+
+      match /serviceRecords/{recordId} {
+        allow read, create: if isComplianceManager();
+        allow update, delete: if false;
+      }
+
+      match /complianceRecords/{recordId} {
+        allow read, create: if isComplianceManager();
+        allow update, delete: if false;
+      }
+    }
+
+    match /marketplaceProfiles/{profileId} {
+      allow read: if signedIn();
+      allow create: if owns(profileId)
+        && (request.resource.data.type == 'buyer'
+          || isMarketplaceSeller());
+      allow update: if owns(profileId) || isAdministrator()
+        || (signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'rating', 'reviewCount', 'updatedAt'
+          ])
+          && request.resource.data.rating >= 0
+          && request.resource.data.rating <= 5
+          && request.resource.data.reviewCount == resource.data.reviewCount + 1);
+      allow delete: if owns(profileId) || isAdministrator();
+    }
+
+    match /marketplaceListings/{listingId} {
+      allow read: if signedIn();
+      allow create: if isMarketplaceSeller()
+        && request.resource.data.sellerId == request.auth.uid
+        && request.resource.data.unitPrice >= 0
+        && request.resource.data.totalQuantity > 0
+        && request.resource.data.availableQuantity == request.resource.data.totalQuantity;
+      allow update: if isAdministrator()
+        || (isMarketplaceSeller() && resource.data.sellerId == request.auth.uid)
+        || (signedIn()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'availableQuantity', 'status', 'updatedAt'
+          ])
+          && request.resource.data.availableQuantity >= 0
+          && request.resource.data.availableQuantity <= resource.data.totalQuantity);
+      allow delete: if isAdministrator();
+    }
+
+    match /marketplaceOrders/{orderId} {
+      allow create: if signedIn()
+        && request.resource.data.buyerId == request.auth.uid
+        && request.auth.uid in request.resource.data.participantIds
+        && request.resource.data.quantity > 0
+        && request.resource.data.totalAmount >= 0;
+      allow read: if signedIn() && request.auth.uid in resource.data.participantIds;
+      allow update: if isAdministrator()
+        || (signedIn()
+          && request.resource.data.buyerId == resource.data.buyerId
+          && request.resource.data.sellerId == resource.data.sellerId
+          && request.resource.data.listingId == resource.data.listingId
+          && request.resource.data.totalAmount == resource.data.totalAmount
+          && (
+            (resource.data.sellerId == request.auth.uid)
+            || (resource.data.buyerId == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                'paymentMethod', 'paymentReference', 'paymentStatus',
+                'status', 'cancelledAt', 'completedAt', 'updatedAt'
+              ]))
+          ));
+      allow delete: if false;
+
+      match /deliveryEvents/{eventId} {
+        allow read: if signedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/marketplaceOrders/$(orderId)).data.participantIds;
+        allow create: if signedIn()
+          && get(/databases/$(database)/documents/marketplaceOrders/$(orderId)).data.sellerId == request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
+    match /marketplaceQuotes/{quoteId} {
+      allow create: if signedIn()
+        && request.resource.data.buyerId == request.auth.uid
+        && request.auth.uid in request.resource.data.participantIds;
+      allow read: if signedIn() && request.auth.uid in resource.data.participantIds;
+      allow update: if signedIn() && resource.data.sellerId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /marketplaceReviews/{reviewId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.buyerId == request.auth.uid
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow update, delete: if false;
+    }
+
+    match /donationBeneficiaries/{beneficiaryId} {
+      allow read: if signedIn();
+      allow create, update: if isComplianceManager();
+      allow delete: if isAdministrator();
+    }
+    match /donationRequests/{requestId} {
+      allow create: if signedIn() && request.resource.data.requesterId == request.auth.uid && request.resource.data.quantity > 0;
+      allow read: if isComplianceManager() || (signedIn() && resource.data.requesterId == request.auth.uid);
+      allow update: if isComplianceManager() || (signedIn() && resource.data.requesterId == request.auth.uid && resource.data.status == 'delivered' && request.resource.data.status == 'confirmed');
+      allow delete: if isAdministrator();
+      match /impactRecords/{recordId} { allow read: if signedIn(); allow create: if isComplianceManager(); allow update, delete: if false; }
+    }
+    match /rewardWallets/{userId} {
+      allow read: if signedIn();
+      allow create: if owns(userId) || isComplianceManager();
+      allow update: if isComplianceManager() || (owns(userId) && request.resource.data.balance <= resource.data.balance);
+      allow delete: if false;
+      match /history/{entryId} { allow read: if owns(userId) || isComplianceManager(); allow create: if isComplianceManager() || (owns(userId) && request.resource.data.points < 0); allow update, delete: if false; }
+    }
+    match /recyclingChallenges/{id} { allow read: if signedIn(); allow write: if isComplianceManager(); }
+    match /rewardCoupons/{id} { allow read: if signedIn(); allow write: if isComplianceManager(); }
+    match /rewardRedemptions/{id} { allow create: if signedIn() && request.resource.data.userId == request.auth.uid; allow read: if isComplianceManager() || (signedIn() && resource.data.userId == request.auth.uid); allow update, delete: if isComplianceManager(); }
+    match /invoices/{invoiceId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid && request.resource.data.total >= 0;
+      allow read: if isAdministrator() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update: if isAdministrator() || (signedIn() && resource.data.userId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'transactionId']));
+      allow delete: if false;
+    }
+    match /financialTransactions/{transactionId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid && request.auth.uid in request.resource.data.participantIds && request.resource.data.amount >= 0;
+      allow read: if isAdministrator() || (signedIn() && request.auth.uid in resource.data.participantIds);
+      allow update: if isAdministrator() || (signedIn() && resource.data.userId == request.auth.uid && resource.data.status == 'failed' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'providerReference', 'failureReason', 'retryCount', 'updatedAt']));
+      allow delete: if false;
+    }
+    match /payouts/{payoutId} { allow read, create, update: if isAdministrator(); allow delete: if false; }
+    match /financialReconciliations/{id} { allow read, create: if isAdministrator(); allow update, delete: if false; }
+    match /billingTransactions/{id} { allow create: if signedIn() && request.resource.data.payerId == request.auth.uid && request.auth.uid in request.resource.data.participantIds && request.resource.data.total >= 0; allow read: if isAdministrator() || (signedIn() && request.auth.uid in resource.data.participantIds); allow update: if isAdministrator(); allow delete: if false; }
+    match /billingInvoices/{id} { allow read: if isAdministrator() || (signedIn() && resource.data.customerId == request.auth.uid); allow create, update: if isAdministrator(); allow delete: if false; }
+    match /reportSchedules/{id} { allow read, create, update: if isComplianceManager(); allow delete: if isAdministrator(); }
+    match /notificationPreferences/{userId} { allow read, write: if owns(userId) || isAdministrator(); }
+    match /notificationTemplates/{id} { allow read: if signedIn(); allow write: if isAdministrator(); }
+    match /notificationOutbox/{id} { allow read, create, update: if isAdministrator(); allow delete: if false; }
+    match /safetyIncidents/{incidentId} { allow read, create: if isReverseOperator(); allow update: if isComplianceManager(); allow delete: if isAdministrator(); match /followUps/{id} { allow read: if isReverseOperator(); allow create: if isComplianceManager(); allow update, delete: if false; } }
+    match /emergencyContacts/{id} { allow read: if isReverseOperator(); allow write: if isComplianceManager(); }
+    match /managedDocuments/{documentId} {
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow read: if isComplianceManager() || (signedIn() && resource.data.ownerId == request.auth.uid);
+      allow update: if isComplianceManager() || (signedIn() && resource.data.ownerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentVersion','fileName','mimeType','url','status','updatedAt']));
+      allow delete: if isAdministrator();
+      match /versions/{id} { allow read, create: if isComplianceManager() || get(/databases/$(database)/documents/managedDocuments/$(documentId)).data.ownerId == request.auth.uid; allow update, delete: if false; }
+      match /auditTrail/{id} { allow read, create: if isComplianceManager() || get(/databases/$(database)/documents/managedDocuments/$(documentId)).data.ownerId == request.auth.uid; allow update, delete: if false; }
+    }
+
+    // Global audit records are append-only. Trusted backend triggers can add
+    // source=server records and enrich public IP metadata using Admin SDK.
+    match /auditLogs/{eventId} {
+      allow read: if isAdministrator();
+      allow create: if signedIn()
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasAll([
+          'actorId', 'action', 'entityType', 'entityId', 'description',
+          'deviceInformation', 'success', 'source', 'integrityVersion',
+          'createdAt'
+        ]);
+      allow update, delete: if false;
+    }
+    match /systemRoles/{roleId} {
+      allow read, create, update: if isAdministrator();
+      allow delete: if false;
+    }
+    match /systemConfiguration/{documentId} {
+      allow read, create, update: if isAdministrator();
+      allow delete: if false;
+    }
+    match /roleChangeRequests/{requestId} {
+      allow read, create, update: if isAdministrator();
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
