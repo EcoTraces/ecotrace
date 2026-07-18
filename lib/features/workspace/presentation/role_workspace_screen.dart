@@ -54,7 +54,9 @@ import '../../support/data/support_repository.dart';
 import '../../support/presentation/support_screens.dart';
 import '../../traceability/data/traceability_repository.dart';
 import '../../traceability/presentation/traceability_screens.dart';
+import '../data/admin_overview_repository.dart';
 import '../domain/application_interface.dart';
+import 'administrator_overview_dashboard.dart';
 
 class RoleWorkspaceScreen extends StatelessWidget {
   const RoleWorkspaceScreen({
@@ -401,6 +403,13 @@ class RoleWorkspaceScreen extends StatelessWidget {
   }
 
   Widget _dashboard(BuildContext context) {
+    if (isAdministrator) {
+      return AdministratorOverviewDashboard(
+        repository: AdminOverviewRepository(),
+        onOpen: (destination) => _open(context, destination),
+        footer: const _ImpactFooter(),
+      );
+    }
     final actions = destinations
         .where((destination) => destination != WorkspaceDestination.dashboard)
         .toList();
