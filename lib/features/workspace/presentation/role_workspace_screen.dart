@@ -57,6 +57,7 @@ import '../../traceability/presentation/traceability_screens.dart';
 import '../data/admin_overview_repository.dart';
 import '../domain/application_interface.dart';
 import 'administrator_overview_dashboard.dart';
+import 'field_operations_dashboard.dart';
 
 class RoleWorkspaceScreen extends StatelessWidget {
   const RoleWorkspaceScreen({
@@ -254,12 +255,17 @@ class RoleWorkspaceScreen extends StatelessWidget {
     final name = profile.displayName.isEmpty
         ? profile.email.split('@').first
         : profile.displayName;
+    final fieldRole = profile.role == AppRole.driver
+        ? 'Driver'
+        : profile.role == AppRole.collector
+        ? 'Collector'
+        : null;
     final introduction = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Dashboard Overview',
+          fieldRole == null ? 'Dashboard Overview' : '$fieldRole Dashboard',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
@@ -267,7 +273,9 @@ class RoleWorkspaceScreen extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          "Welcome back, $name! Here's what's happening in EcoTrace today.",
+          fieldRole == null
+              ? "Welcome back, $name! Here's what's happening in EcoTrace today."
+              : 'Welcome back, $name! Here are your field operations for today.',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -410,6 +418,16 @@ class RoleWorkspaceScreen extends StatelessWidget {
         footer: const _ImpactFooter(),
       );
     }
+    if (profile.role == AppRole.collector || profile.role == AppRole.driver) {
+      return FieldOperationsDashboard(
+        userId: profile.uid,
+        role: profile.role,
+        dispatchRepository: DispatchRepository(),
+        fleetRepository: FleetRepository(),
+        onOpen: (destination) => _open(context, destination),
+        footer: const _ImpactFooter(),
+      );
+    }
     final actions = destinations
         .where((destination) => destination != WorkspaceDestination.dashboard)
         .toList();
@@ -527,6 +545,8 @@ class RoleWorkspaceScreen extends StatelessWidget {
     WorkspaceDestination.pickupRequests ||
     WorkspaceDestination.collections => DispatchDashboardScreen(
       repository: DispatchRepository(),
+      routeRepository: RouteRepository(),
+      canGenerateRoutes: isAdministrator,
     ),
     WorkspaceDestination.routeNavigation => RouteDashboardScreen(
       repository: RouteRepository(),

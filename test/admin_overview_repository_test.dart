@@ -96,5 +96,36 @@ void main() {
       expect(snapshot.recentCollections, isEmpty);
       expect(snapshot.collectionTrend, hasLength(8));
     });
+
+    test(
+      'reports progressive loading without blocking empty dashboard data',
+      () {
+        final loading = AdminOverviewSnapshot.fromRecords(
+          const {},
+          loadedSources: const {'pickups', 'inventory'},
+          sourceCount: 9,
+        );
+        final completedWithFailure = AdminOverviewSnapshot.fromRecords(
+          const {},
+          loadedSources: const {
+            'pickups',
+            'inventory',
+            'recycling',
+            'materials',
+            'hazardous',
+            'repairs',
+            'users',
+            'partners',
+          },
+          failedSources: const {'centres'},
+          sourceCount: 9,
+        );
+
+        expect(loading.isLoading, isTrue);
+        expect(loading.totalCollections, 0);
+        expect(completedWithFailure.isLoading, isFalse);
+        expect(completedWithFailure.failedSources, {'centres'});
+      },
+    );
   });
 }

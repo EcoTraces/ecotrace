@@ -19,6 +19,8 @@ class AdminOverviewRepository {
     late StreamController<AdminOverviewSnapshot> controller;
     final subscriptions = <StreamSubscription<dynamic>>[];
     final records = <String, List<Map<String, dynamic>>>{};
+    final loadedSources = <String>{};
+    final failedSources = <String>{};
     final collections = <String, String>{
       'pickups': 'pickupRequests',
       'inventory': 'inventoryItems',
@@ -32,11 +34,14 @@ class AdminOverviewRepository {
     };
 
     void emit() {
-      if (records.length != collections.length || controller.isClosed) return;
+      if (controller.isClosed) return;
       controller.add(
         AdminOverviewSnapshot.fromRecords(
           records,
           impactCalculator: _impactCalculator,
+          loadedSources: loadedSources,
+          failedSources: failedSources,
+          sourceCount: collections.length,
         ),
       );
     }
@@ -44,15 +49,33 @@ class AdminOverviewRepository {
     controller = StreamController<AdminOverviewSnapshot>.broadcast(
       onListen: () {
         for (final entry in collections.entries) {
+          records[entry.key] = const [];
           subscriptions.add(
-            _db.collection(entry.value).snapshots().listen((snapshot) {
-              records[entry.key] = snapshot.docs
-                  .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
-                  .toList();
-              emit();
-            }, onError: controller.addError),
+            _db
+                .collection(entry.value)
+                .snapshots()
+                .listen(
+                  (snapshot) {
+                    records[entry.key] = snapshot.docs
+                        .map(
+                          (doc) => <String, dynamic>{
+                            'id': doc.id,
+                            ...doc.data(),
+                          },
+                        )
+                        .toList();
+                    loadedSources.add(entry.key);
+                    failedSources.remove(entry.key);
+                    emit();
+                  },
+                  onError: (_) {
+                    failedSources.add(entry.key);
+                    emit();
+                  },
+                ),
           );
         }
+        scheduleMicrotask(emit);
       },
       onCancel: () async {
         for (final subscription in subscriptions) {
@@ -80,6 +103,9 @@ class AdminOverviewSnapshot {
     required this.recentCollections,
     required this.collectionLocations,
     required this.impact,
+    this.loadedSources = const {},
+    this.failedSources = const {},
+    this.sourceCount = 0,
   });
 
   final int totalCollections;
@@ -96,6 +122,12 @@ class AdminOverviewSnapshot {
   final List<RecentCollectionSummary> recentCollections;
   final List<CollectionLocationSummary> collectionLocations;
   final EnvironmentalImpactSnapshot impact;
+  final Set<String> loadedSources;
+  final Set<String> failedSources;
+  final int sourceCount;
+
+  bool get isLoading =>
+      loadedSources.length + failedSources.length < sourceCount;
 
   int get completedPickups => pickupStatuses['Completed'] ?? 0;
   int get allPickups => pickupStatuses.values.fold(0, (a, b) => a + b);
@@ -107,6 +139,9 @@ class AdminOverviewSnapshot {
     EnvironmentalImpactCalculator impactCalculator =
         const EnvironmentalImpactCalculator(),
     DateTime? now,
+    Set<String> loadedSources = const {},
+    Set<String> failedSources = const {},
+    int sourceCount = 0,
   }) {
     final generatedAt = now ?? DateTime.now();
     final pickups = records['pickups'] ?? const [];
@@ -270,6 +305,9 @@ class AdminOverviewSnapshot {
           .map(CollectionLocationSummary.fromRecord)
           .toList(),
       impact: impact,
+      loadedSources: Set.unmodifiable(loadedSources),
+      failedSources: Set.unmodifiable(failedSources),
+      sourceCount: sourceCount,
     );
   }
 

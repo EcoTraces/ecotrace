@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../../core/app_features.dart';
 import '../data/pickup_repository.dart';
 import '../domain/pickup.dart';
 
@@ -111,22 +112,52 @@ class _CreatePickupState extends State<CreatePickupScreen> {
             decoration: const InputDecoration(labelText: 'Quantity'),
           ),
           const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: photos.length >= 5
-                ? null
-                : () async {
-                    final selected = await ImagePicker().pickMultiImage(
-                      imageQuality: 75,
-                    );
-                    if (selected.isNotEmpty) {
-                      setState(() {
-                        photos.addAll(selected.take(5 - photos.length));
-                      });
-                    }
-                  },
-            icon: const Icon(Icons.add_a_photo_outlined),
-            label: Text('Item photos (${photos.length}/5)'),
-          ),
+          if (AppFeatures.firebaseStorageUploadsEnabled)
+            OutlinedButton.icon(
+              onPressed: photos.length >= 5
+                  ? null
+                  : () async {
+                      final selected = await ImagePicker().pickMultiImage(
+                        imageQuality: 75,
+                      );
+                      if (selected.isNotEmpty) {
+                        setState(() {
+                          photos.addAll(selected.take(5 - photos.length));
+                        });
+                      }
+                    },
+              icon: const Icon(Icons.add_a_photo_outlined),
+              label: Text('Item photos (${photos.length}/5)'),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Theme.of(c).colorScheme.outlineVariant,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.image_not_supported_outlined),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Pickup photos are optional'),
+                        SizedBox(height: 2),
+                        Text(
+                          'Image uploads are unavailable on the Firebase Spark plan. You can submit without images.',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: 12),
           TextField(
             controller: w,
@@ -228,14 +259,16 @@ class _CreatePickupState extends State<CreatePickupScreen> {
                     }
                     setState(() => busy = true);
                     try {
-                      final uploads = await Future.wait(
-                        photos.map(
-                          (photo) async => PickupPhoto(
-                            name: photo.name,
-                            bytes: await photo.readAsBytes(),
-                          ),
-                        ),
-                      );
+                      final uploads = AppFeatures.firebaseStorageUploadsEnabled
+                          ? await Future.wait(
+                              photos.map(
+                                (photo) async => PickupPhoto(
+                                  name: photo.name,
+                                  bytes: await photo.readAsBytes(),
+                                ),
+                              ),
+                            )
+                          : const <PickupPhoto>[];
                       await widget.repository.create(
                         uid: widget.uid,
                         category: category,

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -208,6 +209,11 @@ class _DriverRouteState extends State<DriverRouteScreen> {
       return false;
     }
 
+    // Browsers do not support the mobile-only locationAlways permission.
+    // Web navigation uses the browser geolocation prompt and remains active
+    // while the EcoTrace tab is open.
+    if (kIsWeb) return _ensureWebLocationPermission();
+
     if (await Permission.locationAlways.isGranted) return true;
     if (!mounted) return false;
     final accepted =
@@ -277,6 +283,36 @@ class _DriverRouteState extends State<DriverRouteScreen> {
     return false;
   }
 
+  Future<bool> _ensureWebLocationPermission() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always) {
+      return true;
+    }
+    if (!mounted) return false;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Browser location permission needed'),
+        content: const Text(
+          'Allow location access for this localhost site in your browser, '
+          'then start live navigation again. Web tracking works while the '
+          'EcoTrace tab remains open.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    return false;
+  }
+
   Future<bool> _showActionDialog({
     required String title,
     required String message,
@@ -310,9 +346,9 @@ class _DriverRouteState extends State<DriverRouteScreen> {
   void _showTrackingError(Object error) {
     if (!mounted) return;
     setState(() => tracking = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('GPS tracking stopped: $error')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('GPS tracking stopped: $error')));
   }
 
   @override
@@ -356,12 +392,18 @@ class _DriverRouteState extends State<DriverRouteScreen> {
             ),
             Text('Deviation alerts: ${route.deviationCount}'),
             if (tracking)
-              const Card(
+              Card(
                 child: ListTile(
-                  leading: Icon(Icons.location_on),
-                  title: Text('Background GPS is active'),
+                  leading: const Icon(Icons.location_on),
+                  title: Text(
+                    kIsWeb
+                        ? 'Browser GPS is active'
+                        : 'Background GPS is active',
+                  ),
                   subtitle: Text(
-                    'Location updates continue when EcoTrace is not in use. Pause or complete the route to stop.',
+                    kIsWeb
+                        ? 'Keep this EcoTrace tab open to continue location updates. Pause or complete the route to stop.'
+                        : 'Location updates continue when EcoTrace is not in use. Pause or complete the route to stop.',
                   ),
                 ),
               ),

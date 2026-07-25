@@ -62,11 +62,31 @@ class RouteRepository {
     }
     return Geolocator.getPositionStream(locationSettings: settings);
   }
+
   Future<RoutePlan> optimize(CollectionSchedule schedule) async {
+    final existing = await _db
+        .collection('routePlans')
+        .where('scheduleId', isEqualTo: schedule.id)
+        .limit(1)
+        .get();
+    if (existing.docs.isNotEmpty) {
+      final route = RoutePlan.fromDoc(existing.docs.first);
+      await _db.collection('collectionSchedules').doc(schedule.id).update({
+        'routePlanId': route.id,
+        'routeDistanceKm': route.distanceKm,
+        'estimatedTravelMinutes': route.estimatedMinutes,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return route;
+    }
+
     final pickups = <PickupRequest>[];
     for (final id in schedule.pickupIds) {
       final doc = await _db.collection('pickupRequests').doc(id).get();
       if (doc.exists) pickups.add(PickupRequest.fromDoc(doc));
+    }
+    if (pickups.isEmpty) {
+      throw StateError('This schedule does not contain any available pickups.');
     }
     if (pickups.any((p) => p.latitude == null || p.longitude == null)) {
       throw StateError(

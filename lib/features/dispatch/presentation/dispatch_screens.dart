@@ -3,18 +3,27 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../fleet/domain/vehicle.dart';
 import '../../pickups/domain/pickup.dart';
+import '../../routing/data/route_repository.dart';
 import '../data/dispatch_repository.dart';
 import '../domain/collection_schedule.dart';
 
 class DispatchDashboardScreen extends StatefulWidget {
-  const DispatchDashboardScreen({super.key, required this.repository});
+  const DispatchDashboardScreen({
+    super.key,
+    required this.repository,
+    this.routeRepository,
+    this.canGenerateRoutes = false,
+  });
   final DispatchRepository repository;
+  final RouteRepository? routeRepository;
+  final bool canGenerateRoutes;
   @override
   State<DispatchDashboardScreen> createState() => _DispatchDashboardState();
 }
 
 class _DispatchDashboardState extends State<DispatchDashboardScreen> {
   DateTime day = DateTime.now();
+  final generatingRoutes = <String>{};
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -80,20 +89,36 @@ class _DispatchDashboardState extends State<DispatchDashboardScreen> {
                   isThreeLine: true,
                   trailing: PopupMenuButton<String>(
                     onSelected: (action) => _action(context, job, action),
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
+                    itemBuilder: (_) => [
+                      if (widget.canGenerateRoutes)
+                        PopupMenuItem(
+                          value: 'generateRoute',
+                          enabled: !generatingRoutes.contains(job.id),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.alt_route, size: 20),
+                              const SizedBox(width: 12),
+                              Text(
+                                generatingRoutes.contains(job.id)
+                                    ? 'Generating route...'
+                                    : 'Generate route',
+                              ),
+                            ],
+                          ),
+                        ),
+                      const PopupMenuItem(
                         value: 'dispatch',
                         child: Text('Dispatch team'),
                       ),
-                      PopupMenuItem(
+                      const PopupMenuItem(
                         value: 'start',
                         child: Text('Start collection'),
                       ),
-                      PopupMenuItem(
+                      const PopupMenuItem(
                         value: 'complete',
                         child: Text('Complete with evidence'),
                       ),
-                      PopupMenuItem(
+                      const PopupMenuItem(
                         value: 'missed',
                         child: Text('Reschedule missed job'),
                       ),
@@ -123,6 +148,23 @@ class _DispatchDashboardState extends State<DispatchDashboardScreen> {
     String action,
   ) async {
     try {
+      if (action == 'generateRoute') {
+        if (generatingRoutes.contains(job.id)) return;
+        setState(() => generatingRoutes.add(job.id));
+        final route = await (widget.routeRepository ?? RouteRepository())
+            .optimize(job);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Route ready for driver ${job.driverId}: '
+                '${route.stops.length} stops, '
+                '${route.distanceKm.toStringAsFixed(1)} km.',
+              ),
+            ),
+          );
+        }
+      }
       if (action == 'dispatch') await widget.repository.dispatch(job);
       if (action == 'start') await widget.repository.start(job);
       if (action == 'complete') {
@@ -149,9 +191,16 @@ class _DispatchDashboardState extends State<DispatchDashboardScreen> {
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Dispatch action failed: $error')),
-        );
+        final label = action == 'generateRoute'
+            ? 'Route generation failed'
+            : 'Dispatch action failed';
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$label: $error')));
+      }
+    } finally {
+      if (action == 'generateRoute' && mounted) {
+        setState(() => generatingRoutes.remove(job.id));
       }
     }
   }

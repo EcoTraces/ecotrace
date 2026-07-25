@@ -1010,6 +1010,11 @@ class RoleHomeScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (_) => DispatchDashboardScreen(
                           repository: DispatchRepository(),
+                          routeRepository: RouteRepository(),
+                          canGenerateRoutes: [
+                            AppRole.administrator,
+                            AppRole.superAdministrator,
+                          ].contains(profile.role),
                         ),
                       ),
                     ),

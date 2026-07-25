@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:wastemanagementsystem/core/app_features.dart';
 import 'package:wastemanagementsystem/features/pickups/domain/pickup.dart';
 
 void main() {
@@ -7,5 +8,8 @@ void main() {
   });
   test('production lifecycle statuses are represented', () {
     expect(PickupStatus.values, hasLength(10));
+  });
+  test('Firebase Storage uploads are disabled for the default Spark build', () {
+    expect(AppFeatures.firebaseStorageUploadsEnabled, isFalse);
   });
 }

@@ -149,9 +149,9 @@ class _DashboardBody extends StatelessWidget {
             ),
           ),
         ),
-        const SliverPadding(
-          padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
-          sliver: SliverToBoxAdapter(child: _LiveDataNote()),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          sliver: SliverToBoxAdapter(child: _LiveDataNote(data: data)),
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
@@ -1167,20 +1167,43 @@ class _StatusPill extends StatelessWidget {
 }
 
 class _LiveDataNote extends StatelessWidget {
-  const _LiveDataNote();
+  const _LiveDataNote({required this.data});
+
+  final AdminOverviewSnapshot data;
 
   @override
-  Widget build(BuildContext context) => const Row(
-    mainAxisAlignment: MainAxisAlignment.end,
-    children: [
-      Icon(Icons.sync, size: 13, color: Color(0xFF5C6A63)),
-      SizedBox(width: 5),
-      Text(
-        'Dashboard updates automatically from Firestore',
-        style: TextStyle(fontSize: 9, color: Color(0xFF5C6A63)),
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    final hasFailures = data.failedSources.isNotEmpty;
+    final label = hasFailures
+        ? '${data.failedSources.length} dashboard section${data.failedSources.length == 1 ? '' : 's'} unavailable'
+        : data.isLoading
+        ? 'Loading live data ${data.loadedSources.length}/${data.sourceCount}'
+        : 'Dashboard updates automatically from Firestore';
+    final color = hasFailures
+        ? const Color(0xFFB56A00)
+        : const Color(0xFF5C6A63);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        if (data.isLoading && !hasFailures)
+          SizedBox(
+            width: 12,
+            height: 12,
+            child: CircularProgressIndicator(strokeWidth: 1.5, color: color),
+          )
+        else
+          Icon(
+            hasFailures ? Icons.warning_amber_rounded : Icons.sync,
+            size: 13,
+            color: color,
+          ),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(label, style: TextStyle(fontSize: 9, color: color)),
+        ),
+      ],
+    );
+  }
 }
 
 class _DashboardMessage extends StatelessWidget {

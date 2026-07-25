@@ -10,128 +10,137 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
+    // Firestore user profiles are the authorization source of truth. A user
+    // cannot change their own role or account status under the /users rules,
+    // so an administrator can grant or revoke operational access without a
+    // separate Admin SDK custom-claim synchronization step.
+    function hasRole(roles) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.accountStatus == 'active'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in roles;
+    }
+
     function isAdministrator() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'administrator',
         'superAdministrator'
-      ];
+      ]);
     }
 
     function isInventoryOperator() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'collector', 'collectionCentreOperator', 'repairTechnician',
         'recycler', 'environmentalOfficer', 'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isDispatchOperator() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'collector', 'driver', 'collectionCentreOperator',
         'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isDispatchSupervisor() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'collectionCentreOperator', 'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isCentreOperator() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'collectionCentreOperator', 'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isRepairOperator() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'repairTechnician', 'environmentalOfficer',
         'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isRepairSupervisor() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'environmentalOfficer', 'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isRecyclingOperator() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'recycler', 'environmentalOfficer',
         'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isRecyclingSupervisor() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'environmentalOfficer', 'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isHazardousOperator() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'recycler', 'environmentalOfficer',
         'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isHazardousSupervisor() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'environmentalOfficer', 'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isReverseOperator() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'collector', 'driver', 'collectionCentreOperator',
         'repairTechnician', 'recycler', 'environmentalOfficer',
         'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isReverseSupervisor() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'collectionCentreOperator', 'environmentalOfficer',
         'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isReverseReceiver() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'collectionCentreOperator', 'repairTechnician', 'recycler',
         'environmentalOfficer', 'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isAssignedTransferDriver(transferId) {
-      return signedIn()
-        && request.auth.token.role == 'driver'
+      return hasRole(['driver'])
         && get(/databases/$(database)/documents/reverseLogisticsTransfers/$(transferId)).data.driverId == request.auth.uid;
     }
 
     function isSupportAgent() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isComplianceManager() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'environmentalOfficer', 'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isMarketplaceSeller() {
-      return signedIn() && request.auth.token.role in [
+      return hasRole([
         'repairTechnician', 'recycler', 'environmentalOfficer',
         'administrator', 'superAdministrator'
-      ];
+      ]);
     }
 
     function isAssignedRepairTechnician(jobId) {
-      return signedIn()
-        && request.auth.token.role == 'repairTechnician'
+      return hasRole(['repairTechnician'])
         && get(/databases/$(database)/documents/repairJobs/$(jobId)).data.technicianId == request.auth.uid;
     }
 
@@ -278,9 +287,9 @@ service cloud.firestore {
         allow read: if isInventoryOperator();
         allow create: if isInventoryOperator()
           && request.resource.data.status == 'pendingSupervisor';
-        allow update: if signedIn() && request.auth.token.role in [
+        allow update: if hasRole([
           'environmentalOfficer', 'administrator', 'superAdministrator'
-        ] && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        ]) && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status', 'reviewReason', 'reviewedAt'
         ]);
         allow delete: if false;
