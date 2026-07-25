@@ -11,25 +11,36 @@ class FieldOperationsDashboard extends StatelessWidget {
   const FieldOperationsDashboard({
     super.key,
     required this.userId,
+    required this.displayName,
     required this.role,
-    required this.dispatchRepository,
-    required this.fleetRepository,
+    this.dispatchRepository,
+    this.fleetRepository,
+    this.schedulesStream,
+    this.vehiclesStream,
     required this.onOpen,
+    required this.onOpenMenu,
     required this.footer,
-  });
+    required this.mobileLayout,
+  }) : assert(dispatchRepository != null || schedulesStream != null),
+       assert(fleetRepository != null || vehiclesStream != null);
 
   final String userId;
+  final String displayName;
   final AppRole role;
-  final DispatchRepository dispatchRepository;
-  final FleetRepository fleetRepository;
+  final DispatchRepository? dispatchRepository;
+  final FleetRepository? fleetRepository;
+  final Stream<List<CollectionSchedule>>? schedulesStream;
+  final Stream<List<Vehicle>>? vehiclesStream;
   final ValueChanged<WorkspaceDestination> onOpen;
+  final VoidCallback onOpenMenu;
   final Widget footer;
+  final bool mobileLayout;
 
   bool get _isDriver => role == AppRole.driver;
 
   @override
   Widget build(BuildContext context) => StreamBuilder<List<CollectionSchedule>>(
-    stream: dispatchRepository.watchDay(DateTime.now()),
+    stream: schedulesStream ?? dispatchRepository!.watchDay(DateTime.now()),
     builder: (context, scheduleSnapshot) {
       if (scheduleSnapshot.hasError) {
         return _FieldMessage(
@@ -48,19 +59,22 @@ class FieldOperationsDashboard extends StatelessWidget {
               .toList()
             ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt));
       return StreamBuilder<List<Vehicle>>(
-        stream: fleetRepository.watchVehicles(),
+        stream: vehiclesStream ?? fleetRepository!.watchVehicles(),
         builder: (context, vehicleSnapshot) {
           final vehicles = vehicleSnapshot.data ?? const <Vehicle>[];
           final vehicle = _assignedVehicle(schedules, vehicles);
           return _FieldDashboardBody(
             schedules: schedules,
             vehicle: vehicle,
+            displayName: displayName,
             isDriver: _isDriver,
             loading:
                 scheduleSnapshot.connectionState == ConnectionState.waiting ||
                 vehicleSnapshot.connectionState == ConnectionState.waiting,
             onOpen: onOpen,
+            onOpenMenu: onOpenMenu,
             footer: footer,
+            mobileLayout: mobileLayout,
           );
         },
       );
@@ -88,18 +102,24 @@ class _FieldDashboardBody extends StatelessWidget {
   const _FieldDashboardBody({
     required this.schedules,
     required this.vehicle,
+    required this.displayName,
     required this.isDriver,
     required this.loading,
     required this.onOpen,
+    required this.onOpenMenu,
     required this.footer,
+    required this.mobileLayout,
   });
 
   final List<CollectionSchedule> schedules;
   final Vehicle? vehicle;
+  final String displayName;
   final bool isDriver;
   final bool loading;
   final ValueChanged<WorkspaceDestination> onOpen;
+  final VoidCallback onOpenMenu;
   final Widget footer;
+  final bool mobileLayout;
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +142,29 @@ class _FieldDashboardBody extends StatelessWidget {
     );
     final current = _currentSchedule;
     final progress = schedules.isEmpty ? 0.0 : completed / schedules.length;
+    final cancelled = schedules
+        .where((schedule) => schedule.status == DispatchStatus.cancelled)
+        .length;
+    final accent = isDriver ? const Color(0xFF075AC8) : const Color(0xFF087A52);
+
+    if (mobileLayout) {
+      return _MobileFieldDashboard(
+        displayName: displayName,
+        schedules: schedules,
+        current: current,
+        vehicle: vehicle,
+        isDriver: isDriver,
+        loading: loading,
+        completed: completed,
+        active: active,
+        cancelled: cancelled,
+        urgent: urgent,
+        progress: progress,
+        accent: accent,
+        onOpen: onOpen,
+        onOpenMenu: onOpenMenu,
+      );
+    }
 
     return ColoredBox(
       color: const Color(0xFFF5F8F6),
@@ -134,6 +177,7 @@ class _FieldDashboardBody extends StatelessWidget {
                 isDriver: isDriver,
                 activeJobs: active,
                 loading: loading,
+                accent: accent,
               ),
             ),
           ),
@@ -143,16 +187,10 @@ class _FieldDashboardBody extends StatelessWidget {
               child: _MetricGrid(
                 metrics: [
                   _FieldMetric(
-                    label: 'Today’s Jobs',
+                    label: isDriver ? 'Trips Assigned' : 'Assigned',
                     value: '${schedules.length}',
                     icon: Icons.assignment_outlined,
-                    color: const Color(0xFF167D50),
-                  ),
-                  _FieldMetric(
-                    label: 'Collection Stops',
-                    value: '$totalStops',
-                    icon: Icons.location_on_outlined,
-                    color: const Color(0xFF3978C8),
+                    color: accent,
                   ),
                   _FieldMetric(
                     label: 'Completed',
@@ -161,10 +199,28 @@ class _FieldDashboardBody extends StatelessWidget {
                     color: const Color(0xFF15905A),
                   ),
                   _FieldMetric(
-                    label: 'Urgent',
-                    value: '$urgent',
-                    icon: Icons.priority_high_rounded,
-                    color: const Color(0xFFE18A1D),
+                    label: isDriver ? 'In Transit' : 'In Progress',
+                    value: '$active',
+                    icon: isDriver
+                        ? Icons.local_shipping_outlined
+                        : Icons.pending_actions_outlined,
+                    color: const Color(0xFFF09B23),
+                  ),
+                  _FieldMetric(
+                    label: isDriver ? 'Pending' : 'Cancelled',
+                    value: isDriver
+                        ? '${schedules.where((s) => s.status == DispatchStatus.planned).length}'
+                        : '$cancelled',
+                    icon: isDriver
+                        ? Icons.schedule_outlined
+                        : Icons.cancel_outlined,
+                    color: const Color(0xFFE04E55),
+                  ),
+                  _FieldMetric(
+                    label: isDriver ? 'On-time Delivery' : 'Completion Rate',
+                    value: '${(progress * 100).round()}%',
+                    icon: Icons.speed_outlined,
+                    color: accent,
                   ),
                 ],
               ),
@@ -179,6 +235,7 @@ class _FieldDashboardBody extends StatelessWidget {
                 first: _CurrentAssignmentCard(
                   schedule: current,
                   isDriver: isDriver,
+                  accent: accent,
                   onOpen: onOpen,
                 ),
                 second: _DailyProgressCard(
@@ -186,6 +243,7 @@ class _FieldDashboardBody extends StatelessWidget {
                   total: schedules.length,
                   stops: totalStops,
                   progress: progress,
+                  accent: accent,
                 ),
               ),
             ),
@@ -245,23 +303,949 @@ class _FieldDashboardBody extends StatelessWidget {
   }
 }
 
+class _MobileFieldDashboard extends StatelessWidget {
+  const _MobileFieldDashboard({
+    required this.displayName,
+    required this.schedules,
+    required this.current,
+    required this.vehicle,
+    required this.isDriver,
+    required this.loading,
+    required this.completed,
+    required this.active,
+    required this.cancelled,
+    required this.urgent,
+    required this.progress,
+    required this.accent,
+    required this.onOpen,
+    required this.onOpenMenu,
+  });
+
+  final String displayName;
+  final List<CollectionSchedule> schedules;
+  final CollectionSchedule? current;
+  final Vehicle? vehicle;
+  final bool isDriver;
+  final bool loading;
+  final int completed;
+  final int active;
+  final int cancelled;
+  final int urgent;
+  final double progress;
+  final Color accent;
+  final ValueChanged<WorkspaceDestination> onOpen;
+  final VoidCallback onOpenMenu;
+
+  @override
+  Widget build(BuildContext context) {
+    final pending = schedules
+        .where((schedule) => schedule.status == DispatchStatus.planned)
+        .length;
+    final firstName = displayName.trim().split(RegExp(r'\s+')).first;
+    return ColoredBox(
+      color: const Color(0xFFF4F7F5),
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: _MobileFieldHero(
+              firstName: firstName,
+              isDriver: isDriver,
+              accent: accent,
+              onMenu: onOpenMenu,
+              onNotifications: () => onOpen(WorkspaceDestination.notifications),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            sliver: SliverToBoxAdapter(
+              child: Transform.translate(
+                offset: const Offset(0, -24),
+                child: _MobileOverviewCard(
+                  isDriver: isDriver,
+                  accent: accent,
+                  assigned: schedules.length,
+                  completed: completed,
+                  active: active,
+                  pendingOrCancelled: isDriver ? pending : cancelled,
+                ),
+              ),
+            ),
+          ),
+          if (loading)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              sliver: SliverToBoxAdapter(
+                child: LinearProgressIndicator(color: accent),
+              ),
+            ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            sliver: SliverToBoxAdapter(
+              child: isDriver
+                  ? _MobileCurrentTrip(
+                      schedule: current,
+                      vehicle: vehicle,
+                      accent: accent,
+                      progress: progress,
+                      onOpen: onOpen,
+                    )
+                  : _MobileSchedule(
+                      schedules: schedules,
+                      accent: accent,
+                      onOpen: onOpen,
+                    ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+            sliver: SliverToBoxAdapter(
+              child: _MobileQuickActions(
+                isDriver: isDriver,
+                accent: accent,
+                onOpen: onOpen,
+              ),
+            ),
+          ),
+          if (isDriver)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 24),
+              sliver: SliverToBoxAdapter(
+                child: _MobileVehicleStatus(vehicle: vehicle, accent: accent),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 24),
+              sliver: SliverToBoxAdapter(
+                child: _MobileRoutePreview(
+                  stops: schedules.fold<int>(
+                    0,
+                    (sum, schedule) => sum + schedule.pickupIds.length,
+                  ),
+                  accent: accent,
+                  urgent: urgent,
+                  onOpen: () => onOpen(WorkspaceDestination.routeNavigation),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileFieldHero extends StatelessWidget {
+  const _MobileFieldHero({
+    required this.firstName,
+    required this.isDriver,
+    required this.accent,
+    required this.onMenu,
+    required this.onNotifications,
+  });
+
+  final String firstName;
+  final bool isDriver;
+  final Color accent;
+  final VoidCallback onMenu;
+  final VoidCallback onNotifications;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 218,
+    padding: EdgeInsets.fromLTRB(
+      18,
+      MediaQuery.paddingOf(context).top + 12,
+      18,
+      42,
+    ),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color.lerp(accent, Colors.black, .24)!, accent],
+      ),
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Material(
+              color: Colors.white,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onMenu,
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(
+                    isDriver ? Icons.local_shipping_outlined : Icons.recycling,
+                    color: accent,
+                    size: 24,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 9),
+            const Text(
+              'EcoTrace',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const Spacer(),
+            IconButton(
+              tooltip: 'Notifications',
+              onPressed: onNotifications,
+              style: IconButton.styleFrom(
+                backgroundColor: const Color(0x24FFFFFF),
+                foregroundColor: Colors.white,
+              ),
+              icon: const Badge(
+                label: Text('2'),
+                child: Icon(Icons.notifications_none),
+              ),
+            ),
+          ],
+        ),
+        const Spacer(),
+        Text(
+          'Hello, $firstName 👋',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 23,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          isDriver ? 'Driver' : 'Collector',
+          style: const TextStyle(
+            color: Color(0xE6FFFFFF),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _MobileOverviewCard extends StatelessWidget {
+  const _MobileOverviewCard({
+    required this.isDriver,
+    required this.accent,
+    required this.assigned,
+    required this.completed,
+    required this.active,
+    required this.pendingOrCancelled,
+  });
+
+  final bool isDriver;
+  final Color accent;
+  final int assigned;
+  final int completed;
+  final int active;
+  final int pendingOrCancelled;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(13, 14, 13, 16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x18051F15),
+          blurRadius: 18,
+          offset: Offset(0, 7),
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Today’s Overview',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 13),
+        Row(
+          children: [
+            _MobileMetric(
+              value: '$assigned',
+              label: isDriver ? 'Trips' : 'Assigned',
+              icon: isDriver
+                  ? Icons.local_shipping_outlined
+                  : Icons.assignment_outlined,
+              color: accent,
+            ),
+            _MobileMetric(
+              value: '$completed',
+              label: 'Completed',
+              icon: Icons.task_alt,
+              color: const Color(0xFF15905A),
+            ),
+            _MobileMetric(
+              value: '$active',
+              label: isDriver ? 'In transit' : 'In progress',
+              icon: Icons.schedule,
+              color: const Color(0xFFF09B23),
+            ),
+            _MobileMetric(
+              value: '$pendingOrCancelled',
+              label: isDriver ? 'Pending' : 'Cancelled',
+              icon: isDriver ? Icons.pending_actions : Icons.cancel_outlined,
+              color: const Color(0xFFE04E55),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+class _MobileMetric extends StatelessWidget {
+  const _MobileMetric({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  final String value;
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Column(
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: .1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 21),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+        ),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 8, color: Color(0xFF69756F)),
+        ),
+      ],
+    ),
+  );
+}
+
+class _MobileCurrentTrip extends StatelessWidget {
+  const _MobileCurrentTrip({
+    required this.schedule,
+    required this.vehicle,
+    required this.accent,
+    required this.progress,
+    required this.onOpen,
+  });
+
+  final CollectionSchedule? schedule;
+  final Vehicle? vehicle;
+  final Color accent;
+  final double progress;
+  final ValueChanged<WorkspaceDestination> onOpen;
+
+  @override
+  Widget build(BuildContext context) => _MobileCard(
+    title: 'Current Trip',
+    child: schedule == null
+        ? const _CompactEmpty(
+            icon: Icons.route_outlined,
+            text: 'No trip assigned for today.',
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.route, color: accent),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'TR-${schedule!.id.toUpperCase()}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  _StatusPill(status: schedule!.status),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _TripPoint(
+                active: true,
+                title: 'Collection route',
+                subtitle: schedule!.serviceArea.isEmpty
+                    ? 'Assigned collection area'
+                    : schedule!.serviceArea,
+                accent: accent,
+              ),
+              _TripPoint(
+                active: false,
+                title: 'Processing facility',
+                subtitle: '${schedule!.pickupIds.length} collection stops',
+                accent: accent,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Text(
+                    'Vehicle ${vehicle?.registrationNumber ?? schedule!.vehicleId}',
+                    style: const TextStyle(
+                      color: Color(0xFF66726C),
+                      fontSize: 11,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${(progress * 100).round()}%',
+                    style: TextStyle(
+                      color: accent,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              LinearProgressIndicator(
+                value: progress == 0 ? .12 : progress,
+                minHeight: 6,
+                borderRadius: BorderRadius.circular(4),
+                color: accent,
+                backgroundColor: accent.withValues(alpha: .1),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(backgroundColor: accent),
+                  onPressed: () => onOpen(WorkspaceDestination.routeNavigation),
+                  icon: const Icon(Icons.navigation_outlined, size: 18),
+                  label: const Text('View route'),
+                ),
+              ),
+            ],
+          ),
+  );
+}
+
+class _TripPoint extends StatelessWidget {
+  const _TripPoint({
+    required this.active,
+    required this.title,
+    required this.subtitle,
+    required this.accent,
+  });
+
+  final bool active;
+  final String title;
+  final String subtitle;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(top: 3),
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: active ? accent : Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: accent, width: 2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 10, color: Color(0xFF69756F)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _MobileSchedule extends StatelessWidget {
+  const _MobileSchedule({
+    required this.schedules,
+    required this.accent,
+    required this.onOpen,
+  });
+
+  final List<CollectionSchedule> schedules;
+  final Color accent;
+  final ValueChanged<WorkspaceDestination> onOpen;
+
+  @override
+  Widget build(BuildContext context) => _MobileCard(
+    title: 'Today’s Schedule',
+    action: TextButton(
+      onPressed: () => onOpen(WorkspaceDestination.assignedPickups),
+      child: Text('View all', style: TextStyle(color: accent, fontSize: 11)),
+    ),
+    child: schedules.isEmpty
+        ? const _CompactEmpty(
+            icon: Icons.event_available_outlined,
+            text: 'No collections assigned for today.',
+          )
+        : Column(
+            children: schedules
+                .take(4)
+                .map(
+                  (schedule) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: InkWell(
+                      onTap: () => onOpen(WorkspaceDestination.pickupDetails),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 50,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: .08),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Text(
+                                _time(schedule.scheduledAt),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: accent,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    schedule.serviceArea.isEmpty
+                                        ? 'Collection route'
+                                        : schedule.serviceArea,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${schedule.pickupIds.length} pickup items',
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      color: Color(0xFF69756F),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            _StatusPill(status: schedule.status),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+  );
+}
+
+class _MobileQuickActions extends StatelessWidget {
+  const _MobileQuickActions({
+    required this.isDriver,
+    required this.accent,
+    required this.onOpen,
+  });
+
+  final bool isDriver;
+  final Color accent;
+  final ValueChanged<WorkspaceDestination> onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = isDriver
+        ? const [
+            _ActionData(
+              'View route',
+              Icons.navigation_outlined,
+              WorkspaceDestination.routeNavigation,
+              Color(0xFF075AC8),
+            ),
+            _ActionData(
+              'Update status',
+              Icons.sync,
+              WorkspaceDestination.updatePickupStatus,
+              Color(0xFF15905A),
+            ),
+            _ActionData(
+              'Load details',
+              Icons.inventory_2_outlined,
+              WorkspaceDestination.pickupDetails,
+              Color(0xFFF09B23),
+            ),
+            _ActionData(
+              'Report issue',
+              Icons.warning_amber_rounded,
+              WorkspaceDestination.reportFailedPickup,
+              Color(0xFFE04E55),
+            ),
+          ]
+        : const [
+            _ActionData(
+              'Scan QR code',
+              Icons.qr_code_scanner,
+              WorkspaceDestination.scanQrCode,
+              Color(0xFF087A52),
+            ),
+            _ActionData(
+              'Update status',
+              Icons.sync,
+              WorkspaceDestination.updatePickupStatus,
+              Color(0xFF15905A),
+            ),
+            _ActionData(
+              'Upload photo',
+              Icons.camera_alt_outlined,
+              WorkspaceDestination.uploadProof,
+              Color(0xFF3978C8),
+            ),
+            _ActionData(
+              'Report issue',
+              Icons.warning_amber_rounded,
+              WorkspaceDestination.reportFailedPickup,
+              Color(0xFFE04E55),
+            ),
+          ];
+    return _MobileCard(
+      title: 'Quick Actions',
+      child: Row(
+        children: [
+          for (var i = 0; i < actions.length; i++) ...[
+            Expanded(
+              child: InkWell(
+                onTap: () => onOpen(actions[i].destination),
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: actions[i].color.withValues(alpha: .09),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          actions[i].icon,
+                          color: actions[i].color,
+                          size: 21,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        actions[i].label,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (i < actions.length - 1) const SizedBox(width: 4),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MobileVehicleStatus extends StatelessWidget {
+  const _MobileVehicleStatus({required this.vehicle, required this.accent});
+
+  final Vehicle? vehicle;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) => _MobileCard(
+    title: 'Vehicle Status',
+    child: vehicle == null
+        ? const _CompactEmpty(
+            icon: Icons.local_shipping_outlined,
+            text: 'No vehicle assigned.',
+          )
+        : Row(
+            children: [
+              Container(
+                width: 74,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: .08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.local_shipping, color: accent, size: 42),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      vehicle!.registrationNumber,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${_label(vehicle!.type.name)} • ${vehicle!.capacityKg.toStringAsFixed(0)} kg',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF69756F),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    _AvailabilityPill(availability: vehicle!.availability),
+                  ],
+                ),
+              ),
+            ],
+          ),
+  );
+}
+
+class _MobileRoutePreview extends StatelessWidget {
+  const _MobileRoutePreview({
+    required this.stops,
+    required this.accent,
+    required this.urgent,
+    required this.onOpen,
+  });
+
+  final int stops;
+  final Color accent;
+  final int urgent;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) => _MobileCard(
+    title: 'Map & Route',
+    action: TextButton(
+      onPressed: onOpen,
+      child: Text('Open route', style: TextStyle(color: accent, fontSize: 11)),
+    ),
+    child: Container(
+      height: 130,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFEAF2EE), Color(0xFFDCEAE5)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: CustomPaint(painter: _RoutePreviewPainter(accent)),
+          ),
+          Positioned(
+            left: 12,
+            bottom: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '$stops stops • $urgent urgent',
+                style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _RoutePreviewPainter extends CustomPainter {
+  const _RoutePreviewPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final road = Paint()
+      ..color = const Color(0x99FFFFFF)
+      ..strokeWidth = 5
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(
+      Offset(0, size.height * .28),
+      Offset(size.width, size.height * .72),
+      road,
+    );
+    canvas.drawLine(
+      Offset(size.width * .2, 0),
+      Offset(size.width * .62, size.height),
+      road,
+    );
+    final route = Paint()
+      ..color = color
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final path = Path()
+      ..moveTo(size.width * .12, size.height * .78)
+      ..lineTo(size.width * .32, size.height * .54)
+      ..lineTo(size.width * .51, size.height * .63)
+      ..lineTo(size.width * .7, size.height * .28)
+      ..lineTo(size.width * .88, size.height * .38);
+    canvas.drawPath(path, route);
+    final marker = Paint()..color = color;
+    for (final point in [
+      Offset(size.width * .12, size.height * .78),
+      Offset(size.width * .51, size.height * .63),
+      Offset(size.width * .88, size.height * .38),
+    ]) {
+      canvas.drawCircle(point, 7, marker);
+      canvas.drawCircle(point, 3, Paint()..color = Colors.white);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RoutePreviewPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+class _MobileCard extends StatelessWidget {
+  const _MobileCard({required this.title, required this.child, this.action});
+
+  final String title;
+  final Widget child;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: const Color(0xFFE0E9E3)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            ?action,
+          ],
+        ),
+        const SizedBox(height: 11),
+        child,
+      ],
+    ),
+  );
+}
+
+class _CompactEmpty extends StatelessWidget {
+  const _CompactEmpty({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 20),
+    child: Center(
+      child: Column(
+        children: [
+          Icon(icon, color: const Color(0xFF849189)),
+          const SizedBox(height: 7),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF69756F)),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _ShiftBanner extends StatelessWidget {
   const _ShiftBanner({
     required this.isDriver,
     required this.activeJobs,
     required this.loading,
+    required this.accent,
   });
 
   final bool isDriver;
   final int activeJobs;
   final bool loading;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 15),
     decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [Color(0xFF064C3F), Color(0xFF167D50)],
+      gradient: LinearGradient(
+        colors: [Color.lerp(accent, Colors.black, .38)!, accent],
       ),
       borderRadius: BorderRadius.circular(12),
     ),
@@ -338,7 +1322,7 @@ class _MetricGrid extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final columns = constraints.maxWidth >= 900
-          ? 4
+          ? metrics.length
           : constraints.maxWidth >= 520
           ? 2
           : 1;
@@ -425,11 +1409,13 @@ class _CurrentAssignmentCard extends StatelessWidget {
   const _CurrentAssignmentCard({
     required this.schedule,
     required this.isDriver,
+    required this.accent,
     required this.onOpen,
   });
 
   final CollectionSchedule? schedule;
   final bool isDriver;
+  final Color accent;
   final ValueChanged<WorkspaceDestination> onOpen;
 
   @override
@@ -500,6 +1486,7 @@ class _CurrentAssignmentCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: FilledButton.icon(
+                      style: FilledButton.styleFrom(backgroundColor: accent),
                       onPressed: () => onOpen(
                         isDriver
                             ? WorkspaceDestination.routeNavigation
@@ -569,12 +1556,14 @@ class _DailyProgressCard extends StatelessWidget {
     required this.total,
     required this.stops,
     required this.progress,
+    required this.accent,
   });
 
   final int completed;
   final int total;
   final int stops;
   final double progress;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) => _Panel(
@@ -592,7 +1581,7 @@ class _DailyProgressCard extends StatelessWidget {
                 value: progress,
                 strokeWidth: 9,
                 backgroundColor: const Color(0xFFE4ECE7),
-                color: const Color(0xFF168253),
+                color: accent,
               ),
               Column(
                 mainAxisSize: MainAxisSize.min,
@@ -828,44 +1817,49 @@ class _SchedulePanel extends StatelessWidget {
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final schedule = schedules[index];
-              return ListTile(
-                onTap: onOpen,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 2),
-                leading: Container(
-                  width: 42,
-                  height: 42,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: _statusColor(schedule.status).withValues(alpha: .1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _time(schedule.scheduledAt),
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      color: _statusColor(schedule.status),
+              return Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  onTap: onOpen,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 2),
+                  leading: Container(
+                    width: 42,
+                    height: 42,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: _statusColor(
+                        schedule.status,
+                      ).withValues(alpha: .1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _time(schedule.scheduledAt),
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: _statusColor(schedule.status),
+                      ),
                     ),
                   ),
-                ),
-                title: Text(
-                  schedule.serviceArea.isEmpty
-                      ? 'Collection route'
-                      : schedule.serviceArea,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                  title: Text(
+                    schedule.serviceArea.isEmpty
+                        ? 'Collection route'
+                        : schedule.serviceArea,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
+                  subtitle: Text(
+                    '${schedule.pickupIds.length} stops • Vehicle ${schedule.vehicleId}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 9),
+                  ),
+                  trailing: _StatusPill(status: schedule.status),
                 ),
-                subtitle: Text(
-                  '${schedule.pickupIds.length} stops • Vehicle ${schedule.vehicleId}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 9),
-                ),
-                trailing: _StatusPill(status: schedule.status),
               );
             },
           ),

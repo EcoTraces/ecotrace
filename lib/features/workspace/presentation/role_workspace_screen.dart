@@ -57,6 +57,7 @@ import '../../traceability/presentation/traceability_screens.dart';
 import '../data/admin_overview_repository.dart';
 import '../domain/application_interface.dart';
 import 'administrator_overview_dashboard.dart';
+import 'citizen_dashboard.dart';
 import 'field_operations_dashboard.dart';
 
 class RoleWorkspaceScreen extends StatelessWidget {
@@ -77,6 +78,14 @@ class RoleWorkspaceScreen extends StatelessWidget {
   bool get isAdministrator =>
       profile.role == AppRole.administrator ||
       profile.role == AppRole.superAdministrator;
+  bool get isCitizen => AppRole.selfServiceRoles.contains(profile.role);
+  bool get isField =>
+      profile.role == AppRole.collector || profile.role == AppRole.driver;
+  Color get sideMenuColor =>
+      profile.role == AppRole.driver ? const Color(0xFF052D67) : _sideMenuGreen;
+  Color get activeMenuColor => profile.role == AppRole.driver
+      ? const Color(0xFF075AC8)
+      : _activeMenuGreen;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +94,7 @@ class RoleWorkspaceScreen extends StatelessWidget {
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 1000;
         return Scaffold(
-          appBar: wide
+          appBar: wide || isCitizen || isField
               ? null
               : AppBar(
                   title: const Text('EcoTrace'),
@@ -107,29 +116,148 @@ class RoleWorkspaceScreen extends StatelessWidget {
                 ),
           drawer: wide
               ? null
-              : Drawer(backgroundColor: _sideMenuGreen, child: menu),
-          body: Row(
-            children: [
-              if (wide) SizedBox(width: 280, child: menu),
-              Expanded(
-                child: Column(
-                  children: [
-                    _dashboardHeader(context, compact: !wide),
-                    const Divider(height: 1),
-                    Expanded(child: _dashboard(context)),
-                  ],
+              : Drawer(backgroundColor: sideMenuColor, child: menu),
+          bottomNavigationBar: !wide
+              ? isCitizen
+                    ? _citizenBottomNavigation(context)
+                    : isField
+                    ? _fieldBottomNavigation(context)
+                    : null
+              : null,
+          body: Builder(
+            builder: (bodyContext) => Row(
+              children: [
+                if (wide) SizedBox(width: 280, child: menu),
+                Expanded(
+                  child: Column(
+                    children: [
+                      if (wide || (!isCitizen && !isField))
+                        _dashboardHeader(bodyContext, compact: !wide),
+                      if (wide || (!isCitizen && !isField))
+                        const Divider(height: 1),
+                      Expanded(child: _dashboard(bodyContext)),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
     );
   }
 
+  Widget _citizenBottomNavigation(BuildContext context) => NavigationBar(
+    selectedIndex: 0,
+    height: 68,
+    backgroundColor: Colors.white,
+    indicatorColor: const Color(0xFFDDF3E6),
+    labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+    onDestinationSelected: (index) {
+      final destination = switch (index) {
+        1 => WorkspaceDestination.myPickups,
+        2 => WorkspaceDestination.trackWaste,
+        3 => WorkspaceDestination.myPickups,
+        4 => WorkspaceDestination.profile,
+        _ => WorkspaceDestination.dashboard,
+      };
+      if (destination != WorkspaceDestination.dashboard) {
+        _open(context, destination);
+      }
+    },
+    destinations: const [
+      NavigationDestination(
+        icon: Icon(Icons.home_outlined),
+        selectedIcon: Icon(Icons.home),
+        label: 'Home',
+      ),
+      NavigationDestination(
+        icon: Icon(Icons.receipt_long_outlined),
+        label: 'Requests',
+      ),
+      NavigationDestination(icon: Icon(Icons.qr_code_scanner), label: 'Scan'),
+      NavigationDestination(icon: Icon(Icons.history), label: 'History'),
+      NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+    ],
+  );
+
+  Widget _fieldBottomNavigation(BuildContext context) {
+    final isDriver = profile.role == AppRole.driver;
+    final accent = isDriver ? const Color(0xFF075AC8) : const Color(0xFF087A52);
+    return NavigationBarTheme(
+      data: NavigationBarThemeData(
+        indicatorColor: accent.withValues(alpha: .14),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected) ? accent : null,
+          ),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            color: states.contains(WidgetState.selected) ? accent : null,
+            fontSize: 10,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w700
+                : FontWeight.w500,
+          ),
+        ),
+      ),
+      child: NavigationBar(
+        selectedIndex: 0,
+        height: 68,
+        backgroundColor: Colors.white,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        onDestinationSelected: (index) {
+          final destination = switch (index) {
+            1 => WorkspaceDestination.assignedPickups,
+            2 =>
+              isDriver
+                  ? WorkspaceDestination.routeNavigation
+                  : WorkspaceDestination.scanQrCode,
+            3 => WorkspaceDestination.collectionHistory,
+            4 => WorkspaceDestination.profile,
+            _ => WorkspaceDestination.dashboard,
+          };
+          if (destination != WorkspaceDestination.dashboard) {
+            _open(context, destination);
+          }
+        },
+        destinations: [
+          const NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
+          NavigationDestination(
+            icon: Icon(
+              isDriver
+                  ? Icons.local_shipping_outlined
+                  : Icons.event_note_outlined,
+            ),
+            label: isDriver ? 'Trips' : 'Schedule',
+          ),
+          NavigationDestination(
+            icon: Icon(
+              isDriver ? Icons.navigation_outlined : Icons.qr_code_scanner,
+            ),
+            label: isDriver ? 'Route' : 'Scan QR',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.history),
+            label: 'History',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            label: 'More',
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _navigation(BuildContext context) => Builder(
     builder: (menuContext) => ColoredBox(
-      color: _sideMenuGreen,
+      color: sideMenuColor,
       child: SafeArea(
         child: Column(
           children: [
@@ -179,7 +307,7 @@ class RoleWorkspaceScreen extends StatelessWidget {
                   final selected =
                       destination == WorkspaceDestination.dashboard;
                   return Material(
-                    color: selected ? _activeMenuGreen : Colors.transparent,
+                    color: selected ? activeMenuColor : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(8),
@@ -260,12 +388,22 @@ class RoleWorkspaceScreen extends StatelessWidget {
         : profile.role == AppRole.collector
         ? 'Collector'
         : null;
+    final citizenRole = switch (profile.role) {
+      AppRole.household => 'Household',
+      AppRole.business => 'Business',
+      AppRole.institution => 'Institution',
+      _ => null,
+    };
     final introduction = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          fieldRole == null ? 'Dashboard Overview' : '$fieldRole Dashboard',
+          fieldRole != null
+              ? '$fieldRole Dashboard'
+              : citizenRole != null
+              ? '$citizenRole User Dashboard'
+              : 'Dashboard Overview',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
@@ -273,9 +411,11 @@ class RoleWorkspaceScreen extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          fieldRole == null
-              ? "Welcome back, $name! Here's what's happening in EcoTrace today."
-              : 'Welcome back, $name! Here are your field operations for today.',
+          fieldRole != null
+              ? 'Welcome back, $name! Here are your field operations for today.'
+              : citizenRole != null
+              ? 'Welcome back, $name! Here is your environmental impact and pickup activity.'
+              : "Welcome back, $name! Here's what's happening in EcoTrace today.",
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
@@ -419,13 +559,35 @@ class RoleWorkspaceScreen extends StatelessWidget {
       );
     }
     if (profile.role == AppRole.collector || profile.role == AppRole.driver) {
+      final name = profile.displayName.trim().isEmpty
+          ? profile.email.split('@').first
+          : profile.displayName.trim();
       return FieldOperationsDashboard(
         userId: profile.uid,
+        displayName: name,
         role: profile.role,
         dispatchRepository: DispatchRepository(),
         fleetRepository: FleetRepository(),
         onOpen: (destination) => _open(context, destination),
+        onOpenMenu: () => Scaffold.maybeOf(context)?.openDrawer(),
         footer: const _ImpactFooter(),
+        mobileLayout: MediaQuery.sizeOf(context).width < 1000,
+      );
+    }
+    if (isCitizen) {
+      final name = profile.displayName.trim().isEmpty
+          ? profile.email.split('@').first
+          : profile.displayName.trim();
+      return CitizenDashboard(
+        userId: profile.uid,
+        displayName: name,
+        role: profile.role,
+        pickupRepository: PickupRepository(),
+        rewardsRepository: RewardsRepository(),
+        onOpen: (destination) => _open(context, destination),
+        onOpenMenu: () => Scaffold.maybeOf(context)?.openDrawer(),
+        footer: const _ImpactFooter(),
+        mobileLayout: MediaQuery.sizeOf(context).width < 1000,
       );
     }
     final actions = destinations
