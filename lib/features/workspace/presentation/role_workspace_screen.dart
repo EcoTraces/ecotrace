@@ -22,6 +22,7 @@ import '../../dispatch/data/dispatch_repository.dart';
 import '../../dispatch/presentation/dispatch_screens.dart';
 import '../../documents/data/document_repository.dart';
 import '../../documents/presentation/document_screens.dart';
+import '../../environmental_impact/data/environmental_impact_repository.dart';
 import '../../fleet/data/fleet_repository.dart';
 import '../../fleet/presentation/fleet_screens.dart';
 import '../../hazardous/data/hazardous_waste_repository.dart';
@@ -59,6 +60,7 @@ import '../domain/application_interface.dart';
 import 'administrator_overview_dashboard.dart';
 import 'citizen_dashboard.dart';
 import 'field_operations_dashboard.dart';
+import 'specialist_operations_dashboard.dart';
 
 class RoleWorkspaceScreen extends StatelessWidget {
   const RoleWorkspaceScreen({
@@ -81,9 +83,16 @@ class RoleWorkspaceScreen extends StatelessWidget {
   bool get isCitizen => AppRole.selfServiceRoles.contains(profile.role);
   bool get isField =>
       profile.role == AppRole.collector || profile.role == AppRole.driver;
+  bool get isSpecialist =>
+      profile.role == AppRole.environmentalOfficer ||
+      profile.role == AppRole.repairTechnician ||
+      profile.role == AppRole.recycler;
   Color get sideMenuColor =>
-      profile.role == AppRole.driver ? const Color(0xFF052D67) : _sideMenuGreen;
-  Color get activeMenuColor => profile.role == AppRole.driver
+      profile.role == AppRole.driver || profile.role == AppRole.repairTechnician
+      ? const Color(0xFF052D67)
+      : _sideMenuGreen;
+  Color get activeMenuColor =>
+      profile.role == AppRole.driver || profile.role == AppRole.repairTechnician
       ? const Color(0xFF075AC8)
       : _activeMenuGreen;
 
@@ -94,7 +103,7 @@ class RoleWorkspaceScreen extends StatelessWidget {
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 1000;
         return Scaffold(
-          appBar: wide || isCitizen || isField
+          appBar: wide || isCitizen || isField || isSpecialist
               ? null
               : AppBar(
                   title: const Text('EcoTrace'),
@@ -122,6 +131,8 @@ class RoleWorkspaceScreen extends StatelessWidget {
                     ? _citizenBottomNavigation(context)
                     : isField
                     ? _fieldBottomNavigation(context)
+                    : isSpecialist
+                    ? _specialistBottomNavigation(context)
                     : null
               : null,
           body: Builder(
@@ -131,9 +142,9 @@ class RoleWorkspaceScreen extends StatelessWidget {
                 Expanded(
                   child: Column(
                     children: [
-                      if (wide || (!isCitizen && !isField))
+                      if (wide || (!isCitizen && !isField && !isSpecialist))
                         _dashboardHeader(bodyContext, compact: !wide),
-                      if (wide || (!isCitizen && !isField))
+                      if (wide || (!isCitizen && !isField && !isSpecialist))
                         const Divider(height: 1),
                       Expanded(child: _dashboard(bodyContext)),
                     ],
@@ -250,6 +261,135 @@ class RoleWorkspaceScreen extends StatelessWidget {
             icon: Icon(Icons.person_outline),
             label: 'More',
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _specialistBottomNavigation(BuildContext context) {
+    const accent = Color(0xFF087A45);
+    final destinations = switch (profile.role) {
+      AppRole.environmentalOfficer => const [
+        _MobileNavItem(
+          destination: WorkspaceDestination.dashboard,
+          icon: Icons.home_outlined,
+          selectedIcon: Icons.home,
+          label: 'Dashboard',
+        ),
+        _MobileNavItem(
+          destination: WorkspaceDestination.compliance,
+          icon: Icons.fact_check_outlined,
+          label: 'Inspections',
+        ),
+        _MobileNavItem(
+          destination: WorkspaceDestination.inventory,
+          icon: Icons.add_circle_outline,
+          label: 'Add',
+        ),
+        _MobileNavItem(
+          destination: WorkspaceDestination.reports,
+          icon: Icons.analytics_outlined,
+          label: 'Reports',
+        ),
+        _MobileNavItem(
+          destination: WorkspaceDestination.profile,
+          icon: Icons.person_outline,
+          label: 'Profile',
+        ),
+      ],
+      AppRole.repairTechnician => const [
+        _MobileNavItem(
+          destination: WorkspaceDestination.dashboard,
+          icon: Icons.home_outlined,
+          selectedIcon: Icons.home,
+          label: 'Home',
+        ),
+        _MobileNavItem(
+          destination: WorkspaceDestination.repairJobs,
+          icon: Icons.assignment_outlined,
+          label: 'Jobs',
+        ),
+        _MobileNavItem(
+          destination: WorkspaceDestination.scanQrCode,
+          icon: Icons.qr_code_scanner,
+          label: 'Scan',
+        ),
+        _MobileNavItem(
+          destination: WorkspaceDestination.notifications,
+          icon: Icons.notifications_outlined,
+          label: 'Alerts',
+        ),
+        _MobileNavItem(
+          destination: WorkspaceDestination.profile,
+          icon: Icons.person_outline,
+          label: 'Profile',
+        ),
+      ],
+      _ => const [
+        _MobileNavItem(
+          destination: WorkspaceDestination.dashboard,
+          icon: Icons.home_outlined,
+          selectedIcon: Icons.home,
+          label: 'Dashboard',
+        ),
+        _MobileNavItem(
+          destination: WorkspaceDestination.recyclingBatches,
+          icon: Icons.local_shipping_outlined,
+          label: 'Waste',
+        ),
+        _MobileNavItem(
+          destination: WorkspaceDestination.scanQrCode,
+          icon: Icons.qr_code_scanner,
+          label: 'Scan',
+        ),
+        _MobileNavItem(
+          destination: WorkspaceDestination.reports,
+          icon: Icons.analytics_outlined,
+          label: 'Reports',
+        ),
+        _MobileNavItem(
+          destination: WorkspaceDestination.profile,
+          icon: Icons.person_outline,
+          label: 'Profile',
+        ),
+      ],
+    };
+    return NavigationBarTheme(
+      data: NavigationBarThemeData(
+        indicatorColor: accent.withValues(alpha: .14),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected) ? accent : null,
+          ),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            color: states.contains(WidgetState.selected) ? accent : null,
+            fontSize: 10,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w700
+                : FontWeight.w500,
+          ),
+        ),
+      ),
+      child: NavigationBar(
+        selectedIndex: 0,
+        height: 68,
+        backgroundColor: Colors.white,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        onDestinationSelected: (index) {
+          final destination = destinations[index].destination;
+          if (destination != WorkspaceDestination.dashboard) {
+            _open(context, destination);
+          }
+        },
+        destinations: [
+          for (final item in destinations)
+            NavigationDestination(
+              icon: Icon(item.icon),
+              selectedIcon: Icon(item.selectedIcon ?? item.icon),
+              label: item.label,
+            ),
         ],
       ),
     );
@@ -388,6 +528,12 @@ class RoleWorkspaceScreen extends StatelessWidget {
         : profile.role == AppRole.collector
         ? 'Collector'
         : null;
+    final specialistRole = switch (profile.role) {
+      AppRole.environmentalOfficer => 'Environmental Officer',
+      AppRole.repairTechnician => 'Technician',
+      AppRole.recycler => 'Recycler',
+      _ => null,
+    };
     final citizenRole = switch (profile.role) {
       AppRole.household => 'Household',
       AppRole.business => 'Business',
@@ -401,6 +547,8 @@ class RoleWorkspaceScreen extends StatelessWidget {
         Text(
           fieldRole != null
               ? '$fieldRole Dashboard'
+              : specialistRole != null
+              ? '$specialistRole Dashboard'
               : citizenRole != null
               ? '$citizenRole User Dashboard'
               : 'Dashboard Overview',
@@ -413,6 +561,8 @@ class RoleWorkspaceScreen extends StatelessWidget {
         Text(
           fieldRole != null
               ? 'Welcome back, $name! Here are your field operations for today.'
+              : specialistRole != null
+              ? 'Welcome back, $name! Here is your ${specialistRole.toLowerCase()} operations overview.'
               : citizenRole != null
               ? 'Welcome back, $name! Here is your environmental impact and pickup activity.'
               : "Welcome back, $name! Here's what's happening in EcoTrace today.",
@@ -584,6 +734,36 @@ class RoleWorkspaceScreen extends StatelessWidget {
         role: profile.role,
         pickupRepository: PickupRepository(),
         rewardsRepository: RewardsRepository(),
+        onOpen: (destination) => _open(context, destination),
+        onOpenMenu: () => Scaffold.maybeOf(context)?.openDrawer(),
+        footer: const _ImpactFooter(),
+        mobileLayout: MediaQuery.sizeOf(context).width < 1000,
+      );
+    }
+    if (isSpecialist) {
+      final name = profile.displayName.trim().isEmpty
+          ? profile.email.split('@').first
+          : profile.displayName.trim();
+      return SpecialistOperationsDashboard(
+        userId: profile.uid,
+        displayName: name,
+        role: profile.role,
+        complianceRepository: profile.role == AppRole.environmentalOfficer
+            ? ComplianceRepository()
+            : null,
+        environmentalImpactRepository:
+            profile.role == AppRole.environmentalOfficer
+            ? EnvironmentalImpactRepository()
+            : null,
+        repairRepository: profile.role == AppRole.repairTechnician
+            ? RepairRepository()
+            : null,
+        recyclingRepository: profile.role == AppRole.recycler
+            ? RecyclingRepository()
+            : null,
+        resourceRecoveryRepository: profile.role == AppRole.recycler
+            ? ResourceRecoveryRepository()
+            : null,
         onOpen: (destination) => _open(context, destination),
         onOpenMenu: () => Scaffold.maybeOf(context)?.openDrawer(),
         footer: const _ImpactFooter(),
@@ -899,6 +1079,20 @@ class RoleWorkspaceScreen extends StatelessWidget {
     WorkspaceDestination.collectionHistory ||
     WorkspaceDestination.collections => Icons.assignment_outlined,
   };
+}
+
+class _MobileNavItem {
+  const _MobileNavItem({
+    required this.destination,
+    required this.icon,
+    required this.label,
+    this.selectedIcon,
+  });
+
+  final WorkspaceDestination destination;
+  final IconData icon;
+  final IconData? selectedIcon;
+  final String label;
 }
 
 class _ImpactFooter extends StatelessWidget {
