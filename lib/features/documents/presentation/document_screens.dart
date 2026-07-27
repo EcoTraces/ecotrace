@@ -86,12 +86,13 @@ class DocumentDashboardScreen extends StatelessWidget {
     ),
   );
   Future<void> _upload(BuildContext context) async {
-    final picked = await FilePicker.platform.pickFiles(withData: true);
+    final picked = await FilePicker.pickFiles(withData: true);
     if (picked == null) return;
     if (!context.mounted) return;
+    final selectedFile = picked.files.single;
     var category = DocumentCategory.other;
     var access = DocumentAccessLevel.owner;
-    final title = TextEditingController(text: picked.files.single.name),
+    final title = TextEditingController(text: selectedFile.name),
         reference = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
@@ -142,9 +143,9 @@ class DocumentDashboardScreen extends StatelessWidget {
         access: access,
         reference: reference.text,
         expiresAt: DateTime.now().add(const Duration(days: 365)),
-        fileName: picked.files.single.name,
-        mimeType: _mime(picked.files.single.extension),
-        bytes: picked.files.single.bytes!,
+        fileName: selectedFile.name,
+        mimeType: _mime(selectedFile.extension),
+        bytes: selectedFile.bytes!,
         actorId: userId,
       );
     }
@@ -256,13 +257,14 @@ class DocumentDetailScreen extends StatelessWidget {
   }
 
   Future<void> _version(ManagedDocument d) async {
-    final p = await FilePicker.platform.pickFiles(withData: true);
+    final p = await FilePicker.pickFiles(withData: true);
     if (p != null) {
+      final selectedFile = p.files.single;
       await repository.newVersion(
         d,
-        fileName: p.files.single.name,
-        mimeType: _mime(p.files.single.extension),
-        bytes: p.files.single.bytes!,
+        fileName: selectedFile.name,
+        mimeType: _mime(selectedFile.extension),
+        bytes: selectedFile.bytes!,
         notes: 'Updated document',
         actorId: userId,
       );

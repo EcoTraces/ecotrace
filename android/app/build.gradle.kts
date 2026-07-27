@@ -9,13 +9,20 @@ plugins {
 
 android {
     namespace = "com.example.wastemanagementsystem"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
+    compileSdkMinor = 1
     // Use the complete side-by-side NDK already installed on this workstation.
     ndkVersion = "30.0.15729638"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    externalNativeBuild {
+        cmake {
+            version = "4.1.2"
+        }
     }
 
     defaultConfig {

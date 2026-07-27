@@ -47,3 +47,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local release artifacts and temporary Android dependency workarounds
+*.apk
+/android/build/reports/
+/android/local_maven_repo/
+/third_party/file_picker/
