@@ -9,12 +9,14 @@ import routeRoutes from "./route-routes.js";
 import centreRoutes from "./centre-routes.js";
 import inventoryRoutes from "./inventory-routes.js";
 import mediaRoutes from "./media-routes.js";
+import repairRoutes from "./repair-routes.js";
 
 const router = Router();
 router.use(routeRoutes);
 router.use(centreRoutes);
 router.use(inventoryRoutes);
 router.use(mediaRoutes);
+router.use(repairRoutes);
 const administrators = ["administrator", "superAdministrator"] as const;
 
 const centreSchema = z.object({

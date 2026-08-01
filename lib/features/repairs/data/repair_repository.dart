@@ -1,43 +1,99 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
 
 import '../../inventory/domain/inventory_item.dart';
 import '../domain/repair_job.dart';
 
 class RepairRepository {
-  RepairRepository({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  RepairRepository({FirebaseFirestore? firestore, ApiClient? apiClient})
+    : _db = firestore ?? FirebaseFirestore.instance,
+      _api = apiClient ?? ApiClient.instance,
+      _useApi = apiClient != null || (firestore == null && ApiConfig.enabled);
 
   final FirebaseFirestore _db;
+  final ApiClient _api;
+  final bool _useApi;
 
   CollectionReference<Map<String, dynamic>> get _jobs =>
       _db.collection('repairJobs');
 
-  Stream<List<RepairJob>> watchJobs() => _jobs.snapshots().map(
-    (snapshot) => snapshot.docs.map(RepairJob.fromDoc).toList()
-      ..sort((a, b) => b.createdAt?.compareTo(a.createdAt ?? DateTime(0)) ?? 0),
-  );
-
-  Stream<RepairJob> watchJob(String jobId) => _jobs
-      .doc(jobId)
-      .snapshots()
-      .where((document) => document.exists)
-      .map(RepairJob.fromDoc);
-
-  Stream<List<SparePartUsage>> watchParts(String jobId) => _jobs
-      .doc(jobId)
-      .collection('parts')
-      .orderBy('recordedAt', descending: true)
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map(SparePartUsage.fromDoc).toList());
-
-  Stream<List<RepairProgressEvent>> watchProgress(String jobId) => _jobs
-      .doc(jobId)
-      .collection('progress')
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map(
-        (snapshot) => snapshot.docs.map(RepairProgressEvent.fromDoc).toList(),
+  Stream<List<RepairJob>> watchJobs() => _useApi
+      ? _pollJobs()
+      : _jobs.snapshots().map(
+          (snapshot) => snapshot.docs.map(RepairJob.fromDoc).toList()
+            ..sort(
+              (a, b) => b.createdAt?.compareTo(a.createdAt ?? DateTime(0)) ?? 0,
+            ),
+        );
+  Stream<List<RepairJob>> _pollJobs() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/repairs');
+      yield data.map(RepairJob.fromJson).toList()..sort(
+        (a, b) => b.createdAt?.compareTo(a.createdAt ?? DateTime(0)) ?? 0,
       );
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<RepairJob> watchJob(String jobId) => _useApi
+      ? _pollJob(jobId)
+      : _jobs
+            .doc(jobId)
+            .snapshots()
+            .where((document) => document.exists)
+            .map(RepairJob.fromDoc);
+  Stream<RepairJob> _pollJob(String id) async* {
+    while (true) {
+      yield RepairJob.fromJson(await _api.get('/api/v1/repairs/$id'));
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<SparePartUsage>> watchParts(String jobId) => _useApi
+      ? _pollParts(jobId)
+      : _jobs
+            .doc(jobId)
+            .collection('parts')
+            .orderBy('recordedAt', descending: true)
+            .snapshots()
+            .map(
+              (snapshot) => snapshot.docs.map(SparePartUsage.fromDoc).toList(),
+            );
+  Stream<List<SparePartUsage>> _pollParts(String id) async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/repairs/$id/parts');
+      yield data.map(SparePartUsage.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<RepairProgressEvent>> watchProgress(String jobId) => _useApi
+      ? _pollProgress(jobId)
+      : _jobs
+            .doc(jobId)
+            .collection('progress')
+            .orderBy('createdAt', descending: true)
+            .snapshots()
+            .map(
+              (snapshot) =>
+                  snapshot.docs.map(RepairProgressEvent.fromDoc).toList(),
+            );
+  Stream<List<RepairProgressEvent>> _pollProgress(String id) async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/repairs/$id/progress');
+      yield data.map(RepairProgressEvent.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
 
   Future<void> createAssessment({
     required InventoryItem item,
@@ -45,6 +101,14 @@ class RepairRepository {
     required String createdBy,
     required String technicianId,
   }) async {
+    if (_useApi) {
+      await _api.post('/api/v1/repairs', {
+        'itemId': item.id,
+        'assessmentNotes': assessmentNotes.trim(),
+        'technicianId': technicianId.trim(),
+      });
+      return;
+    }
     final existing = await _jobs.where('itemId', isEqualTo: item.id).get();
     final hasActiveJob = existing.docs
         .map(RepairJob.fromDoc)
@@ -109,13 +173,19 @@ class RepairRepository {
     RepairJob job, {
     required String technicianId,
     required String actorId,
-  }) => _updateWithProgress(
-    job,
-    updates: {'technicianId': technicianId.trim()},
-    type: 'technicianAssigned',
-    details: 'Assigned to ${technicianId.trim()}',
-    actorId: actorId,
-  );
+  }) => _useApi
+      ? _api
+            .patch('/api/v1/repairs/${job.id}/assignment', {
+              'technicianId': technicianId.trim(),
+            })
+            .then((_) {})
+      : _updateWithProgress(
+          job,
+          updates: {'technicianId': technicianId.trim()},
+          type: 'technicianAssigned',
+          details: 'Assigned to ${technicianId.trim()}',
+          actorId: actorId,
+        );
 
   Future<void> diagnose(
     RepairJob job, {
@@ -123,19 +193,27 @@ class RepairRepository {
     required List<String> faults,
     required double estimatedRepairCost,
     required String actorId,
-  }) => _updateWithProgress(
-    job,
-    updates: {
-      'status': RepairStatus.diagnosed.name,
-      'diagnosis': diagnosis.trim(),
-      'faults': faults,
-      'estimatedRepairCost': estimatedRepairCost,
-      'diagnosedAt': FieldValue.serverTimestamp(),
-    },
-    type: 'diagnosed',
-    details: '${faults.length} fault(s); estimate $estimatedRepairCost',
-    actorId: actorId,
-  );
+  }) => _useApi
+      ? _api
+            .patch('/api/v1/repairs/${job.id}/diagnosis', {
+              'diagnosis': diagnosis.trim(),
+              'faults': faults,
+              'estimatedRepairCost': estimatedRepairCost,
+            })
+            .then((_) {})
+      : _updateWithProgress(
+          job,
+          updates: {
+            'status': RepairStatus.diagnosed.name,
+            'diagnosis': diagnosis.trim(),
+            'faults': faults,
+            'estimatedRepairCost': estimatedRepairCost,
+            'diagnosedAt': FieldValue.serverTimestamp(),
+          },
+          type: 'diagnosed',
+          details: '${faults.length} fault(s); estimate $estimatedRepairCost',
+          actorId: actorId,
+        );
 
   Future<void> reviewRepair(
     RepairJob job, {
@@ -143,6 +221,13 @@ class RepairRepository {
     required String actorId,
     required String notes,
   }) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/repairs/${job.id}/review', {
+        'approved': approved,
+        'notes': notes.trim(),
+      });
+      return;
+    }
     final status = approved ? RepairStatus.approved : RepairStatus.rejected;
     final jobRef = _jobs.doc(job.id);
     final itemRef = _db.collection('inventoryItems').doc(job.itemId);
@@ -172,6 +257,10 @@ class RepairRepository {
   }
 
   Future<void> startRepair(RepairJob job, String actorId) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/repairs/${job.id}/start', const {});
+      return;
+    }
     final jobRef = _jobs.doc(job.id);
     final itemRef = _db.collection('inventoryItems').doc(job.itemId);
     final batch = _db.batch();
@@ -203,6 +292,15 @@ class RepairRepository {
     required double unitCost,
     required String actorId,
   }) async {
+    if (_useApi) {
+      await _api.post('/api/v1/repairs/${job.id}/parts', {
+        'name': name.trim(),
+        'partNumber': partNumber.trim(),
+        'quantity': quantity,
+        'unitCost': unitCost,
+      });
+      return;
+    }
     if (quantity <= 0 || unitCost < 0 || name.trim().isEmpty) {
       throw ArgumentError('Enter a part name, quantity, and valid cost.');
     }
@@ -232,6 +330,14 @@ class RepairRepository {
     if (progressPercent < job.progressPercent || progressPercent > 95) {
       throw ArgumentError('Progress must increase and remain at or below 95%.');
     }
+    if (_useApi) {
+      return _api
+          .patch('/api/v1/repairs/${job.id}/progress', {
+            'progressPercent': progressPercent,
+            'details': details.trim(),
+          })
+          .then((_) {});
+    }
     return _updateWithProgress(
       job,
       updates: {'progressPercent': progressPercent},
@@ -242,19 +348,22 @@ class RepairRepository {
     );
   }
 
-  Future<void> beginQualityTesting(RepairJob job, String actorId) =>
-      _updateWithProgress(
-        job,
-        updates: {
-          'status': RepairStatus.qualityTesting.name,
-          'progressPercent': 95,
-          'qualityTestingStartedAt': FieldValue.serverTimestamp(),
-        },
-        type: 'qualityTestingStarted',
-        details: 'Repair submitted for quality control',
-        actorId: actorId,
-        progressPercent: 95,
-      );
+  Future<void> beginQualityTesting(RepairJob job, String actorId) => _useApi
+      ? _api
+            .patch('/api/v1/repairs/${job.id}/quality-testing', const {})
+            .then((_) {})
+      : _updateWithProgress(
+          job,
+          updates: {
+            'status': RepairStatus.qualityTesting.name,
+            'progressPercent': 95,
+            'qualityTestingStartedAt': FieldValue.serverTimestamp(),
+          },
+          type: 'qualityTestingStarted',
+          details: 'Repair submitted for quality control',
+          actorId: actorId,
+          progressPercent: 95,
+        );
 
   Future<void> performQualityControl(
     RepairJob job, {
@@ -264,6 +373,15 @@ class RepairRepository {
     required int warrantyMonths,
     required String actorId,
   }) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/repairs/${job.id}/quality-control', {
+        'checks': checks,
+        'notes': notes.trim(),
+        'grade': grade.name,
+        'warrantyMonths': warrantyMonths,
+      });
+      return;
+    }
     final passed = checks.isNotEmpty && checks.values.every((value) => value);
     final jobRef = _jobs.doc(job.id);
     final itemRef = _db.collection('inventoryItems').doc(job.itemId);
@@ -307,6 +425,12 @@ class RepairRepository {
     required String reason,
     required String actorId,
   }) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/repairs/${job.id}/unrepairable', {
+        'reason': reason.trim(),
+      });
+      return;
+    }
     final jobRef = _jobs.doc(job.id);
     final itemRef = _db.collection('inventoryItems').doc(job.itemId);
     final batch = _db.batch();
@@ -336,13 +460,19 @@ class RepairRepository {
     RepairJob job, {
     required DateTime warrantyEnd,
     required String actorId,
-  }) => _updateWithProgress(
-    job,
-    updates: {'warrantyEnd': Timestamp.fromDate(warrantyEnd)},
-    type: 'warrantyUpdated',
-    details: 'Warranty valid until ${warrantyEnd.toIso8601String()}',
-    actorId: actorId,
-  );
+  }) => _useApi
+      ? _api
+            .patch('/api/v1/repairs/${job.id}/warranty', {
+              'warrantyEnd': warrantyEnd.toIso8601String(),
+            })
+            .then((_) {})
+      : _updateWithProgress(
+          job,
+          updates: {'warrantyEnd': Timestamp.fromDate(warrantyEnd)},
+          type: 'warrantyUpdated',
+          details: 'Warranty valid until ${warrantyEnd.toIso8601String()}',
+          actorId: actorId,
+        );
 
   Future<void> approveDisposition(
     RepairJob job, {
@@ -351,26 +481,35 @@ class RepairRepository {
     required String donationRecipient,
     required String actorId,
     required String notes,
-  }) => _updateWithProgress(
-    job,
-    updates: {
-      'disposition': disposition.name,
-      'dispositionApproved': true,
-      'dispositionApprovedBy': actorId,
-      'dispositionApprovedAt': FieldValue.serverTimestamp(),
-      'dispositionNotes': notes.trim(),
-      'resalePrice': disposition == RefurbishedDisposition.resale
-          ? resalePrice
-          : null,
-      'donationRecipient': disposition == RefurbishedDisposition.donation
-          ? donationRecipient.trim()
-          : '',
-    },
-    type: 'dispositionApproved',
-    details: '${disposition.name}: ${notes.trim()}',
-    actorId: actorId,
-    progressPercent: 100,
-  );
+  }) => _useApi
+      ? _api
+            .patch('/api/v1/repairs/${job.id}/disposition', {
+              'disposition': disposition.name,
+              'resalePrice': resalePrice,
+              'donationRecipient': donationRecipient.trim(),
+              'notes': notes.trim(),
+            })
+            .then((_) {})
+      : _updateWithProgress(
+          job,
+          updates: {
+            'disposition': disposition.name,
+            'dispositionApproved': true,
+            'dispositionApprovedBy': actorId,
+            'dispositionApprovedAt': FieldValue.serverTimestamp(),
+            'dispositionNotes': notes.trim(),
+            'resalePrice': disposition == RefurbishedDisposition.resale
+                ? resalePrice
+                : null,
+            'donationRecipient': disposition == RefurbishedDisposition.donation
+                ? donationRecipient.trim()
+                : '',
+          },
+          type: 'dispositionApproved',
+          details: '${disposition.name}: ${notes.trim()}',
+          actorId: actorId,
+          progressPercent: 100,
+        );
 
   Future<void> _updateWithProgress(
     RepairJob job, {
