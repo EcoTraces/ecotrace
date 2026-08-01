@@ -101,9 +101,9 @@ assets. Cloud Functions uses its runtime service identity.
 ## Render deployment
 
 The repository includes a `render.yaml` Blueprint for a free Render web
-service. It builds the `functions` package, starts `lib/server.js`, and checks
-`/health`. The same Express application remains deployable as a Firebase
-Function.
+service. It installs build-time dependencies even with `NODE_ENV=production`,
+builds the `functions` package, starts `lib/server.js`, and checks `/health`.
+The same Express application remains deployable as a Firebase Function.
 
 1. Create a Firebase Admin service-account key in Google Cloud IAM. Keep the
    downloaded JSON outside this repository.
