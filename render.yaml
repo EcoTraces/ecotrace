@@ -1,3 +1,9 @@
+envVarGroups:
+  - name: ecotrace-notification-events
+    envVars:
+      - key: NOTIFICATION_EVENT_KEY
+        generateValue: true
+
 services:
   - type: web
     name: ecotrace-api
@@ -25,3 +31,25 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: NOTIFICATION_API_URL
+        value: https://ecotrace-notifications.onrender.com
+      - fromGroup: ecotrace-notification-events
+  - type: web
+    name: ecotrace-notifications
+    runtime: python
+    plan: free
+    rootDir: notifications_service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.14.6
+      - key: FIREBASE_PROJECT_ID
+        value: wastemanagementsystem-902eb
+      - key: FIREBASE_SERVICE_ACCOUNT_BASE64
+        sync: false
+      - key: API_ALLOWED_ORIGINS
+        sync: false
+      - fromGroup: ecotrace-notification-events

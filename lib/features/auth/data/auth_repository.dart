@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../audit/data/audit_repository.dart';
 import '../../audit/domain/audit_event.dart';
+import '../../pickups/data/notification_service.dart';
 import '../domain/app_role.dart';
 import '../domain/user_profile.dart';
 
@@ -150,6 +151,11 @@ class AuthRepository {
       } catch (_) {
         // Sign-out must still succeed if audit delivery is temporarily offline.
       }
+    }
+    try {
+      await NotificationService.removeCurrentDevice();
+    } catch (_) {
+      // Logout must succeed when push-token cleanup is temporarily offline.
     }
     await _auth.signOut();
   }

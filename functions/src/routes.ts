@@ -10,6 +10,7 @@ import centreRoutes from "./centre-routes.js";
 import inventoryRoutes from "./inventory-routes.js";
 import mediaRoutes from "./media-routes.js";
 import repairRoutes from "./repair-routes.js";
+import {publishNotificationEvent} from "./push-events.js";
 
 const router = Router();
 router.use(routeRoutes);
@@ -185,6 +186,7 @@ router.post("/pickup-requests", authenticate, async (request, response) => {
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
+  void publishNotificationEvent({event: "pickup_request_submitted", data: {pickupId: reference.id, customerId: request.user!.uid}});
   response.status(201).json({data: {id: reference.id, estimatedFee: fee}});
 });
 
@@ -309,6 +311,8 @@ router.post(
       batch.update(pickup.ref, {status: "assigned", updatedAt: FieldValue.serverTimestamp()});
     }
     await batch.commit();
+    const customerIds = [...new Set(pickups.map((pickup) => String(pickup.get("userId") ?? "")).filter(Boolean))];
+    void publishNotificationEvent({event: "collector_assigned", affectedUserIds: customerIds, data: {scheduleId: reference.id, pickupIds: input.pickupIds}});
     response.status(201).json({data: {id: reference.id, estimatedWeight}});
   },
 );
@@ -343,6 +347,9 @@ router.patch("/dispatch/schedules/:id/start", authenticate, requireRoles(...disp
   batch.update(reference, {status: "inProgress", startedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()});
   for (const pickupId of snapshot.get("pickupIds") ?? []) batch.update(db.collection("pickupRequests").doc(pickupId), {status: "inProgress", updatedAt: FieldValue.serverTimestamp()});
   await batch.commit();
+  const pickupDocuments = await db.getAll(...(snapshot.get("pickupIds") ?? []).map((pickupId: string) => db.collection("pickupRequests").doc(pickupId)));
+  const customerIds = [...new Set(pickupDocuments.map((pickup) => String(pickup.get("userId") ?? "")).filter(Boolean))];
+  void publishNotificationEvent({event: "driver_en_route", affectedUserIds: customerIds, data: {scheduleId: reference.id}});
   response.json({data: {id: reference.id, status: "inProgress"}});
 });
 
@@ -356,6 +363,9 @@ router.patch("/dispatch/schedules/:id/complete", authenticate, requireRoles(...d
   batch.set(vehicle.collection("trips").doc(), {scheduleId: reference.id, pickupCount: (snapshot.get("pickupIds") ?? []).length, completedAt: FieldValue.serverTimestamp(), createdAt: FieldValue.serverTimestamp()});
   for (const pickupId of snapshot.get("pickupIds") ?? []) batch.update(db.collection("pickupRequests").doc(pickupId), {status: "collected", updatedAt: FieldValue.serverTimestamp()});
   await batch.commit();
+  const pickupDocuments = await db.getAll(...(snapshot.get("pickupIds") ?? []).map((pickupId: string) => db.collection("pickupRequests").doc(pickupId)));
+  const customerIds = [...new Set(pickupDocuments.map((pickup) => String(pickup.get("userId") ?? "")).filter(Boolean))];
+  void publishNotificationEvent({event: "pickup_completed", affectedUserIds: customerIds, data: {scheduleId: reference.id}});
   response.json({data: {id: reference.id, status: "completed"}});
 });
 

@@ -30,10 +30,19 @@ class AppNotification {
 
   static NotificationType _type(Object? value) {
     final name = value?.toString() ?? '';
-    return NotificationType.values.where((type) => type.name == name).firstOrNull ??
+    return NotificationType.values
+            .where((type) => type.name == name)
+            .firstOrNull ??
         switch (name) {
           'dispatchJob' => NotificationType.assignment,
           'pickupStatus' => NotificationType.statusUpdate,
+          'COLLECTOR_ASSIGNED' => NotificationType.assignment,
+          'DRIVER_EN_ROUTE' => NotificationType.statusUpdate,
+          'PICKUP_ACCEPTED' ||
+          'PICKUP_COMPLETED' ||
+          'RECYCLER_RECEIVED' ||
+          'RECYCLING_COMPLETED' => NotificationType.statusUpdate,
+          'SECURITY_ALERT' => NotificationType.emergency,
           _ => NotificationType.general,
         };
   }

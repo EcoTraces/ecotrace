@@ -17,13 +17,10 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
-  ApiClient({
-    String? baseUrl,
-    FirebaseAuth? auth,
-    http.Client? httpClient,
-  }) : _baseUrl = (baseUrl ?? ApiConfig.baseUrl).replaceAll(RegExp(r'/+$'), ''),
-       _auth = auth ?? FirebaseAuth.instance,
-       _http = httpClient ?? http.Client();
+  ApiClient({String? baseUrl, FirebaseAuth? auth, http.Client? httpClient})
+    : _baseUrl = (baseUrl ?? ApiConfig.baseUrl).replaceAll(RegExp(r'/+$'), ''),
+      _auth = auth ?? FirebaseAuth.instance,
+      _http = httpClient ?? http.Client();
 
   static final instance = ApiClient();
 
@@ -104,6 +101,17 @@ class ApiClient {
     );
     final body = _decode(response);
     return Map<String, dynamic>.from(body['data'] as Map? ?? const {});
+  }
+
+  Future<void> delete(String path, {Map<String, dynamic>? payload}) async {
+    final request = http.Request('DELETE', _uri(path));
+    request.headers.addAll(await _headers(authenticated: true));
+    if (payload != null) request.body = jsonEncode(payload);
+    final streamed = await _http.send(request);
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _decode(response);
+    }
   }
 
   Map<String, dynamic> _decode(http.Response response) {

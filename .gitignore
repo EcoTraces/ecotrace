@@ -53,3 +53,14 @@ app.*.map.json
 /android/build/reports/
 /android/local_maven_repo/
 /third_party/file_picker/
+
+# Python notification service and credentials
+__pycache__/
+*.pyo
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+*firebase-adminsdk*.json
+*service-account*.json
