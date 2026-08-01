@@ -4,6 +4,7 @@ class ApiConfig {
   static const baseUrl = String.fromEnvironment('API_BASE_URL');
   static const notificationBaseUrl = String.fromEnvironment(
     'NOTIFICATION_API_BASE_URL',
+    defaultValue: 'https://ecotrace-notifications.onrender.com',
   );
   static const fcmWebVapidKey = String.fromEnvironment('FCM_WEB_VAPID_KEY');
   static const pollingSeconds = int.fromEnvironment(
