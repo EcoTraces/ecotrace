@@ -1,29 +1,67 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
 import '../../pickups/domain/pickup.dart';
 import '../domain/collection_centre.dart';
 
 class CollectionCentreRepository {
-  CollectionCentreRepository({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  CollectionCentreRepository({
+    FirebaseFirestore? firestore,
+    ApiClient? apiClient,
+  }) : _db = firestore ?? FirebaseFirestore.instance,
+       _api = apiClient ?? ApiClient.instance,
+       _useApi = apiClient != null ||
+           (firestore == null && ApiConfig.enabled);
 
   final FirebaseFirestore _db;
+  final ApiClient _api;
+  final bool _useApi;
 
   CollectionReference<Map<String, dynamic>> get _centres =>
       _db.collection('collectionCentres');
 
-  Stream<List<CollectionCentre>> watchCentres() => _centres.snapshots().map(
-    (snapshot) => snapshot.docs.map(CollectionCentre.fromDoc).toList()
-      ..sort((a, b) => a.name.compareTo(b.name)),
-  );
+  Stream<List<CollectionCentre>> watchCentres() {
+    if (_useApi) {
+      return _pollCentres();
+    }
+    return _centres.snapshots().map(
+      (snapshot) => snapshot.docs.map(CollectionCentre.fromDoc).toList()
+        ..sort((a, b) => a.name.compareTo(b.name)),
+    );
+  }
 
-  Stream<CollectionCentre> watchCentre(String centreId) => _centres
+  Stream<List<CollectionCentre>> _pollCentres() async* {
+    while (true) {
+      final data = await _api.getList(
+        '/api/v1/collection-centres',
+        authenticated: false,
+      );
+      yield data.map(CollectionCentre.fromJson).toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<CollectionCentre> watchCentre(String centreId) => _useApi
+      ? _pollOne(
+          '/api/v1/collection-centres/$centreId',
+          CollectionCentre.fromJson,
+        )
+      : _centres
       .doc(centreId)
       .snapshots()
       .where((document) => document.exists)
       .map(CollectionCentre.fromDoc);
 
-  Stream<List<StorageSection>> watchSections(String centreId) => _centres
+  Stream<List<StorageSection>> watchSections(String centreId) => _useApi
+      ? _pollList(
+          '/api/v1/collection-centres/$centreId/storageSections',
+          StorageSection.fromJson,
+        ).map((items) => items..sort((a, b) => a.name.compareTo(b.name)))
+      : _centres
       .doc(centreId)
       .collection('storageSections')
       .snapshots()
@@ -33,7 +71,19 @@ class CollectionCentreRepository {
       );
 
   Stream<List<ReceivingRecord>> watchReceivingRecords(String centreId) =>
-      _centres
+      _useApi
+      ? _pollList(
+          '/api/v1/collection-centres/$centreId/receivingRecords',
+          ReceivingRecord.fromJson,
+        ).map(
+          (items) => items
+            ..sort(
+              (a, b) => (b.receivedAt ?? DateTime(0)).compareTo(
+                a.receivedAt ?? DateTime(0),
+              ),
+            ),
+        )
+      : _centres
           .doc(centreId)
           .collection('receivingRecords')
           .orderBy('receivedAt', descending: true)
@@ -41,7 +91,18 @@ class CollectionCentreRepository {
           .snapshots()
           .map((snapshot) => snapshot.docs.map(ReceivingRecord.fromDoc).toList());
 
-  Stream<List<StockMovement>> watchMovements(String centreId) => _centres
+  Stream<List<StockMovement>> watchMovements(String centreId) => _useApi
+      ? _pollList(
+          '/api/v1/collection-centres/$centreId/stockMovements',
+          StockMovement.fromJson,
+        ).map(
+          (items) => items
+            ..sort(
+              (a, b) =>
+                  (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)),
+            ),
+        )
+      : _centres
       .doc(centreId)
       .collection('stockMovements')
       .orderBy('createdAt', descending: true)
@@ -49,7 +110,12 @@ class CollectionCentreRepository {
       .snapshots()
       .map((snapshot) => snapshot.docs.map(StockMovement.fromDoc).toList());
 
-  Stream<List<CentreStaffAssignment>> watchStaff(String centreId) => _centres
+  Stream<List<CentreStaffAssignment>> watchStaff(String centreId) => _useApi
+      ? _pollList(
+          '/api/v1/collection-centres/$centreId/staffAssignments',
+          CentreStaffAssignment.fromJson,
+        )
+      : _centres
       .doc(centreId)
       .collection('staffAssignments')
       .snapshots()
@@ -58,13 +124,50 @@ class CollectionCentreRepository {
             snapshot.docs.map(CentreStaffAssignment.fromDoc).toList(),
       );
 
-  Stream<List<SafetyInspection>> watchInspections(String centreId) => _centres
+  Stream<List<SafetyInspection>> watchInspections(String centreId) => _useApi
+      ? _pollList(
+          '/api/v1/collection-centres/$centreId/safetyInspections',
+          SafetyInspection.fromJson,
+        ).map(
+          (items) => items
+            ..sort(
+              (a, b) => (b.inspectedAt ?? DateTime(0)).compareTo(
+                a.inspectedAt ?? DateTime(0),
+              ),
+            ),
+        )
+      : _centres
       .doc(centreId)
       .collection('safetyInspections')
       .orderBy('inspectedAt', descending: true)
       .limit(50)
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map(SafetyInspection.fromDoc).toList());
+          .snapshots()
+          .map((snapshot) => snapshot.docs.map(SafetyInspection.fromDoc).toList());
+
+  Stream<T> _pollOne<T>(
+    String path,
+    T Function(Map<String, dynamic>) decode,
+  ) async* {
+    while (true) {
+      yield decode(await _api.get(path));
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<T>> _pollList<T>(
+    String path,
+    T Function(Map<String, dynamic>) decode,
+  ) async* {
+    while (true) {
+      final data = await _api.getList(path);
+      yield data.map(decode).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
 
   Future<void> register({
     required String name,
@@ -78,24 +181,45 @@ class CollectionCentreRepository {
     required List<WasteCategory> supportedCategories,
     required double capacityKg,
     required double capacityAlertPercent,
-  }) => _centres.add({
-    'name': name.trim(),
-    'address': address.trim(),
-    'contactName': contactName.trim(),
-    'contactEmail': contactEmail.trim(),
-    'contactPhone': contactPhone.trim(),
-    'latitude': latitude,
-    'longitude': longitude,
-    'operatingHours': operatingHours,
-    'supportedCategories': supportedCategories.map((item) => item.name).toList(),
-    'capacityKg': capacityKg,
-    'currentStockKg': 0,
-    'capacityAlertPercent': capacityAlertPercent,
-    'staffIds': <String>[],
-    'active': true,
-    'createdAt': FieldValue.serverTimestamp(),
-    'updatedAt': FieldValue.serverTimestamp(),
-  });
+  }) {
+    if (_useApi) {
+      return _api.post('/api/v1/collection-centres', {
+        'name': name.trim(),
+        'address': address.trim(),
+        'contactName': contactName.trim(),
+        'contactEmail': contactEmail.trim(),
+        'contactPhone': contactPhone.trim(),
+        'latitude': latitude,
+        'longitude': longitude,
+        'operatingHours': operatingHours,
+        'supportedCategories': supportedCategories
+            .map((item) => item.name)
+            .toList(),
+        'capacityKg': capacityKg,
+        'capacityAlertPercent': capacityAlertPercent,
+      }).then((_) {});
+    }
+    return _centres.add({
+      'name': name.trim(),
+      'address': address.trim(),
+      'contactName': contactName.trim(),
+      'contactEmail': contactEmail.trim(),
+      'contactPhone': contactPhone.trim(),
+      'latitude': latitude,
+      'longitude': longitude,
+      'operatingHours': operatingHours,
+      'supportedCategories': supportedCategories
+          .map((item) => item.name)
+          .toList(),
+      'capacityKg': capacityKg,
+      'currentStockKg': 0,
+      'capacityAlertPercent': capacityAlertPercent,
+      'staffIds': <String>[],
+      'active': true,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 
   Future<void> addSection(
     String centreId, {
@@ -103,7 +227,14 @@ class CollectionCentreRepository {
     required WasteCategory category,
     required double capacityKg,
     required bool restricted,
-  }) => _centres.doc(centreId).collection('storageSections').add({
+  }) => _useApi
+      ? _api.post('/api/v1/collection-centres/$centreId/sections', {
+          'name': name.trim(),
+          'category': category.name,
+          'capacityKg': capacityKg,
+          'restricted': restricted,
+        }).then((_) {})
+      : _centres.doc(centreId).collection('storageSections').add({
     'name': name.trim(),
     'category': category.name,
     'capacityKg': capacityKg,
@@ -118,6 +249,13 @@ class CollectionCentreRepository {
     required String userId,
     required String role,
   }) async {
+    if (_useApi) {
+      await _api.post('/api/v1/collection-centres/$centreId/staff', {
+        'userId': userId.trim(),
+        'role': role.trim(),
+      });
+      return;
+    }
     final centre = _centres.doc(centreId);
     final assignment = centre.collection('staffAssignments').doc(userId.trim());
     final batch = _db.batch();
@@ -146,6 +284,18 @@ class CollectionCentreRepository {
   }) async {
     if (itemCount <= 0 || weightKg <= 0) {
       throw ArgumentError('Item count and weight must be greater than zero.');
+    }
+    if (_useApi) {
+      await _api.post('/api/v1/collection-centres/$centreId/check-ins', {
+        'reference': reference.trim(),
+        'category': category.name,
+        'itemCount': itemCount,
+        'weightKg': weightKg,
+        'sectionId': sectionId,
+        'staffId': staffId,
+        'notes': notes.trim(),
+      });
+      return;
     }
     final centreRef = _centres.doc(centreId);
     final sectionRef = centreRef.collection('storageSections').doc(sectionId);
@@ -198,6 +348,13 @@ class CollectionCentreRepository {
     double verifiedWeightKg,
   ) async {
     if (verifiedWeightKg <= 0) throw ArgumentError('Weight must be positive.');
+    if (_useApi) {
+      await _api.patch(
+        '/api/v1/collection-centres/$centreId/receiving/${record.id}/verify',
+        {'verifiedWeightKg': verifiedWeightKg},
+      );
+      return;
+    }
     final centreRef = _centres.doc(centreId);
     final recordRef = centreRef.collection('receivingRecords').doc(record.id);
     final sectionRef = centreRef
@@ -243,6 +400,16 @@ class CollectionCentreRepository {
     required String notes,
   }) async {
     if (weightKg <= 0) throw ArgumentError('Weight must be greater than zero.');
+    if (_useApi) {
+      await _api.post('/api/v1/collection-centres/$centreId/check-outs', {
+        'sectionId': section.id,
+        'weightKg': weightKg,
+        'destination': destination.trim(),
+        'staffId': staffId,
+        'notes': notes.trim(),
+      });
+      return;
+    }
     final centreRef = _centres.doc(centreId);
     final sectionRef = centreRef.collection('storageSections').doc(section.id);
     await _db.runTransaction((transaction) async {
@@ -287,6 +454,13 @@ class CollectionCentreRepository {
         : score >= 70
         ? SafetyInspectionStatus.actionRequired
         : SafetyInspectionStatus.failed;
+    if (_useApi) {
+      return _api.post('/api/v1/collection-centres/$centreId/inspections', {
+        'inspectorId': inspectorId,
+        'checks': checks,
+        'notes': notes.trim(),
+      }).then((_) {});
+    }
     return _centres.doc(centreId).collection('safetyInspections').add({
       'inspectorId': inspectorId,
       'checks': checks,

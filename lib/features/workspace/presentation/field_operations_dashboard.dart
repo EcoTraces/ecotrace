@@ -5,6 +5,7 @@ import '../../dispatch/data/dispatch_repository.dart';
 import '../../dispatch/domain/collection_schedule.dart';
 import '../../fleet/data/fleet_repository.dart';
 import '../../fleet/domain/vehicle.dart';
+import '../../notifications/presentation/notification_badge.dart';
 import '../domain/application_interface.dart';
 
 class FieldOperationsDashboard extends StatelessWidget {
@@ -504,10 +505,7 @@ class _MobileFieldHero extends StatelessWidget {
                 backgroundColor: const Color(0x24FFFFFF),
                 foregroundColor: Colors.white,
               ),
-              icon: const Badge(
-                label: Text('2'),
-                child: Icon(Icons.notifications_none),
-              ),
+              icon: const NotificationBadgeIcon(color: Colors.white),
             ),
           ],
         ),

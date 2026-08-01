@@ -62,6 +62,7 @@ class _Overview extends StatefulWidget {
 
 class _OverviewState extends State<_Overview> {
   late Future<PlatformHealthSnapshot> health = widget.repository.checkHealth();
+  bool seeding = false;
 
   @override
   Widget build(BuildContext context) => FutureBuilder<PlatformHealthSnapshot>(
@@ -128,6 +129,31 @@ class _OverviewState extends State<_Overview> {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.auto_awesome_outlined),
+                title: const Text('Dashboard demonstration data'),
+                subtitle: Text(
+                  widget.repository.canSeedDemoData
+                      ? 'Create or refresh role-specific sample activity for every registered user.'
+                      : 'Run the application with API_BASE_URL to enable secure demo-data generation.',
+                ),
+                trailing: FilledButton.icon(
+                  onPressed:
+                      !widget.repository.canSeedDemoData || seeding
+                      ? null
+                      : _seedDemoData,
+                  icon: seeding
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.dataset_outlined),
+                  label: Text(seeding ? 'Generating...' : 'Generate data'),
+                ),
+              ),
+            ),
           ],
         ),
       );
@@ -144,6 +170,46 @@ class _OverviewState extends State<_Overview> {
     PlatformServiceStatus.degraded => Colors.orange,
     PlatformServiceStatus.unavailable => Colors.red,
   };
+
+  Future<void> _seedDemoData() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Generate demonstration data?'),
+        content: const Text(
+          'This creates clearly marked sample records for dashboards. '
+          'Running it again refreshes the same records instead of duplicating them.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Generate'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => seeding = true);
+    try {
+      final count = await widget.repository.seedDemoData();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$count demonstration records are ready.')),
+      );
+      setState(() => health = widget.repository.checkHealth());
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to generate demo data: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => seeding = false);
+    }
+  }
 }
 
 class _Metric extends StatelessWidget {

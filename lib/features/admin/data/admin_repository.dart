@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
 import '../../audit/data/audit_repository.dart';
 import '../../audit/domain/audit_event.dart';
 import '../../auth/domain/app_role.dart';
@@ -12,14 +14,29 @@ class AdminRepository {
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
     AuditRepository? auditRepository,
+    ApiClient? apiClient,
   }) : _db = firestore ?? FirebaseFirestore.instance,
-       _auth = auth ?? FirebaseAuth.instance {
+       _auth = auth ?? FirebaseAuth.instance,
+       _api = apiClient ?? ApiClient.instance {
     _audit = auditRepository ?? AuditRepository(firestore: _db, auth: _auth);
   }
 
   final FirebaseFirestore _db;
   final FirebaseAuth _auth;
+  final ApiClient _api;
   late final AuditRepository _audit;
+
+  bool get canSeedDemoData => ApiConfig.enabled;
+
+  Future<int> seedDemoData() async {
+    if (!ApiConfig.enabled) {
+      throw StateError(
+        'Configure API_BASE_URL before generating demo data.',
+      );
+    }
+    final result = await _api.post('/api/v1/admin/demo-data', const {});
+    return (result['records'] as num? ?? 0).toInt();
+  }
 
   Stream<List<UserProfile>> watchUsers() => _db
       .collection('users')

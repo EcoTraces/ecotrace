@@ -2,6 +2,9 @@
 
 EcoTrace is a Flutter and Firebase e-waste operations platform. It includes pickups, inventory and traceability, dispatch/fleet routing, driver GPS tracking, organizations, and collection-centre management.
 
+The platform is being migrated to a secured REST API so Flutter clients no
+longer own business-data access. See [the API architecture and local setup](docs/api-architecture.md).
+
 ## Collection centre management
 
 Collection centre operators and administrators can register centres; configure contact details, GPS coordinates, operating hours, supported waste categories, storage capacity, and alert thresholds; manage storage sections and staff; check stock in and out; verify weights; review stock movements; record safety inspections; and monitor centre/network performance.

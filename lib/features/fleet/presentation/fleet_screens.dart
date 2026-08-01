@@ -73,6 +73,15 @@ class _RegisterVehicleState extends State<RegisterVehicleScreen> {
   DateTime insurance = DateTime.now().add(const Duration(days: 365)),
       licence = DateTime.now().add(const Duration(days: 365));
   bool busy = false;
+
+  @override
+  void dispose() {
+    registration.dispose();
+    capacity.dispose();
+    driver.dispose();
+    super.dispose();
+  }
+
   Future<DateTime> _date(BuildContext c, DateTime value) async =>
       (await showDatePicker(
         context: c,
@@ -147,17 +156,37 @@ class _RegisterVehicleState extends State<RegisterVehicleScreen> {
                     return;
                   }
                   setState(() => busy = true);
-                  await widget.repository.register(
-                    registrationNumber: registration.text,
-                    type: type,
-                    capacityKg: kg,
-                    driverId: driver.text,
-                    insuranceExpiry: insurance,
-                    licenceExpiry: licence,
-                  );
-                  if (c.mounted) Navigator.pop(c);
+                  try {
+                    await widget.repository.register(
+                      registrationNumber: registration.text,
+                      type: type,
+                      capacityKg: kg,
+                      driverId: driver.text,
+                      insuranceExpiry: insurance,
+                      licenceExpiry: licence,
+                    );
+                    if (!c.mounted) return;
+                    ScaffoldMessenger.of(c).showSnackBar(
+                      const SnackBar(
+                        content: Text('Vehicle registered successfully.'),
+                      ),
+                    );
+                    Navigator.pop(c);
+                  } catch (error) {
+                    if (!c.mounted) return;
+                    ScaffoldMessenger.of(c).showSnackBar(
+                      SnackBar(content: Text('Unable to register vehicle: $error')),
+                    );
+                  } finally {
+                    if (mounted) setState(() => busy = false);
+                  }
                 },
-          child: const Text('Register vehicle'),
+          child: busy
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Register vehicle'),
         ),
       ],
     ),

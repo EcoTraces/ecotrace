@@ -27,11 +27,22 @@ class AppNotification {
   final NotificationType type;
   final bool read;
   final DateTime? createdAt;
+
+  static NotificationType _type(Object? value) {
+    final name = value?.toString() ?? '';
+    return NotificationType.values.where((type) => type.name == name).firstOrNull ??
+        switch (name) {
+          'dispatchJob' => NotificationType.assignment,
+          'pickupStatus' => NotificationType.statusUpdate,
+          _ => NotificationType.general,
+        };
+  }
+
   factory AppNotification.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
-    final x = d.data()!;
+    final x = d.data() ?? const <String, dynamic>{};
     return AppNotification(
       id: d.id,
-      type: NotificationType.values.byName(x['type'] ?? 'general'),
+      type: _type(x['type']),
       title: x['title'] ?? '',
       body: x['body'] ?? '',
       read: x['read'] ?? false,

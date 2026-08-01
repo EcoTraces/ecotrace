@@ -2,6 +2,8 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
 import '../../audit/data/audit_repository.dart';
 import '../../audit/domain/audit_event.dart';
 import '../domain/inventory_item.dart';
@@ -12,40 +14,89 @@ class InventoryRepository {
     FirebaseStorage? storage,
     FirebaseAuth? auth,
     AuditRepository? auditRepository,
+    ApiClient? apiClient,
   }) : _db = firestore ?? FirebaseFirestore.instance,
        _storage = storage ?? FirebaseStorage.instance,
-       _auth = auth ?? FirebaseAuth.instance {
+       _auth = auth ?? FirebaseAuth.instance,
+       _api = apiClient ?? ApiClient.instance,
+       _useApi =
+           apiClient != null ||
+           (firestore == null &&
+               storage == null &&
+               auth == null &&
+               ApiConfig.enabled) {
     _audit = auditRepository ?? AuditRepository(firestore: _db, auth: _auth);
   }
   final FirebaseFirestore _db;
   final FirebaseStorage _storage;
   final FirebaseAuth _auth;
+  final ApiClient _api;
+  final bool _useApi;
   late final AuditRepository _audit;
-  Stream<List<InventoryItem>> watchItems() => _db
-      .collection('inventoryItems')
-      .snapshots()
-      .map(
-        (s) =>
-            s.docs.map(InventoryItem.fromDoc).toList()
-              ..sort((a, b) => a.itemCode.compareTo(b.itemCode)),
+  Stream<List<InventoryItem>> watchItems() => _useApi
+      ? _pollItems()
+      : _db
+            .collection('inventoryItems')
+            .snapshots()
+            .map(
+              (s) =>
+                  s.docs.map(InventoryItem.fromDoc).toList()
+                    ..sort((a, b) => a.itemCode.compareTo(b.itemCode)),
+            );
+  Stream<List<InventoryItem>> _pollItems() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/inventory/items');
+      yield data.map(InventoryItem.fromJson).toList()
+        ..sort((a, b) => a.itemCode.compareTo(b.itemCode));
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
       );
-  Stream<InventoryItem> watchItem(String id) => _db
-      .collection('inventoryItems')
-      .doc(id)
-      .snapshots()
-      .where((d) => d.exists)
-      .map(InventoryItem.fromDoc);
-  Stream<List<InventoryEvent>> watchHistory(String id) => _db
-      .collection('inventoryItems')
-      .doc(id)
-      .collection('history')
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map((s) => s.docs.map(InventoryEvent.fromDoc).toList());
-  Stream<List<InventoryBatch>> watchBatches() => _db
-      .collection('inventoryBatches')
-      .snapshots()
-      .map((s) => s.docs.map(InventoryBatch.fromDoc).toList());
+    }
+  }
+
+  Stream<InventoryItem> watchItem(String id) => _useApi
+      ? _pollItems().map((items) => items.firstWhere((item) => item.id == id))
+      : _db
+            .collection('inventoryItems')
+            .doc(id)
+            .snapshots()
+            .where((d) => d.exists)
+            .map(InventoryItem.fromDoc);
+  Stream<List<InventoryEvent>> watchHistory(String id) => _useApi
+      ? _pollHistory(id)
+      : _db
+            .collection('inventoryItems')
+            .doc(id)
+            .collection('history')
+            .orderBy('createdAt', descending: true)
+            .snapshots()
+            .map((s) => s.docs.map(InventoryEvent.fromDoc).toList());
+  Stream<List<InventoryEvent>> _pollHistory(String id) async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/inventory/items/$id/history');
+      yield data.map(InventoryEvent.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<InventoryBatch>> watchBatches() => _useApi
+      ? _pollBatches()
+      : _db
+            .collection('inventoryBatches')
+            .snapshots()
+            .map((s) => s.docs.map(InventoryBatch.fromDoc).toList());
+  Stream<List<InventoryBatch>> _pollBatches() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/inventory/batches');
+      yield data.map(InventoryBatch.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
   Future<String> register({
     required String deviceType,
     required String brand,
@@ -57,6 +108,20 @@ class InventoryRepository {
     required String location,
     required List<Uint8List> images,
   }) async {
+    if (_useApi) {
+      final result = await _api.post('/api/v1/inventory/items', {
+        'deviceType': deviceType.trim(),
+        'brand': brand.trim(),
+        'model': model.trim(),
+        'serialNumber': serialNumber.trim(),
+        'condition': condition.name,
+        'weight': weight,
+        'source': source.trim(),
+        'location': location.trim(),
+        'imageUrls': <String>[],
+      });
+      return result['id']?.toString() ?? '';
+    }
     final item = _db.collection('inventoryItems').doc();
     final code =
         'ECO-${DateTime.now().year}-${item.id.substring(0, 8).toUpperCase()}';
@@ -105,6 +170,13 @@ class InventoryRepository {
     required ProcessingStatus status,
     required String location,
   }) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/inventory/items/${item.id}/state', {
+        'status': status.name,
+        'location': location.trim(),
+      });
+      return;
+    }
     final ref = _db.collection('inventoryItems').doc(item.id);
     final batch = _db.batch();
     batch.update(ref, {
@@ -134,6 +206,13 @@ class InventoryRepository {
     required String name,
     required String location,
   }) async {
+    if (_useApi) {
+      final result = await _api.post('/api/v1/inventory/batches', {
+        'name': name.trim(),
+        'location': location.trim(),
+      });
+      return result['id']?.toString() ?? '';
+    }
     final ref = _db.collection('inventoryBatches').doc();
     await ref.set({
       'batchCode': 'BAT-${ref.id.substring(0, 8).toUpperCase()}',
@@ -149,6 +228,12 @@ class InventoryRepository {
   }
 
   Future<void> assignBatch(InventoryItem item, String batchId) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/inventory/items/${item.id}/batch', {
+        'batchId': batchId,
+      });
+      return;
+    }
     final ref = _db.collection('inventoryItems').doc(item.id);
     final batch = _db.batch();
     batch.update(ref, {

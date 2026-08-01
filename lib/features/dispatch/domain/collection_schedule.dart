@@ -44,4 +44,28 @@ class CollectionSchedule {
       evidenceUrls: List<String>.from(x['evidenceUrls'] ?? []),
     );
   }
+
+  factory CollectionSchedule.fromJson(Map<String, dynamic> data) =>
+      CollectionSchedule(
+        id: data['id']?.toString() ?? '',
+        scheduledAt:
+            DateTime.tryParse(data['scheduledAt']?.toString() ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0),
+        pickupIds: List<String>.from(data['pickupIds'] as List? ?? const []),
+        collectorIds: List<String>.from(
+          data['collectorIds'] as List? ?? const [],
+        ),
+        driverId: data['driverId']?.toString() ?? '',
+        vehicleId: data['vehicleId']?.toString() ?? '',
+        priority: DispatchPriority.values.byName(
+          data['priority']?.toString() ?? 'normal',
+        ),
+        status: DispatchStatus.values.byName(
+          data['status']?.toString() ?? 'planned',
+        ),
+        serviceArea: data['serviceArea']?.toString() ?? '',
+        evidenceUrls: List<String>.from(
+          data['evidenceUrls'] as List? ?? const [],
+        ),
+      );
 }

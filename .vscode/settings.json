@@ -1,0 +1,21 @@
+{
+  "dart.analysisExcludedFolders": [
+    "third_party",
+    "build",
+    "android/build",
+    "android/local_maven_repo",
+    "functions/lib",
+    "functions/node_modules"
+  ],
+  "files.watcherExclude": {
+    "**/build/**": true,
+    "**/node_modules/**": true,
+    "**/android/local_maven_repo/**": true
+  },
+  "search.exclude": {
+    "**/build/**": true,
+    "**/node_modules/**": true,
+    "**/third_party/**": true,
+    "**/android/local_maven_repo/**": true
+  }
+}

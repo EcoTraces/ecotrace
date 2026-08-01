@@ -73,6 +73,25 @@ class InventoryItem {
       imageUrls: List<String>.from(d['imageUrls'] ?? const []),
     );
   }
+  factory InventoryItem.fromJson(Map<String, dynamic> d) => InventoryItem(
+    id: d['id']?.toString() ?? '',
+    itemCode: d['itemCode']?.toString() ?? d['id']?.toString() ?? '',
+    deviceType: d['deviceType']?.toString() ?? '',
+    brand: d['brand']?.toString() ?? '',
+    model: d['model']?.toString() ?? '',
+    serialNumber: d['serialNumber']?.toString() ?? '',
+    condition: ItemCondition.values.byName(
+      d['condition']?.toString() ?? ItemCondition.working.name,
+    ),
+    weight: (d['weight'] as num? ?? 0).toDouble(),
+    source: d['source']?.toString() ?? '',
+    location: d['currentLocation']?.toString() ?? '',
+    status: ProcessingStatus.values.byName(
+      d['processingStatus']?.toString() ?? ProcessingStatus.registered.name,
+    ),
+    batchId: d['batchId']?.toString(),
+    imageUrls: List<String>.from(d['imageUrls'] ?? const []),
+  );
 }
 
 class InventoryBatch {
@@ -92,6 +111,12 @@ class InventoryBatch {
       location: x['currentLocation'],
     );
   }
+  factory InventoryBatch.fromJson(Map<String, dynamic> x) => InventoryBatch(
+    id: x['id']?.toString() ?? '',
+    code: x['batchCode']?.toString() ?? '',
+    name: x['name']?.toString() ?? '',
+    location: x['currentLocation']?.toString() ?? '',
+  );
 }
 
 class InventoryEvent {
@@ -110,4 +135,9 @@ class InventoryEvent {
       at: (x['createdAt'] as Timestamp?)?.toDate(),
     );
   }
+  factory InventoryEvent.fromJson(Map<String, dynamic> x) => InventoryEvent(
+    action: x['action']?.toString() ?? '',
+    details: x['details']?.toString() ?? '',
+    at: DateTime.tryParse(x['createdAt']?.toString() ?? ''),
+  );
 }

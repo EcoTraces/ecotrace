@@ -78,6 +78,30 @@ class CollectionCentre {
       active: data['active'] as bool? ?? true,
     );
   }
+
+  factory CollectionCentre.fromJson(Map<String, dynamic> data) =>
+      CollectionCentre(
+        id: data['id']?.toString() ?? '',
+        name: data['name']?.toString() ?? '',
+        address: data['address']?.toString() ?? '',
+        contactName: data['contactName']?.toString() ?? '',
+        contactEmail: data['contactEmail']?.toString() ?? '',
+        contactPhone: data['contactPhone']?.toString() ?? '',
+        latitude: (data['latitude'] as num?)?.toDouble(),
+        longitude: (data['longitude'] as num?)?.toDouble(),
+        operatingHours: Map<String, String>.from(
+          data['operatingHours'] as Map? ?? const {},
+        ),
+        supportedCategories: List<String>.from(
+          data['supportedCategories'] as List? ?? const [],
+        ).map(WasteCategory.values.byName).toList(),
+        capacityKg: (data['capacityKg'] as num? ?? 0).toDouble(),
+        currentStockKg: (data['currentStockKg'] as num? ?? 0).toDouble(),
+        capacityAlertPercent:
+            (data['capacityAlertPercent'] as num? ?? 80).toDouble(),
+        staffIds: List<String>.from(data['staffIds'] as List? ?? const []),
+        active: data['active'] as bool? ?? true,
+      );
 }
 
 class StorageSection {
@@ -109,6 +133,17 @@ class StorageSection {
       restricted: data['restricted'] as bool? ?? false,
     );
   }
+
+  factory StorageSection.fromJson(Map<String, dynamic> data) => StorageSection(
+    id: data['id']?.toString() ?? '',
+    name: data['name']?.toString() ?? '',
+    category: WasteCategory.values.byName(
+      data['category']?.toString() ?? 'other',
+    ),
+    capacityKg: (data['capacityKg'] as num? ?? 0).toDouble(),
+    currentStockKg: (data['currentStockKg'] as num? ?? 0).toDouble(),
+    restricted: data['restricted'] as bool? ?? false,
+  );
 }
 
 class ReceivingRecord {
@@ -152,6 +187,24 @@ class ReceivingRecord {
       receivedAt: (data['receivedAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory ReceivingRecord.fromJson(Map<String, dynamic> data) =>
+      ReceivingRecord(
+        id: data['id']?.toString() ?? '',
+        reference: data['reference']?.toString() ?? '',
+        category: WasteCategory.values.byName(
+          data['category']?.toString() ?? 'other',
+        ),
+        itemCount: (data['itemCount'] as num? ?? 0).toInt(),
+        recordedWeightKg:
+            (data['recordedWeightKg'] as num? ?? 0).toDouble(),
+        verifiedWeightKg: (data['verifiedWeightKg'] as num?)?.toDouble(),
+        verified: data['verified'] as bool? ?? false,
+        sectionId: data['sectionId']?.toString() ?? '',
+        staffId: data['staffId']?.toString() ?? '',
+        notes: data['notes']?.toString() ?? '',
+        receivedAt: DateTime.tryParse(data['receivedAt']?.toString() ?? ''),
+      );
 }
 
 class StockMovement {
@@ -185,6 +238,19 @@ class StockMovement {
       at: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory StockMovement.fromJson(Map<String, dynamic> data) => StockMovement(
+    id: data['id']?.toString() ?? '',
+    type: StockMovementType.values.byName(
+      data['type']?.toString() ?? 'adjustment',
+    ),
+    weightKg: (data['weightKg'] as num? ?? 0).toDouble(),
+    sectionId: data['sectionId']?.toString() ?? '',
+    destination: data['destination']?.toString() ?? '',
+    staffId: data['staffId']?.toString() ?? '',
+    notes: data['notes']?.toString() ?? '',
+    at: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+  );
 }
 
 class CentreStaffAssignment {
@@ -207,6 +273,14 @@ class CentreStaffAssignment {
       active: data['active'] as bool? ?? true,
     );
   }
+
+  factory CentreStaffAssignment.fromJson(Map<String, dynamic> data) =>
+      CentreStaffAssignment(
+        id: data['id']?.toString() ?? '',
+        userId: data['userId']?.toString() ?? '',
+        role: data['role']?.toString() ?? 'staff',
+        active: data['active'] as bool? ?? true,
+      );
 }
 
 class SafetyInspection {
@@ -237,4 +311,18 @@ class SafetyInspection {
       inspectedAt: (data['inspectedAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory SafetyInspection.fromJson(Map<String, dynamic> data) =>
+      SafetyInspection(
+        id: data['id']?.toString() ?? '',
+        inspectorId: data['inspectorId']?.toString() ?? '',
+        status: SafetyInspectionStatus.values.byName(
+          data['status']?.toString() ?? 'actionRequired',
+        ),
+        score: (data['score'] as num? ?? 0).toInt(),
+        notes: data['notes']?.toString() ?? '',
+        inspectedAt: DateTime.tryParse(
+          data['inspectedAt']?.toString() ?? '',
+        ),
+      );
 }

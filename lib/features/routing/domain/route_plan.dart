@@ -79,4 +79,27 @@ class RoutePlan {
       completedAt: (x['completedAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory RoutePlan.fromJson(Map<String, dynamic> data) => RoutePlan(
+    id: data['id']?.toString() ?? '',
+    scheduleId: data['scheduleId']?.toString() ?? '',
+    driverId: data['driverId']?.toString() ?? '',
+    vehicleId: data['vehicleId']?.toString() ?? '',
+    stops: (data['stops'] as List? ?? const [])
+        .map(
+          (stop) =>
+              RouteStop.fromMap(Map<String, dynamic>.from(stop as Map)),
+        )
+        .toList(),
+    distanceKm: (data['distanceKm'] as num? ?? 0).toDouble(),
+    estimatedMinutes: (data['estimatedMinutes'] as num? ?? 0).toDouble(),
+    status: RoutePlanStatus.values.byName(
+      data['status']?.toString() ?? 'planned',
+    ),
+    currentLatitude: (data['currentLatitude'] as num?)?.toDouble(),
+    currentLongitude: (data['currentLongitude'] as num?)?.toDouble(),
+    deviationCount: (data['deviationCount'] as num? ?? 0).toInt(),
+    startedAt: DateTime.tryParse(data['startedAt']?.toString() ?? ''),
+    completedAt: DateTime.tryParse(data['completedAt']?.toString() ?? ''),
+  );
 }

@@ -1,11 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
 import '../domain/vehicle.dart';
 
 class FleetRepository {
-  FleetRepository({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  FleetRepository({FirebaseFirestore? firestore, ApiClient? apiClient})
+    : _db = firestore ?? FirebaseFirestore.instance,
+      _api = apiClient ?? ApiClient.instance,
+      _useApi = apiClient != null || (firestore == null && ApiConfig.enabled);
   final FirebaseFirestore _db;
-  Stream<List<Vehicle>> watchVehicles() => _db
+  final ApiClient _api;
+  final bool _useApi;
+  Stream<List<Vehicle>> watchVehicles() => _useApi
+      ? _pollVehicles()
+      : _db
       .collection('vehicles')
       .snapshots()
       .map(
@@ -14,11 +22,29 @@ class FleetRepository {
             (a, b) => a.registrationNumber.compareTo(b.registrationNumber),
           ),
       );
-  Stream<List<Vehicle>> watchAvailable() => _db
+  Stream<List<Vehicle>> watchAvailable() => _useApi
+      ? _pollVehicles(availability: VehicleAvailability.available.name)
+      : _db
       .collection('vehicles')
       .where('availability', isEqualTo: VehicleAvailability.available.name)
       .snapshots()
       .map((s) => s.docs.map(Vehicle.fromDoc).toList());
+
+  Stream<List<Vehicle>> _pollVehicles({String? availability}) async* {
+    while (true) {
+      final data = await _api.getList(
+        '/api/v1/vehicles',
+        query: availability == null ? null : {'availability': availability},
+      );
+      yield data.map(Vehicle.fromJson).toList()
+        ..sort(
+          (a, b) => a.registrationNumber.compareTo(b.registrationNumber),
+        );
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
   Stream<List<FleetEvent>> watchEvents(String vehicleId) => _db
       .collection('vehicles')
       .doc(vehicleId)
@@ -41,6 +67,17 @@ class FleetRepository {
     required DateTime insuranceExpiry,
     required DateTime licenceExpiry,
   }) async {
+    if (_useApi) {
+      await _api.post('/api/v1/vehicles', {
+        'registrationNumber': registrationNumber.trim().toUpperCase(),
+        'type': type.name,
+        'capacityKg': capacityKg,
+        'driverId': driverId.trim(),
+        'insuranceExpiry': insuranceExpiry.toUtc().toIso8601String(),
+        'licenceExpiry': licenceExpiry.toUtc().toIso8601String(),
+      });
+      return;
+    }
     final ref = _db.collection('vehicles').doc();
     final batch = _db.batch();
     batch.set(ref, {

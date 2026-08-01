@@ -8,6 +8,7 @@ import '../../compliance/data/compliance_repository.dart';
 import '../../compliance/domain/compliance_record.dart';
 import '../../environmental_impact/data/environmental_impact_repository.dart';
 import '../../environmental_impact/domain/environmental_impact.dart';
+import '../../notifications/presentation/notification_badge.dart';
 import '../../recovery/data/resource_recovery_repository.dart';
 import '../../recovery/domain/recovered_material.dart';
 import '../../recycling/data/recycling_repository.dart';
@@ -1130,13 +1131,10 @@ class _MobileRoleHeader extends StatelessWidget {
               ],
             ),
           ),
-          Badge(
-            label: const Text('3'),
-            child: IconButton(
-              tooltip: 'Notifications',
-              onPressed: onNotifications,
-              icon: const Icon(Icons.notifications_none),
-            ),
+          IconButton(
+            tooltip: 'Notifications',
+            onPressed: onNotifications,
+            icon: const NotificationBadgeIcon(),
           ),
           const SizedBox(width: 4),
           CircleAvatar(

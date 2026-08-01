@@ -5,6 +5,9 @@ class NotificationRepository {
   NotificationRepository({FirebaseFirestore? firestore})
     : _db = firestore ?? FirebaseFirestore.instance;
   final FirebaseFirestore _db;
+  Stream<int> watchUnreadCount(String uid) =>
+      watch(uid).map((items) => items.where((item) => !item.read).length);
+
   Stream<List<AppNotification>> watch(String uid) => _db
       .collection('users')
       .doc(uid)

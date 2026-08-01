@@ -2,15 +2,24 @@ import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
 import '../../dispatch/domain/collection_schedule.dart';
 import '../../pickups/domain/pickup.dart';
 import '../domain/route_plan.dart';
 
 class RouteRepository {
-  RouteRepository({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  RouteRepository({FirebaseFirestore? firestore, ApiClient? apiClient})
+    : _db = firestore ?? FirebaseFirestore.instance,
+      _api = apiClient ?? ApiClient.instance,
+      _useApi = apiClient != null || (firestore == null && ApiConfig.enabled);
   final FirebaseFirestore _db;
-  Stream<List<RoutePlan>> watchRoutes() => _db
+  final ApiClient _api;
+  final bool _useApi;
+
+  Stream<List<RoutePlan>> watchRoutes() => _useApi
+      ? _pollRoutes()
+      : _db
       .collection('routePlans')
       .snapshots()
       .map(
@@ -18,17 +27,51 @@ class RouteRepository {
             s.docs.map(RoutePlan.fromDoc).toList()
               ..sort((a, b) => a.status.index.compareTo(b.status.index)),
       );
-  Stream<RoutePlan> watchRoute(String id) => _db
+  Stream<RoutePlan> watchRoute(String id) => _useApi
+      ? _pollRoute(id)
+      : _db
       .collection('routePlans')
       .doc(id)
       .snapshots()
       .where((d) => d.exists)
       .map(RoutePlan.fromDoc);
-  Stream<List<CollectionSchedule>> watchSchedulable() => _db
+  Stream<List<CollectionSchedule>> watchSchedulable() => _useApi
+      ? _pollSchedulable()
+      : _db
       .collection('collectionSchedules')
       .where('status', whereIn: ['planned', 'dispatched', 'inProgress'])
       .snapshots()
       .map((s) => s.docs.map(CollectionSchedule.fromDoc).toList());
+
+  Stream<List<RoutePlan>> _pollRoutes() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/routes');
+      yield data.map(RoutePlan.fromJson).toList()
+        ..sort((a, b) => a.status.index.compareTo(b.status.index));
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<RoutePlan> _pollRoute(String id) async* {
+    while (true) {
+      yield RoutePlan.fromJson(await _api.get('/api/v1/routes/$id'));
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<CollectionSchedule>> _pollSchedulable() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/routes/schedulable');
+      yield data.map(CollectionSchedule.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
   Stream<Position> positionStream() {
     final LocationSettings settings;
     if (defaultTargetPlatform == TargetPlatform.android) {
@@ -64,6 +107,13 @@ class RouteRepository {
   }
 
   Future<RoutePlan> optimize(CollectionSchedule schedule) async {
+    if (_useApi) {
+      return RoutePlan.fromJson(
+        await _api.post('/api/v1/routes/optimize', {
+          'scheduleId': schedule.id,
+        }),
+      );
+    }
     final existing = await _db
         .collection('routePlans')
         .where('scheduleId', isEqualTo: schedule.id)
@@ -165,13 +215,24 @@ class RouteRepository {
     return RoutePlan.fromDoc(await ref.get());
   }
 
-  Future<void> start(String routeId) =>
-      _db.collection('routePlans').doc(routeId).update({
+  Future<void> start(String routeId) => _useApi
+      ? _api.patch('/api/v1/routes/$routeId/start', const {}).then((_) {})
+      : _db.collection('routePlans').doc(routeId).update({
         'status': RoutePlanStatus.active.name,
         'startedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
   Future<void> recordPosition(String routeId, Position position) async {
+    if (_useApi) {
+      await _api.post('/api/v1/routes/$routeId/positions', {
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+        'speedMps': position.speed,
+        'accuracy': position.accuracy,
+        'recordedAt': position.timestamp.toUtc().toIso8601String(),
+      });
+      return;
+    }
     final route = RoutePlan.fromDoc(
       await _db.collection('routePlans').doc(routeId).get(),
     );
@@ -270,8 +331,9 @@ class RouteRepository {
     await batch.commit();
   }
 
-  Future<void> complete(String routeId) =>
-      _db.collection('routePlans').doc(routeId).update({
+  Future<void> complete(String routeId) => _useApi
+      ? _api.patch('/api/v1/routes/$routeId/complete', const {}).then((_) {})
+      : _db.collection('routePlans').doc(routeId).update({
         'status': RoutePlanStatus.completed.name,
         'completedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),

@@ -32,6 +32,7 @@ import '../../inventory/presentation/inventory_screens.dart';
 import '../../marketplace/data/marketplace_repository.dart';
 import '../../marketplace/presentation/marketplace_screens.dart';
 import '../../notifications/data/notification_repository.dart';
+import '../../notifications/presentation/notification_badge.dart';
 import '../../notifications/presentation/notification_screen.dart';
 import '../../organizations/data/organization_repository.dart';
 import '../../organizations/presentation/organization_screens.dart';
@@ -113,7 +114,7 @@ class RoleWorkspaceScreen extends StatelessWidget {
                       tooltip: 'Notifications',
                       onPressed: () =>
                           _open(context, WorkspaceDestination.notifications),
-                      icon: const Icon(Icons.notifications_outlined),
+                      icon: const NotificationBadgeIcon(),
                     ),
                     IconButton(
                       tooltip: 'Profile',
@@ -630,7 +631,7 @@ class RoleWorkspaceScreen extends StatelessWidget {
                         tooltip: 'Notifications',
                         onPressed: () =>
                             _open(context, WorkspaceDestination.notifications),
-                        icon: const Icon(Icons.notifications_none, size: 21),
+                        icon: const NotificationBadgeIcon(size: 21),
                       ),
                       _HeaderUserMenu(
                         name: name,

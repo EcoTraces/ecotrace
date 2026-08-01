@@ -64,4 +64,25 @@ class ItemAssessment {
       notes: x['notes'] ?? '',
     );
   }
+  factory ItemAssessment.fromJson(Map<String, dynamic> x) => ItemAssessment(
+    id: x['id']?.toString() ?? '',
+    category: DeviceCategory.values.byName(
+      x['category']?.toString() ?? 'accessories',
+    ),
+    materials: (x['materials'] as Map? ?? const {}).map(
+      (key, value) => MapEntry(key.toString(), (value as num).toDouble()),
+    ),
+    hazards: List<String>.from(x['hazards'] ?? const []),
+    reusability: (x['reusability'] as num? ?? 0).toInt(),
+    repairability: (x['repairability'] as num? ?? 0).toInt(),
+    recommendation: TreatmentRecommendation.values.byName(
+      x['recommendation']?.toString() ?? 'recycle',
+    ),
+    recoveryValue: (x['recoveryValue'] as num? ?? 0).toDouble(),
+    confidence: (x['confidence'] as num? ?? 0).toDouble(),
+    status: AssessmentStatus.values.byName(
+      x['status']?.toString() ?? 'pendingSupervisor',
+    ),
+    notes: x['notes']?.toString() ?? '',
+  );
 }

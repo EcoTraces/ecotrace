@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../auth/domain/app_role.dart';
+import '../../notifications/presentation/notification_badge.dart';
 import '../../pickups/data/pickup_repository.dart';
 import '../../pickups/domain/pickup.dart';
 import '../../rewards/data/rewards_repository.dart';
@@ -455,7 +456,7 @@ class _MobileHero extends StatelessWidget {
           IconButton(
             onPressed: onNotifications,
             color: Colors.white,
-            icon: const Icon(Icons.notifications_none),
+            icon: const NotificationBadgeIcon(color: Colors.white),
           ),
         ],
       ),

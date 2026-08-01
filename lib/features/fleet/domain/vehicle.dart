@@ -48,6 +48,24 @@ class Vehicle {
       longitude: (d['longitude'] as num?)?.toDouble(),
     );
   }
+  factory Vehicle.fromJson(Map<String, dynamic> data) => Vehicle(
+    id: data['id']?.toString() ?? '',
+    registrationNumber: data['registrationNumber']?.toString() ?? '',
+    type: VehicleType.values.byName(data['type']?.toString() ?? 'van'),
+    capacityKg: (data['capacityKg'] as num? ?? 0).toDouble(),
+    driverId: data['driverId']?.toString() ?? '',
+    availability: VehicleAvailability.values.byName(
+      data['availability']?.toString() ?? 'available',
+    ),
+    mileageKm: (data['mileageKm'] as num? ?? 0).toDouble(),
+    fuelLitres: (data['fuelLitres'] as num? ?? 0).toDouble(),
+    insuranceExpiry: DateTime.tryParse(
+      data['insuranceExpiry']?.toString() ?? '',
+    ),
+    licenceExpiry: DateTime.tryParse(data['licenceExpiry']?.toString() ?? ''),
+    latitude: (data['latitude'] as num?)?.toDouble(),
+    longitude: (data['longitude'] as num?)?.toDouble(),
+  );
   bool expiresWithin(Duration duration) {
     final cutoff = DateTime.now().add(duration);
     return (insuranceExpiry?.isBefore(cutoff) ?? false) ||

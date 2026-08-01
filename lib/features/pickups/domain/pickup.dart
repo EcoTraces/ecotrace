@@ -73,6 +73,30 @@ class PickupRequest {
       longitude: (x['longitude'] as num?)?.toDouble(),
     );
   }
+  factory PickupRequest.fromJson(Map<String, dynamic> data) => PickupRequest(
+    id: data['id']?.toString() ?? '',
+    userId: data['userId']?.toString() ?? '',
+    category: WasteCategory.values.byName(
+      data['category']?.toString() ?? 'other',
+    ),
+    quantity: (data['quantity'] as num? ?? 0).toInt(),
+    weight: (data['estimatedWeight'] as num? ?? 0).toDouble(),
+    condition: data['condition']?.toString() ?? '',
+    location: data['location']?.toString() ?? '',
+    scheduledAt:
+        DateTime.tryParse(data['scheduledAt']?.toString() ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0),
+    urgent: data['urgent'] as bool? ?? false,
+    instructions: data['instructions']?.toString() ?? '',
+    fee: (data['estimatedFee'] as num? ?? 0).toDouble(),
+    status: PickupStatus.values.byName(
+      data['status']?.toString() ?? 'submitted',
+    ),
+    rating: (data['rating'] as num?)?.toInt(),
+    photoUrls: List<String>.from(data['photoUrls'] as List? ?? const []),
+    latitude: (data['latitude'] as num?)?.toDouble(),
+    longitude: (data['longitude'] as num?)?.toDouble(),
+  );
 }
 
 class PickupPhoto {
