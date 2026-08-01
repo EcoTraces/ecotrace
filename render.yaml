@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: ecotrace-api
+    runtime: node
+    plan: free
+    rootDir: functions
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.18.0
+      - key: NODE_ENV
+        value: production
+      - key: FIREBASE_PROJECT_ID
+        value: wastemanagementsystem-902eb
+      - key: FIREBASE_SERVICE_ACCOUNT_BASE64
+        sync: false
+      - key: API_ALLOWED_ORIGINS
+        sync: false
