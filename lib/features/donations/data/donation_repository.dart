@@ -1,15 +1,13 @@
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import '../../../core/media/cloudinary_upload_service.dart';
 import '../../repairs/domain/repair_job.dart';
 import '../domain/donation.dart';
 
 class DonationRepository {
-  DonationRepository({FirebaseFirestore? firestore, FirebaseStorage? storage})
-    : _db = firestore ?? FirebaseFirestore.instance,
-      _storage = storage ?? FirebaseStorage.instance;
+  DonationRepository({FirebaseFirestore? firestore})
+    : _db = firestore ?? FirebaseFirestore.instance;
   final FirebaseFirestore _db;
-  final FirebaseStorage _storage;
   Stream<List<Beneficiary>> watchBeneficiaries() => _db
       .collection('donationBeneficiaries')
       .snapshots()
@@ -142,11 +140,14 @@ class DonationRepository {
     String actorId,
   ) async {
     if (proof.isEmpty) throw StateError('Proof of delivery is required.');
-    final s = _storage.ref('donations/${r.id}/proof.jpg');
-    await s.putData(proof, SettableMetadata(contentType: 'image/jpeg'));
+    final proofUrl = await CloudinaryUploadService.instance.uploadImage(
+      proof,
+      scope: 'donations',
+      fileName: 'delivery-proof.jpg',
+    );
     await _db.collection('donationRequests').doc(r.id).update({
       'status': DonationStatus.delivered.name,
-      'proofUrl': await s.getDownloadURL(),
+      'proofUrl': proofUrl,
       'deliveredBy': actorId,
       'deliveredAt': FieldValue.serverTimestamp(),
     });

@@ -1,14 +1,12 @@
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import '../../../core/media/cloudinary_upload_service.dart';
 import '../domain/safety_incident.dart';
 
 class IncidentRepository {
-  IncidentRepository({FirebaseFirestore? firestore, FirebaseStorage? storage})
-    : _db = firestore ?? FirebaseFirestore.instance,
-      _storage = storage ?? FirebaseStorage.instance;
+  IncidentRepository({FirebaseFirestore? firestore})
+    : _db = firestore ?? FirebaseFirestore.instance;
   final FirebaseFirestore _db;
-  final FirebaseStorage _storage;
   CollectionReference<Map<String, dynamic>> get _incidents =>
       _db.collection('safetyIncidents');
   Stream<List<SafetyIncident>> watchIncidents() => _incidents.snapshots().map(
@@ -50,12 +48,11 @@ class IncidentRepository {
         location.trim().isEmpty) {
       throw StateError('Title, description and location are required.');
     }
-    final ref = _incidents.doc(), urls = <String>[];
-    for (var i = 0; i < evidence.length; i++) {
-      final s = _storage.ref('safetyIncidents/${ref.id}/evidence-$i.jpg');
-      await s.putData(evidence[i], SettableMetadata(contentType: 'image/jpeg'));
-      urls.add(await s.getDownloadURL());
-    }
+    final ref = _incidents.doc();
+    final urls = await CloudinaryUploadService.instance.uploadImages(
+      evidence,
+      scope: 'incidents',
+    );
     await ref.set({
       'incidentNumber': 'INC-${DateTime.now().millisecondsSinceEpoch}',
       'type': type.name,

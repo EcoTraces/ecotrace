@@ -1,17 +1,15 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import '../../../core/media/cloudinary_upload_service.dart';
 
 import '../../auth/domain/user_profile.dart';
 import '../domain/support_ticket.dart';
 
 class SupportRepository {
-  SupportRepository({FirebaseFirestore? firestore, FirebaseStorage? storage})
-    : _db = firestore ?? FirebaseFirestore.instance,
-      _storage = storage ?? FirebaseStorage.instance;
+  SupportRepository({FirebaseFirestore? firestore})
+    : _db = firestore ?? FirebaseFirestore.instance;
   final FirebaseFirestore _db;
-  final FirebaseStorage _storage;
   CollectionReference<Map<String, dynamic>> get _tickets =>
       _db.collection('supportTickets');
 
@@ -294,18 +292,10 @@ class SupportRepository {
     List<Uint8List> files,
     String folder,
   ) async {
-    final urls = <String>[];
-    for (var index = 0; index < files.length; index++) {
-      final ref = _storage.ref(
-        'supportTickets/$userId/$ticketId/$folder/${DateTime.now().millisecondsSinceEpoch}-$index.jpg',
-      );
-      await ref.putData(
-        files[index],
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      urls.add(await ref.getDownloadURL());
-    }
-    return urls;
+    return CloudinaryUploadService.instance.uploadImages(
+      files,
+      scope: 'support',
+    );
   }
 
   void _message(

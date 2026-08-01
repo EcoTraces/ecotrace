@@ -1,16 +1,14 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import '../../../core/media/cloudinary_upload_service.dart';
 
 import '../domain/partner.dart';
 
 class PartnerRepository {
-  PartnerRepository({FirebaseFirestore? firestore, FirebaseStorage? storage})
-    : _db = firestore ?? FirebaseFirestore.instance,
-      _storage = storage ?? FirebaseStorage.instance;
+  PartnerRepository({FirebaseFirestore? firestore})
+    : _db = firestore ?? FirebaseFirestore.instance;
   final FirebaseFirestore _db;
-  final FirebaseStorage _storage;
   CollectionReference<Map<String, dynamic>> get _partners =>
       _db.collection('servicePartners');
 
@@ -114,14 +112,15 @@ class PartnerRepository {
   }) async {
     if (file.isEmpty) throw StateError('Select a document image.');
     final doc = _partners.doc(partner.id).collection('documents').doc();
-    final storageRef = _storage.ref(
-      'partners/${partner.id}/documents/${doc.id}.jpg',
+    final url = await CloudinaryUploadService.instance.uploadImage(
+      file,
+      scope: 'partners',
+      fileName: 'partner-document.jpg',
     );
-    await storageRef.putData(file, SettableMetadata(contentType: 'image/jpeg'));
     await doc.set({
       'documentType': documentType.trim(),
       'referenceNumber': referenceNumber.trim(),
-      'url': await storageRef.getDownloadURL(),
+      'url': url,
       'verified': false,
       'issuedAt': Timestamp.fromDate(issuedAt),
       'expiresAt': Timestamp.fromDate(expiresAt),

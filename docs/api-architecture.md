@@ -136,6 +136,27 @@ exposed in source control, logs, screenshots, or chat, revoke it immediately
 in Google Cloud IAM and create a replacement. Render's free service can sleep
 after inactivity, so the first API request after an idle period may be slow.
 
+### Cloudinary image storage
+
+User-uploaded images use signed direct uploads to Cloudinary. Flutter requests
+a short-lived signature from `/api/v1/media/upload-signature` and uploads the
+bytes directly to Cloudinary, so the Cloudinary API secret is never shipped in
+the app and Render does not proxy large image bodies.
+
+Create a Cloudinary product environment and add these secret environment
+variables to the Render web service:
+
+```text
+CLOUDINARY_CLOUD_NAME=<Cloudinary cloud name>
+CLOUDINARY_API_KEY=<Cloudinary API key>
+CLOUDINARY_API_SECRET=<Cloudinary API secret>
+```
+
+After saving the variables, redeploy the Render service. Pickup, inventory,
+collection evidence, incident, donation, support, compliance, partner, and
+reverse-logistics images are stored under role-scoped `ecotrace/` folders.
+General document/PDF storage remains a separate workflow.
+
 ## Migration roadmap
 
 1. Authentication profile mutations and audit delivery.

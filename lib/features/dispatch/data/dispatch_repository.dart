@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_config.dart';
+import '../../../core/media/cloudinary_upload_service.dart';
 import '../../pickups/domain/pickup.dart';
 import '../../fleet/domain/vehicle.dart';
 import '../domain/collection_schedule.dart';
@@ -39,18 +39,11 @@ class DispatchStaff {
 }
 
 class DispatchRepository {
-  DispatchRepository({
-    FirebaseFirestore? firestore,
-    FirebaseStorage? storage,
-    ApiClient? apiClient,
-  })
+  DispatchRepository({FirebaseFirestore? firestore, ApiClient? apiClient})
     : _db = firestore ?? FirebaseFirestore.instance,
-      _storage = storage ?? FirebaseStorage.instance,
       _api = apiClient ?? ApiClient.instance,
-      _useApi = apiClient != null ||
-          (firestore == null && storage == null && ApiConfig.enabled);
+      _useApi = apiClient != null || (firestore == null && ApiConfig.enabled);
   final FirebaseFirestore _db;
-  final FirebaseStorage _storage;
   final ApiClient _api;
   final bool _useApi;
   Stream<List<CollectionSchedule>> watchDay(DateTime day) {
@@ -65,8 +58,8 @@ class DispatchRepository {
           'to': end.toUtc().toIso8601String(),
         },
       ).map(
-        (items) => items
-          ..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt)),
+        (items) =>
+            items..sort((a, b) => a.scheduledAt.compareTo(b.scheduledAt)),
       );
     }
     return _db
@@ -82,25 +75,25 @@ class DispatchRepository {
   }
 
   Stream<List<PickupRequest>> watchAssignablePickups() => _useApi
-      ? _pollList(
-          '/api/v1/dispatch/assignable-pickups',
-          PickupRequest.fromJson,
-        )
+      ? _pollList('/api/v1/dispatch/assignable-pickups', PickupRequest.fromJson)
       : _db
-      .collection('pickupRequests')
-      .where(
-        'status',
-        whereIn: [PickupStatus.submitted.name, PickupStatus.approved.name],
-      )
-      .snapshots()
-      .map((s) => s.docs.map(PickupRequest.fromDoc).toList());
+            .collection('pickupRequests')
+            .where(
+              'status',
+              whereIn: [
+                PickupStatus.submitted.name,
+                PickupStatus.approved.name,
+              ],
+            )
+            .snapshots()
+            .map((s) => s.docs.map(PickupRequest.fromDoc).toList());
   Stream<List<DispatchStaff>> watchStaff() => _useApi
       ? _pollList('/api/v1/dispatch/staff', DispatchStaff.fromJson)
       : _db
-      .collection('users')
-      .where('role', whereIn: ['collector', 'driver'])
-      .snapshots()
-      .map((s) => s.docs.map(DispatchStaff.fromDoc).toList());
+            .collection('users')
+            .where('role', whereIn: ['collector', 'driver'])
+            .snapshots()
+            .map((s) => s.docs.map(DispatchStaff.fromDoc).toList());
   Stream<List<Vehicle>> watchAvailableVehicles() => _useApi
       ? _pollList(
           '/api/v1/vehicles',
@@ -108,10 +101,13 @@ class DispatchRepository {
           query: {'availability': VehicleAvailability.available.name},
         )
       : _db
-      .collection('vehicles')
-      .where('availability', isEqualTo: VehicleAvailability.available.name)
-      .snapshots()
-      .map((s) => s.docs.map(Vehicle.fromDoc).toList());
+            .collection('vehicles')
+            .where(
+              'availability',
+              isEqualTo: VehicleAvailability.available.name,
+            )
+            .snapshots()
+            .map((s) => s.docs.map(Vehicle.fromDoc).toList());
 
   Stream<List<T>> _pollList<T>(
     String path,
@@ -126,6 +122,7 @@ class DispatchRepository {
       );
     }
   }
+
   Future<void> create({
     required DateTime scheduledAt,
     required List<PickupRequest> pickups,
@@ -284,26 +281,15 @@ class DispatchRepository {
     CollectionSchedule schedule,
     List<Uint8List> evidence,
   ) async {
+    final urls = await CloudinaryUploadService.instance.uploadImages(
+      evidence,
+      scope: 'collection-evidence',
+    );
     if (_useApi) {
-      if (evidence.isNotEmpty) {
-        throw StateError(
-          'Collection evidence upload through the API is not enabled yet.',
-        );
-      }
-      await _api.patch(
-        '/api/v1/dispatch/schedules/${schedule.id}/complete',
-        const {'evidenceUrls': <String>[]},
-      );
+      await _api.patch('/api/v1/dispatch/schedules/${schedule.id}/complete', {
+        'evidenceUrls': urls,
+      });
       return;
-    }
-    final urls = <String>[];
-    for (var i = 0; i < evidence.length; i++) {
-      final ref = _storage.ref('collectionEvidence/${schedule.id}/$i.jpg');
-      await ref.putData(
-        evidence[i],
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      urls.add(await ref.getDownloadURL());
     }
     final batch = _db.batch();
     batch.update(_db.collection('collectionSchedules').doc(schedule.id), {
@@ -338,10 +324,9 @@ class DispatchRepository {
     DateTime nextDate,
   ) async {
     if (_useApi) {
-      await _api.patch(
-        '/api/v1/dispatch/schedules/${schedule.id}/reschedule',
-        {'scheduledAt': nextDate.toUtc().toIso8601String()},
-      );
+      await _api.patch('/api/v1/dispatch/schedules/${schedule.id}/reschedule', {
+        'scheduledAt': nextDate.toUtc().toIso8601String(),
+      });
       return;
     }
     final batch = _db.batch();

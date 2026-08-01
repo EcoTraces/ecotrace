@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_config.dart';
+import '../../../core/media/cloudinary_upload_service.dart';
 import '../../audit/data/audit_repository.dart';
 import '../../audit/domain/audit_event.dart';
 import '../domain/inventory_item.dart';
@@ -11,24 +11,18 @@ import '../domain/inventory_item.dart';
 class InventoryRepository {
   InventoryRepository({
     FirebaseFirestore? firestore,
-    FirebaseStorage? storage,
     FirebaseAuth? auth,
     AuditRepository? auditRepository,
     ApiClient? apiClient,
   }) : _db = firestore ?? FirebaseFirestore.instance,
-       _storage = storage ?? FirebaseStorage.instance,
        _auth = auth ?? FirebaseAuth.instance,
        _api = apiClient ?? ApiClient.instance,
        _useApi =
            apiClient != null ||
-           (firestore == null &&
-               storage == null &&
-               auth == null &&
-               ApiConfig.enabled) {
+           (firestore == null && auth == null && ApiConfig.enabled) {
     _audit = auditRepository ?? AuditRepository(firestore: _db, auth: _auth);
   }
   final FirebaseFirestore _db;
-  final FirebaseStorage _storage;
   final FirebaseAuth _auth;
   final ApiClient _api;
   final bool _useApi;
@@ -108,6 +102,10 @@ class InventoryRepository {
     required String location,
     required List<Uint8List> images,
   }) async {
+    final urls = await CloudinaryUploadService.instance.uploadImages(
+      images,
+      scope: 'inventory',
+    );
     if (_useApi) {
       final result = await _api.post('/api/v1/inventory/items', {
         'deviceType': deviceType.trim(),
@@ -118,19 +116,13 @@ class InventoryRepository {
         'weight': weight,
         'source': source.trim(),
         'location': location.trim(),
-        'imageUrls': <String>[],
+        'imageUrls': urls,
       });
       return result['id']?.toString() ?? '';
     }
     final item = _db.collection('inventoryItems').doc();
     final code =
         'ECO-${DateTime.now().year}-${item.id.substring(0, 8).toUpperCase()}';
-    final urls = <String>[];
-    for (var i = 0; i < images.length; i++) {
-      final ref = _storage.ref('inventoryImages/${item.id}/$i.jpg');
-      await ref.putData(images[i], SettableMetadata(contentType: 'image/jpeg'));
-      urls.add(await ref.getDownloadURL());
-    }
     final batch = _db.batch();
     batch.set(item, {
       'itemCode': code,

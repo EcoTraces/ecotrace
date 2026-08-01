@@ -12,6 +12,7 @@ export const openApiDocument = {
     },
   },
   paths: {
+    "/media/upload-signature": {post: {security: [{firebaseAuth: []}], summary: "Create a short-lived signed Cloudinary image upload request", responses: {"200": {description: "Signed upload parameters"}}}},
     "/me": {get: {security: [{firebaseAuth: []}], summary: "Return the authenticated user profile", responses: {"200": {description: "Current user"}}}},
     "/admin/demo-data": {post: {security: [{firebaseAuth: []}], summary: "Create deterministic dashboard demo records", responses: {"200": {description: "Demo records created or refreshed"}}}},
     "/collection-centres": {

@@ -1,16 +1,14 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import '../../../core/media/cloudinary_upload_service.dart';
 
 import '../domain/compliance_record.dart';
 
 class ComplianceRepository {
-  ComplianceRepository({FirebaseFirestore? firestore, FirebaseStorage? storage})
-    : _db = firestore ?? FirebaseFirestore.instance,
-      _storage = storage ?? FirebaseStorage.instance;
+  ComplianceRepository({FirebaseFirestore? firestore})
+    : _db = firestore ?? FirebaseFirestore.instance;
   final FirebaseFirestore _db;
-  final FirebaseStorage _storage;
 
   Stream<List<RegulatoryBody>> watchRegulatoryBodies() =>
       _watch('regulatoryBodies', RegulatoryBody.fromDoc);
@@ -278,17 +276,9 @@ class ComplianceRepository {
     String folder,
     List<Uint8List> files,
   ) async {
-    final urls = <String>[];
-    for (var index = 0; index < files.length; index++) {
-      final ref = _storage.ref(
-        'compliance/$folder/$recordId/${DateTime.now().millisecondsSinceEpoch}-$index.jpg',
-      );
-      await ref.putData(
-        files[index],
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      urls.add(await ref.getDownloadURL());
-    }
-    return urls;
+    return CloudinaryUploadService.instance.uploadImages(
+      files,
+      scope: 'compliance',
+    );
   }
 }

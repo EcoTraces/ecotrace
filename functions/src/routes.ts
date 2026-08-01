@@ -8,11 +8,13 @@ import {seedDemoData} from "./demo-data.js";
 import routeRoutes from "./route-routes.js";
 import centreRoutes from "./centre-routes.js";
 import inventoryRoutes from "./inventory-routes.js";
+import mediaRoutes from "./media-routes.js";
 
 const router = Router();
 router.use(routeRoutes);
 router.use(centreRoutes);
 router.use(inventoryRoutes);
+router.use(mediaRoutes);
 const administrators = ["administrator", "superAdministrator"] as const;
 
 const centreSchema = z.object({
@@ -49,6 +51,7 @@ const pickupSchema = z.object({
   instructions: z.string().trim().max(1000).default(""),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
+  photoUrls: z.array(z.string().url()).max(5).default([]),
 });
 
 const scheduleSchema = z.object({
@@ -175,7 +178,7 @@ router.post("/pickup-requests", authenticate, async (request, response) => {
     userId: request.user!.uid,
     scheduledAt: Timestamp.fromDate(input.scheduledAt),
     estimatedFee: fee,
-    photoUrls: [],
+    photoUrls: input.photoUrls,
     status: "submitted",
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),

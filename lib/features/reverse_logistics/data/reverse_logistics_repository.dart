@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import '../../../core/media/cloudinary_upload_service.dart';
 
 import '../../auth/domain/user_profile.dart';
 import '../../centres/domain/collection_centre.dart';
@@ -9,14 +9,10 @@ import '../../fleet/domain/vehicle.dart';
 import '../domain/reverse_logistics_transfer.dart';
 
 class ReverseLogisticsRepository {
-  ReverseLogisticsRepository({
-    FirebaseFirestore? firestore,
-    FirebaseStorage? storage,
-  }) : _db = firestore ?? FirebaseFirestore.instance,
-       _storage = storage ?? FirebaseStorage.instance;
+  ReverseLogisticsRepository({FirebaseFirestore? firestore})
+    : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
-  final FirebaseStorage _storage;
   CollectionReference<Map<String, dynamic>> get _transfers =>
       _db.collection('reverseLogisticsTransfers');
 
@@ -180,14 +176,11 @@ class ReverseLogisticsRepository {
     ReverseLogisticsTransfer transfer,
     Uint8List bytes,
   ) async {
-    final storageRef = _storage.ref(
-      'reverseLogistics/${transfer.id}/documents/${DateTime.now().millisecondsSinceEpoch}.jpg',
-    );
-    await storageRef.putData(
+    final url = await CloudinaryUploadService.instance.uploadImage(
       bytes,
-      SettableMetadata(contentType: 'image/jpeg'),
+      scope: 'reverse-logistics',
+      fileName: 'transport-document.jpg',
     );
-    final url = await storageRef.getDownloadURL();
     await _transfers.doc(transfer.id).update({
       'transportDocumentUrls': FieldValue.arrayUnion([url]),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -307,14 +300,11 @@ class ReverseLogisticsRepository {
       throw StateError('The transfer is not in transit.');
     }
     if (proof.isEmpty) throw StateError('Delivery proof is required.');
-    final storageRef = _storage.ref(
-      'reverseLogistics/${transfer.id}/delivery-proof.jpg',
-    );
-    await storageRef.putData(
+    final url = await CloudinaryUploadService.instance.uploadImage(
       proof,
-      SettableMetadata(contentType: 'image/jpeg'),
+      scope: 'reverse-logistics',
+      fileName: 'delivery-proof.jpg',
     );
-    final url = await storageRef.getDownloadURL();
     final ref = _transfers.doc(transfer.id);
     final write = _db.batch();
     write.update(ref, {
