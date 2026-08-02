@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -140,23 +142,23 @@ class AuthRepository {
   }
 
   Future<void> signOut() async {
-    if (_auth.currentUser != null) {
-      try {
-        await _audit.record(
-          action: AuditAction.logout,
-          entityType: 'authenticationSession',
-          entityId: _auth.currentUser!.uid,
-          description: 'User signed out.',
-        );
-      } catch (_) {
-        // Sign-out must still succeed if audit delivery is temporarily offline.
-      }
-    }
-    try {
-      await NotificationService.removeCurrentDevice();
-    } catch (_) {
-      // Logout must succeed when push-token cleanup is temporarily offline.
-    }
+    final user = _auth.currentUser;
+    if (user == null) return;
+    unawaited(_recordLogoutBestEffort(user.uid));
+    unawaited(NotificationService.removeCurrentDevice().catchError((_) {}));
     await _auth.signOut();
+  }
+
+  Future<void> _recordLogoutBestEffort(String uid) async {
+    try {
+      await _audit.record(
+        action: AuditAction.logout,
+        entityType: 'authenticationSession',
+        entityId: uid,
+        description: 'User signed out.',
+      );
+    } catch (_) {
+      // The local session is cleared even when audit delivery is unavailable.
+    }
   }
 }

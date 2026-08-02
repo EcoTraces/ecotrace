@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_config.dart';
 import '../../../core/media/cloudinary_upload_service.dart';
@@ -36,9 +37,20 @@ class PickupRepository {
 
   Stream<List<PickupRequest>> _pollMine() async* {
     while (true) {
-      final data = await _api.getList('/api/v1/pickup-requests');
-      yield data.map(PickupRequest.fromJson).toList()
-        ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+      try {
+        final data = await _api.getList('/api/v1/pickup-requests');
+        yield data.map(PickupRequest.fromJson).toList()
+          ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+      } catch (_) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) return;
+        final snapshot = await _db
+            .collection('pickupRequests')
+            .where('userId', isEqualTo: user.uid)
+            .get();
+        yield snapshot.docs.map(PickupRequest.fromDoc).toList()
+          ..sort((a, b) => b.scheduledAt.compareTo(a.scheduledAt));
+      }
       await Future<void>.delayed(
         const Duration(seconds: ApiConfig.pollingSeconds),
       );

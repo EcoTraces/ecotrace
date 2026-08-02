@@ -57,14 +57,18 @@ class ApiClient {
     bool authenticated = true,
     Map<String, String>? query,
   }) async {
-    var response = await _http.get(
-      _uri(path, query),
-      headers: await _headers(authenticated: authenticated),
+    var response = await _networkRetry(
+      () async => _http.get(
+        _uri(path, query),
+        headers: await _headers(authenticated: authenticated),
+      ),
     );
     if (authenticated && response.statusCode == 401) {
-      response = await _http.get(
-        _uri(path, query),
-        headers: await _headers(authenticated: true, forceRefresh: true),
+      response = await _networkRetry(
+        () async => _http.get(
+          _uri(path, query),
+          headers: await _headers(authenticated: true, forceRefresh: true),
+        ),
       );
     }
     await _invalidateExpiredSession(response, authenticated: authenticated);
@@ -79,14 +83,18 @@ class ApiClient {
     bool authenticated = true,
     Map<String, String>? query,
   }) async {
-    var response = await _http.get(
-      _uri(path, query),
-      headers: await _headers(authenticated: authenticated),
+    var response = await _networkRetry(
+      () async => _http.get(
+        _uri(path, query),
+        headers: await _headers(authenticated: authenticated),
+      ),
     );
     if (authenticated && response.statusCode == 401) {
-      response = await _http.get(
-        _uri(path, query),
-        headers: await _headers(authenticated: true, forceRefresh: true),
+      response = await _networkRetry(
+        () async => _http.get(
+          _uri(path, query),
+          headers: await _headers(authenticated: true, forceRefresh: true),
+        ),
       );
     }
     await _invalidateExpiredSession(response, authenticated: authenticated);
@@ -98,16 +106,20 @@ class ApiClient {
     String path,
     Map<String, dynamic> payload,
   ) async {
-    var response = await _http.post(
-      _uri(path),
-      headers: await _headers(authenticated: true),
-      body: jsonEncode(payload),
+    var response = await _networkRetry(
+      () async => _http.post(
+        _uri(path),
+        headers: await _headers(authenticated: true),
+        body: jsonEncode(payload),
+      ),
     );
     if (response.statusCode == 401) {
-      response = await _http.post(
-        _uri(path),
-        headers: await _headers(authenticated: true, forceRefresh: true),
-        body: jsonEncode(payload),
+      response = await _networkRetry(
+        () async => _http.post(
+          _uri(path),
+          headers: await _headers(authenticated: true, forceRefresh: true),
+          body: jsonEncode(payload),
+        ),
       );
     }
     await _invalidateExpiredSession(response);
@@ -119,16 +131,20 @@ class ApiClient {
     String path,
     Map<String, dynamic> payload,
   ) async {
-    var response = await _http.patch(
-      _uri(path),
-      headers: await _headers(authenticated: true),
-      body: jsonEncode(payload),
+    var response = await _networkRetry(
+      () async => _http.patch(
+        _uri(path),
+        headers: await _headers(authenticated: true),
+        body: jsonEncode(payload),
+      ),
     );
     if (response.statusCode == 401) {
-      response = await _http.patch(
-        _uri(path),
-        headers: await _headers(authenticated: true, forceRefresh: true),
-        body: jsonEncode(payload),
+      response = await _networkRetry(
+        () async => _http.patch(
+          _uri(path),
+          headers: await _headers(authenticated: true, forceRefresh: true),
+          body: jsonEncode(payload),
+        ),
       );
     }
     await _invalidateExpiredSession(response);
@@ -167,12 +183,31 @@ class ApiClient {
     Map<String, dynamic>? payload,
     bool forceRefresh = false,
   }) async {
-    final request = http.Request('DELETE', _uri(path));
-    request.headers.addAll(
-      await _headers(authenticated: true, forceRefresh: forceRefresh),
-    );
-    if (payload != null) request.body = jsonEncode(payload);
-    return http.Response.fromStream(await _http.send(request));
+    return _networkRetry(() async {
+      final request = http.Request('DELETE', _uri(path));
+      request.headers.addAll(
+        await _headers(authenticated: true, forceRefresh: forceRefresh),
+      );
+      if (payload != null) request.body = jsonEncode(payload);
+      return http.Response.fromStream(await _http.send(request));
+    });
+  }
+
+  Future<http.Response> _networkRetry(
+    Future<http.Response> Function() operation,
+  ) async {
+    Object? lastError;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await operation();
+      } on http.ClientException catch (error) {
+        lastError = error;
+        if (attempt < 2) {
+          await Future<void>.delayed(Duration(seconds: 2 << attempt));
+        }
+      }
+    }
+    throw lastError!;
   }
 
   Map<String, dynamic> _decode(http.Response response) {
