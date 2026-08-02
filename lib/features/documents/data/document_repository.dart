@@ -1,27 +1,72 @@
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
 import '../domain/managed_document.dart';
 
 class DocumentRepository {
-  DocumentRepository({FirebaseFirestore? firestore, FirebaseStorage? storage})
-    : _db = firestore ?? FirebaseFirestore.instance,
-      _storage = storage ?? FirebaseStorage.instance;
+  DocumentRepository({
+    FirebaseFirestore? firestore,
+    FirebaseStorage? storage,
+    FirebaseAuth? auth,
+    ApiClient? apiClient,
+  }) : _db = firestore ?? FirebaseFirestore.instance,
+       _storage = storage ?? FirebaseStorage.instance,
+       _auth = auth ?? FirebaseAuth.instance,
+       _api = apiClient ?? ApiClient.instance,
+       _useApi =
+           apiClient != null ||
+           (firestore == null && auth == null && ApiConfig.enabled);
   final FirebaseFirestore _db;
   final FirebaseStorage _storage;
+  final FirebaseAuth _auth;
+  final ApiClient _api;
+  final bool _useApi;
   CollectionReference<Map<String, dynamic>> get _docs =>
       _db.collection('managedDocuments');
   Stream<List<ManagedDocument>> watchDocuments(String userId, bool all) =>
-      (all ? _docs : _docs.where('ownerId', isEqualTo: userId)).snapshots().map(
-        (s) => s.docs.map(ManagedDocument.fromDoc).toList()
-          ..sort(
-            (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
-              a.createdAt ?? DateTime(0),
-            ),
-          ),
+      _useApi
+      ? _pollDocuments(userId, all)
+      : (all ? _docs : _docs.where('ownerId', isEqualTo: userId))
+            .snapshots()
+            .map(
+              (s) => s.docs.map(ManagedDocument.fromDoc).toList()
+                ..sort(
+                  (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
+                    a.createdAt ?? DateTime(0),
+                  ),
+                ),
+            );
+  Stream<List<ManagedDocument>> _pollDocuments(String userId, bool all) async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/documents');
+      final docs = data.map(ManagedDocument.fromJson).toList();
+      yield all
+          ? docs
+          : docs
+                .where((d) => d.ownerId == userId || d.ownerId.isEmpty)
+                .toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
       );
-  Stream<ManagedDocument> watchDocument(String id) =>
-      _docs.doc(id).snapshots().map(ManagedDocument.fromDoc);
+    }
+  }
+
+  Stream<ManagedDocument> watchDocument(String id) => _useApi
+      ? _pollDocument(id)
+      : _docs.doc(id).snapshots().map(ManagedDocument.fromDoc);
+  Stream<ManagedDocument> _pollDocument(String id) async* {
+    while (true) {
+      final data = await _api.get('/api/v1/documents/$id');
+      yield ManagedDocument.fromJson({'id': id, ...data});
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
   Stream<List<DocumentVersion>> watchVersions(String id) => _docs
       .doc(id)
       .collection('versions')
@@ -51,6 +96,23 @@ class DocumentRepository {
   }) async {
     if (bytes.isEmpty || title.trim().isEmpty) {
       throw StateError('Title and file are required.');
+    }
+    if (_useApi) {
+      await _api.post('/api/v1/documents', {
+        'title': title.trim(),
+        'category': category.name,
+        'description': '',
+        'documentType': category.name,
+        'fileUrl': '',
+        'version': 1,
+        'status': 'draft',
+        'ownerId': ownerId,
+        'approverId': '',
+        'expiresAt': expiresAt?.toIso8601String(),
+        'tags': <String>[],
+        'secureAccess': true,
+      });
+      return;
     }
     final ref = _docs.doc(),
         url = await _store(ownerId, ref.id, 1, fileName, mimeType, bytes),
@@ -124,6 +186,12 @@ class DocumentRepository {
     String actor,
     String notes,
   ) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/documents/${d.id}/approve', {
+        'approved': approved,
+      });
+      return;
+    }
     final ref = _docs.doc(d.id), batch = _db.batch();
     batch.update(ref, {
       'status': approved

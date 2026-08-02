@@ -1,5 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+DateTime? _parseDateTime(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  if (value is Timestamp) return value.toDate();
+  if (value is String) return DateTime.tryParse(value);
+  return null;
+}
+
 enum SafetyIncidentType {
   accident,
   hazardousExposure,
@@ -77,33 +85,50 @@ class SafetyIncident {
       status != SafetyIncidentStatus.closed;
   factory SafetyIncident.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
     final x = d.data()!;
+    return SafetyIncident.fromJson({
+      ...x,
+      'id': d.id,
+      'incidentNumber': x['incidentNumber'] ?? d.id,
+    });
+  }
+
+  factory SafetyIncident.fromJson(Map<String, dynamic> json) {
+    final typeName = json['type']?.toString() ??
+        json['incidentType']?.toString() ?? 'other';
+    final severityName = json['severity']?.toString() ?? 'moderate';
+    final statusName = json['status']?.toString() ??
+        json['investigationStatus']?.toString() ?? 'reported';
     return SafetyIncident(
-      id: d.id,
-      number: x['incidentNumber'] ?? d.id,
-      type: SafetyIncidentType.values.byName(x['type'] ?? 'other'),
-      severity: SafetyIncidentSeverity.values.byName(
-        x['severity'] ?? 'moderate',
+      id: json['id']?.toString() ?? '',
+      number:
+          json['incidentNumber']?.toString() ?? json['id']?.toString() ?? '',
+      type: SafetyIncidentType.values.byName(typeName),
+      severity: SafetyIncidentSeverity.values.byName(severityName),
+      status: SafetyIncidentStatus.values.byName(statusName),
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      location: json['location']?.toString() ?? '',
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      staffInvolved: List<String>.from(json['staffInvolved'] ?? []),
+      injuryDetails: json['injuryDetails']?.toString() ?? '',
+      hazardType: json['hazardType']?.toString() ?? '',
+      immediateResponse:
+          json['immediateResponse']?.toString() ??
+          json['immediateResponseAction']?.toString() ??
+          '',
+      evidenceUrls: List<String>.from(
+        json['evidenceUrls'] ?? json['photoUrls'] ?? [],
       ),
-      status: SafetyIncidentStatus.values.byName(x['status'] ?? 'reported'),
-      title: x['title'] ?? '',
-      description: x['description'] ?? '',
-      location: x['location'] ?? '',
-      latitude: (x['latitude'] as num?)?.toDouble(),
-      longitude: (x['longitude'] as num?)?.toDouble(),
-      staffInvolved: List<String>.from(x['staffInvolved'] ?? []),
-      injuryDetails: x['injuryDetails'] ?? '',
-      hazardType: x['hazardType'] ?? '',
-      immediateResponse: x['immediateResponse'] ?? '',
-      evidenceUrls: List<String>.from(x['evidenceUrls'] ?? []),
-      investigatorId: x['investigatorId'] ?? '',
-      rootCause: x['rootCause'] ?? '',
-      correctiveAction: x['correctiveAction'] ?? '',
-      correctiveOwner: x['correctiveOwner'] ?? '',
-      correctiveDueAt: (x['correctiveDueAt'] as Timestamp?)?.toDate(),
-      closureNotes: x['closureNotes'] ?? '',
-      reportedBy: x['reportedBy'] ?? '',
-      reportedAt: (x['reportedAt'] as Timestamp?)?.toDate(),
-      closedAt: (x['closedAt'] as Timestamp?)?.toDate(),
+      investigatorId: json['investigatorId']?.toString() ?? '',
+      rootCause: json['rootCause']?.toString() ?? '',
+      correctiveAction: json['correctiveAction']?.toString() ?? '',
+      correctiveOwner: json['correctiveOwner']?.toString() ?? '',
+      correctiveDueAt: _parseDateTime(json['correctiveDueAt']),
+      closureNotes: json['closureNotes']?.toString() ?? '',
+      reportedBy: json['reportedBy']?.toString() ?? '',
+      reportedAt: _parseDateTime(json['reportedAt'] ?? json['createdAt']),
+      closedAt: _parseDateTime(json['closedAt']),
     );
   }
 }
@@ -120,11 +145,14 @@ class IncidentFollowUp {
   final DateTime? recordedAt;
   factory IncidentFollowUp.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
     final x = d.data()!;
+    return IncidentFollowUp.fromJson({...x, 'recordedAt': x['recordedAt']});
+  }
+  factory IncidentFollowUp.fromJson(Map<String, dynamic> json) {
     return IncidentFollowUp(
-      findings: x['findings'] ?? '',
-      riskRemaining: x['riskRemaining'] ?? false,
-      recordedBy: x['recordedBy'] ?? '',
-      recordedAt: (x['recordedAt'] as Timestamp?)?.toDate(),
+      findings: json['findings']?.toString() ?? '',
+      riskRemaining: json['riskRemaining'] ?? false,
+      recordedBy: json['recordedBy']?.toString() ?? '',
+      recordedAt: _parseDateTime(json['recordedAt']),
     );
   }
 }
