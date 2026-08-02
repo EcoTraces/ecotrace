@@ -29,6 +29,9 @@ class CloudinaryUploadService {
     if (bytes.length > 10 * 1024 * 1024) {
       throw StateError('Images must be 10 MB or smaller.');
     }
+    // Render free instances can sleep. A simple GET wakes the service without
+    // requiring an authenticated CORS preflight before requesting a signature.
+    await _api.get('/health', authenticated: false);
     final signed = await _api.post('/api/v1/media/upload-signature', {
       'scope': scope,
     });

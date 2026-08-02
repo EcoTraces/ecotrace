@@ -39,10 +39,11 @@ class ApiClient {
   Future<Map<String, String>> _headers({
     required bool authenticated,
     bool forceRefresh = false,
+    bool jsonContent = true,
   }) async {
     final headers = <String, String>{
       'accept': 'application/json',
-      'content-type': 'application/json',
+      if (jsonContent) 'content-type': 'application/json',
     };
     if (authenticated) {
       final token = await _auth.currentUser?.getIdToken(forceRefresh);
@@ -60,14 +61,21 @@ class ApiClient {
     var response = await _networkRetry(
       () async => _http.get(
         _uri(path, query),
-        headers: await _headers(authenticated: authenticated),
+        headers: await _headers(
+          authenticated: authenticated,
+          jsonContent: false,
+        ),
       ),
     );
     if (authenticated && response.statusCode == 401) {
       response = await _networkRetry(
         () async => _http.get(
           _uri(path, query),
-          headers: await _headers(authenticated: true, forceRefresh: true),
+          headers: await _headers(
+            authenticated: true,
+            forceRefresh: true,
+            jsonContent: false,
+          ),
         ),
       );
     }
@@ -86,14 +94,21 @@ class ApiClient {
     var response = await _networkRetry(
       () async => _http.get(
         _uri(path, query),
-        headers: await _headers(authenticated: authenticated),
+        headers: await _headers(
+          authenticated: authenticated,
+          jsonContent: false,
+        ),
       ),
     );
     if (authenticated && response.statusCode == 401) {
       response = await _networkRetry(
         () async => _http.get(
           _uri(path, query),
-          headers: await _headers(authenticated: true, forceRefresh: true),
+          headers: await _headers(
+            authenticated: true,
+            forceRefresh: true,
+            jsonContent: false,
+          ),
         ),
       );
     }
@@ -197,13 +212,14 @@ class ApiClient {
     Future<http.Response> Function() operation,
   ) async {
     Object? lastError;
-    for (var attempt = 0; attempt < 3; attempt++) {
+    const delays = [2, 4, 8, 10, 10, 10];
+    for (var attempt = 0; attempt <= delays.length; attempt++) {
       try {
         return await operation();
       } on http.ClientException catch (error) {
         lastError = error;
-        if (attempt < 2) {
-          await Future<void>.delayed(Duration(seconds: 2 << attempt));
+        if (attempt < delays.length) {
+          await Future<void>.delayed(Duration(seconds: delays[attempt]));
         }
       }
     }
