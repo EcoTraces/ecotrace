@@ -1,4 +1,4 @@
- """
+"""
 FastAPI entry point for the EcoTrace Notification Microservice.
 
 This service provides:

@@ -71,14 +71,14 @@ class DocumentRepository {
   Stream<List<DocumentVersion>> watchVersions(String id) => _useApi
       ? _pollVersions(id)
       : _docs
-          .doc(id)
-          .collection('versions')
-          .snapshots()
-          .map(
-            (s) =>
-                s.docs.map(DocumentVersion.fromDoc).toList()
-                  ..sort((a, b) => b.version.compareTo(a.version)),
-          );
+            .doc(id)
+            .collection('versions')
+            .snapshots()
+            .map(
+              (s) =>
+                  s.docs.map(DocumentVersion.fromDoc).toList()
+                    ..sort((a, b) => b.version.compareTo(a.version)),
+            );
 
   Stream<List<DocumentVersion>> _pollVersions(String id) async* {
     while (true) {
@@ -94,10 +94,10 @@ class DocumentRepository {
   Stream<List<DocumentAuditEvent>> watchAudit(String id) => _useApi
       ? _pollAudit(id)
       : _docs
-          .doc(id)
-          .collection('auditTrail')
-          .snapshots()
-          .map((s) => s.docs.map(DocumentAuditEvent.fromDoc).toList());
+            .doc(id)
+            .collection('auditTrail')
+            .snapshots()
+            .map((s) => s.docs.map(DocumentAuditEvent.fromDoc).toList());
 
   Stream<List<DocumentAuditEvent>> _pollAudit(String id) async* {
     while (true) {
@@ -108,6 +108,7 @@ class DocumentRepository {
       );
     }
   }
+
   Future<void> upload({
     required String ownerId,
     required String ownerName,
