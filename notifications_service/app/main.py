@@ -26,6 +26,7 @@ origins = [value.strip() for value in os.getenv("API_ALLOWED_ORIGINS", "").split
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins or ["*"],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=bool(origins),
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-EcoTrace-Event-Key"],

@@ -10,9 +10,22 @@ const configuredOrigins = (process.env.API_ALLOWED_ORIGINS ?? "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+const localDevelopmentOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
+function allowedOrigin(origin: string | undefined, callback: (error: Error | null, allowed?: boolean) => void) {
+  if (!origin || localDevelopmentOrigin.test(origin) || configuredOrigins.includes(origin)) {
+    callback(null, true);
+    return;
+  }
+  if (configuredOrigins.length === 0) {
+    callback(null, true);
+    return;
+  }
+  callback(null, false);
+}
 
 app.disable("x-powered-by");
-app.use(cors({origin: configuredOrigins.length === 0 ? true : configuredOrigins}));
+app.use(cors({origin: allowedOrigin, methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"], allowedHeaders: ["Authorization", "Content-Type", "X-EcoTrace-Event-Key"]}));
 app.use(express.json({limit: "1mb"}));
 
 app.get("/health", (_request, response) => response.json({status: "ok", service: "ecotrace-api", version: "1.0.0"}));
