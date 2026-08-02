@@ -74,7 +74,13 @@ describe("EcoTrace API", () => {
     expect(response.body.paths["/support/tickets"]).toBeDefined();
     expect(response.body.paths["/compliance/regulatory-bodies"]).toBeDefined();
     expect(response.body.paths["/incidents"]).toBeDefined();
+    expect(response.body.paths["/incidents/{id}/investigate"]).toBeDefined();
+    expect(response.body.paths["/incidents/{id}/root-cause"]).toBeDefined();
+    expect(response.body.paths["/incidents/{id}/follow-ups"]).toBeDefined();
     expect(response.body.paths["/documents"]).toBeDefined();
+    expect(response.body.paths["/documents/{id}/archive"]).toBeDefined();
+    expect(response.body.paths["/documents/{id}/versions"]).toBeDefined();
+    expect(response.body.paths["/documents/{id}/audit"]).toBeDefined();
   });
 
   it("protects compliance workflows with Firebase authentication", async () => {

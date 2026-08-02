@@ -93,11 +93,13 @@ class SafetyIncident {
   }
 
   factory SafetyIncident.fromJson(Map<String, dynamic> json) {
-    final typeName = json['type']?.toString() ??
-        json['incidentType']?.toString() ?? 'other';
+    final typeName =
+        json['type']?.toString() ?? json['incidentType']?.toString() ?? 'other';
     final severityName = json['severity']?.toString() ?? 'moderate';
-    final statusName = json['status']?.toString() ??
-        json['investigationStatus']?.toString() ?? 'reported';
+    final statusName =
+        json['status']?.toString() ??
+        json['investigationStatus']?.toString() ??
+        'reported';
     return SafetyIncident(
       id: json['id']?.toString() ?? '',
       number:

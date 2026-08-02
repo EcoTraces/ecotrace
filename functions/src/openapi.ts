@@ -1787,6 +1787,32 @@ export const openApiDocument = {
         responses: { "200": { description: "Incident closed" } },
       },
     },
+    "/incidents/{id}/investigate": {
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Start incident investigation",
+        responses: { "200": { description: "Incident investigation started" } },
+      },
+    },
+    "/incidents/{id}/root-cause": {
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Record root cause and corrective action",
+        responses: { "200": { description: "Incident root cause recorded" } },
+      },
+    },
+    "/incidents/{id}/follow-ups": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List incident follow-up entries",
+        responses: { "200": { description: "Incident follow-ups" } },
+      },
+      post: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Create an incident follow-up entry",
+        responses: { "201": { description: "Incident follow-up recorded" } },
+      },
+    },
     "/incidents/statistics": {
       get: {
         security: [{ firebaseAuth: [] }],
@@ -1818,6 +1844,32 @@ export const openApiDocument = {
         security: [{ firebaseAuth: [] }],
         summary: "Approve a document",
         responses: { "200": { description: "Document approved" } },
+      },
+    },
+    "/documents/{id}/archive": {
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Archive a document",
+        responses: { "200": { description: "Document archived" } },
+      },
+    },
+    "/documents/{id}/versions": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List document versions",
+        responses: { "200": { description: "Document versions" } },
+      },
+      post: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Add a document version",
+        responses: { "201": { description: "Document version created" } },
+      },
+    },
+    "/documents/{id}/audit": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List document audit trail entries",
+        responses: { "200": { description: "Document audit events" } },
       },
     },
     "/documents/expiring": {

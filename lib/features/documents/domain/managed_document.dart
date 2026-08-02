@@ -72,34 +72,6 @@ class ManagedDocument {
   }
 
   factory ManagedDocument.fromJson(Map<String, dynamic> json) {
-    final categoryName = json['category']?.toString() ?? 'other';
-    final statusName = json['status']?.toString() ?? 'draft';
-    final accessName = json['accessLevel']?.toString() ?? 'owner';
-    return ManagedDocument(
-      id: json['id']?.toString() ?? '',
-      title: json['title']?.toString() ?? '',
-      category: DocumentCategory.values.byName(categoryName),
-      ownerId: json['ownerId']?.toString() ?? '',
-      ownerName: json['ownerName']?.toString() ?? '',
-      status: ManagedDocumentStatus.values.byName(statusName),
-      accessLevel: DocumentAccessLevel.values.byName(accessName),
-      currentVersion: json['currentVersion'] is int
-          ? json['currentVersion'] as int
-          : int.tryParse(json['currentVersion']?.toString() ?? '1') ?? 1,
-      fileName: json['fileName']?.toString() ?? '',
-      mimeType: json['mimeType']?.toString() ?? '',
-      url: json['url']?.toString() ?? '',
-      referenceNumber:
-          json['referenceNumber']?.toString() ??
-          json['reference']?.toString() ??
-          '',
-      expiresAt: _parseDateTime(json['expiresAt']),
-      createdAt: _parseDateTime(json['createdAt']),
-      archivedAt: _parseDateTime(json['archivedAt']),
-    );
-  }
-
-  factory ManagedDocument.fromJson(Map<String, dynamic> json) {
     final categoryName =
         json['category']?.toString() ??
         json['documentType']?.toString() ??

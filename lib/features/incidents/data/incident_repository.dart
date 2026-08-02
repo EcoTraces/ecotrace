@@ -63,10 +63,10 @@ class IncidentRepository {
   Stream<List<IncidentFollowUp>> watchFollowUps(String id) => _useApi
       ? _pollFollowUps(id)
       : _incidents
-          .doc(id)
-          .collection('followUps')
-          .snapshots()
-          .map((s) => s.docs.map(IncidentFollowUp.fromDoc).toList());
+            .doc(id)
+            .collection('followUps')
+            .snapshots()
+            .map((s) => s.docs.map(IncidentFollowUp.fromDoc).toList());
 
   Stream<List<IncidentFollowUp>> _pollFollowUps(String id) async* {
     while (true) {
@@ -77,6 +77,7 @@ class IncidentRepository {
       );
     }
   }
+
   Stream<List<EmergencyContact>> watchContacts() => _db
       .collection('emergencyContacts')
       .snapshots()
@@ -164,12 +165,14 @@ class IncidentRepository {
     required String owner,
     required DateTime dueAt,
   }) => _useApi
-      ? _api.patch('/api/v1/incidents/${i.id}/root-cause', {
-          'rootCause': rootCause.trim(),
-          'correctiveAction': correctiveAction.trim(),
-          'correctiveOwner': owner.trim(),
-          'correctiveDueAt': dueAt.toUtc().toIso8601String(),
-        }).then((_) {})
+      ? _api
+            .patch('/api/v1/incidents/${i.id}/root-cause', {
+              'rootCause': rootCause.trim(),
+              'correctiveAction': correctiveAction.trim(),
+              'correctiveOwner': owner.trim(),
+              'correctiveDueAt': dueAt.toUtc().toIso8601String(),
+            })
+            .then((_) {})
       : _incidents.doc(i.id).update({
           'status': SafetyIncidentStatus.correctiveAction.name,
           'rootCause': rootCause.trim(),
@@ -208,9 +211,11 @@ class IncidentRepository {
   }
 
   Future<void> close(SafetyIncident i, String notes, String actor) => _useApi
-      ? _api.patch('/api/v1/incidents/${i.id}/close', {
-          'closureNotes': notes.trim(),
-        }).then((_) {})
+      ? _api
+            .patch('/api/v1/incidents/${i.id}/close', {
+              'closureNotes': notes.trim(),
+            })
+            .then((_) {})
       : _incidents.doc(i.id).update({
           'status': SafetyIncidentStatus.closed.name,
           'closureNotes': notes.trim(),

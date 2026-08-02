@@ -53,6 +53,18 @@ const incidentTypeSchema = z.preprocess(
   ]),
 );
 
+const incidentSeveritySchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") return "moderate";
+    return (
+      {
+        medium: "moderate",
+      }[value] ?? value
+    );
+  },
+  z.enum(["low", "moderate", "high", "critical"]),
+);
+
 const incidentStatusSchema = z.preprocess(
   (value) => {
     if (typeof value !== "string") return "reported";
@@ -115,18 +127,14 @@ router.post(
         injuryDetails: z.string().trim().max(2000).default(""),
         hazardType: z.string().trim().max(200).default(""),
         immediateResponseAction: z.string().trim().max(2000).default(""),
-        investigationStatus: z
-          .enum(["open", "investigating", "closed"])
-          .default("open"),
+        investigationStatus: incidentStatusSchema.default("reported"),
+        severity: incidentSeveritySchema.default("medium"),
         rootCause: z.string().trim().max(4000).default(""),
         correctiveAction: z.string().trim().max(4000).default(""),
         followUpMonitoring: z.string().trim().max(4000).default(""),
         emergencyContacts: z.array(z.string().trim().min(1)).default([]),
         photoUrls: z.array(z.string().url()).default([]),
         occurredAt: z.coerce.date().nullable().default(null),
-        severity: z
-          .enum(["low", "medium", "high", "critical"])
-          .default("medium"),
       })
       .parse(request.body);
 

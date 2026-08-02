@@ -63,11 +63,18 @@ router.post(
           ])
           .default("other"),
         fileUrl: z.string().url().default(""),
-        version: z.number().int().min(1).default(1),
+        fileName: z.string().trim().min(1).max(500).default(""),
+        mimeType: z.string().trim().min(1).max(200).default(""),
+        currentVersion: z.number().int().min(1).default(1),
         status: z
           .enum(["draft", "pendingApproval", "approved", "archived"])
           .default("draft"),
         ownerId: z.string().trim().min(1).default(""),
+        ownerName: z.string().trim().default(""),
+        accessLevel: z
+          .enum(["owner", "staff", "governance", "administrators"])
+          .default("owner"),
+        referenceNumber: z.string().trim().default(""),
         approverId: z.string().trim().min(1).default(""),
         expiresAt: z.coerce.date().nullable().default(null),
         tags: z.array(z.string().trim().min(1)).default([]),
@@ -77,6 +84,12 @@ router.post(
 
     const ref = await db.collection("documents").add({
       ...input,
+      fileName: input.fileName,
+      mimeType: input.mimeType,
+      url: input.fileUrl,
+      currentVersion: input.currentVersion,
+      referenceNumber: input.referenceNumber,
+      ownerName: input.ownerName,
       expiresAt: input.expiresAt ? Timestamp.fromDate(input.expiresAt) : null,
       createdBy: request.user!.uid,
       createdAt: FieldValue.serverTimestamp(),
@@ -110,6 +123,130 @@ router.get(
       return;
     }
     response.json({ data: documentJson(snapshot.id, snapshot.data()!) });
+  },
+);
+
+router.patch(
+  "/documents/:id/archive",
+  authenticate,
+  requireRoles(...managers),
+  async (request, response) => {
+    const ref = db.collection("documents").doc(id(request.params.id));
+    const snapshot = await ref.get();
+    if (!snapshot.exists) {
+      response.status(404).json({
+        error: { code: "not_found", message: "Document not found." },
+      });
+      return;
+    }
+    await ref.update({
+      status: "archived",
+      updatedAt: FieldValue.serverTimestamp(),
+      auditTrail: FieldValue.arrayUnion({
+        action: "archived",
+        actorId: request.user!.uid,
+        createdAt: FieldValue.serverTimestamp(),
+      }),
+    });
+    response.json({ data: { id: ref.id } });
+  },
+);
+
+router.post(
+  "/documents/:id/versions",
+  authenticate,
+  requireRoles(...managers),
+  async (request, response) => {
+    const input = z
+      .object({
+        fileUrl: z.string().url(),
+        fileName: z.string().trim().min(1).max(500),
+        mimeType: z.string().trim().min(1).max(200),
+        changeNotes: z.string().trim().max(2000).default(""),
+        version: z.number().int().min(1),
+      })
+      .parse(request.body);
+    const ref = db.collection("documents").doc(id(request.params.id));
+    const snapshot = await ref.get();
+    if (!snapshot.exists) {
+      response.status(404).json({
+        error: { code: "not_found", message: "Document not found." },
+      });
+      return;
+    }
+    await db.runTransaction(async (tx) => {
+      tx.update(ref, {
+        currentVersion: input.version,
+        fileName: input.fileName,
+        mimeType: input.mimeType,
+        url: input.fileUrl,
+        status: "pendingApproval",
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+      tx.set(ref.collection("versions").doc(String(input.version)), {
+        version: input.version,
+        fileName: input.fileName,
+        mimeType: input.mimeType,
+        url: input.fileUrl,
+        changeNotes: input.changeNotes,
+        uploadedBy: request.user!.uid,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      tx.update(ref, {
+        auditTrail: FieldValue.arrayUnion({
+          action: "versionAdded",
+          actorId: request.user!.uid,
+          createdAt: FieldValue.serverTimestamp(),
+        }),
+      });
+    });
+    response.status(201).json({ data: { id: ref.id, version: input.version } });
+  },
+);
+
+router.get(
+  "/documents/:id/versions",
+  authenticate,
+  requireRoles(...users),
+  async (request, response) => {
+    const ref = db.collection("documents").doc(id(request.params.id));
+    const snapshot = await ref.get();
+    if (!snapshot.exists) {
+      response.status(404).json({
+        error: { code: "not_found", message: "Document not found." },
+      });
+      return;
+    }
+    const versions = await ref
+      .collection("versions")
+      .orderBy("version", "desc")
+      .get();
+    response.json({
+      data: versions.docs.map((doc) => documentJson(doc.id, doc.data())),
+    });
+  },
+);
+
+router.get(
+  "/documents/:id/audit",
+  authenticate,
+  requireRoles(...users),
+  async (request, response) => {
+    const ref = db.collection("documents").doc(id(request.params.id));
+    const snapshot = await ref.get();
+    if (!snapshot.exists) {
+      response.status(404).json({
+        error: { code: "not_found", message: "Document not found." },
+      });
+      return;
+    }
+    const auditTrail = await ref
+      .collection("auditTrail")
+      .orderBy("createdAt", "desc")
+      .get();
+    response.json({
+      data: auditTrail.docs.map((doc) => documentJson(doc.id, doc.data())),
+    });
   },
 );
 

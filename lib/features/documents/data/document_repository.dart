@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_config.dart';
+import '../../../core/media/cloudinary_upload_service.dart';
 import '../domain/managed_document.dart';
 
 class DocumentRepository {
@@ -67,20 +68,46 @@ class DocumentRepository {
     }
   }
 
-  Stream<List<DocumentVersion>> watchVersions(String id) => _docs
-      .doc(id)
-      .collection('versions')
-      .snapshots()
-      .map(
-        (s) =>
-            s.docs.map(DocumentVersion.fromDoc).toList()
-              ..sort((a, b) => b.version.compareTo(a.version)),
+  Stream<List<DocumentVersion>> watchVersions(String id) => _useApi
+      ? _pollVersions(id)
+      : _docs
+          .doc(id)
+          .collection('versions')
+          .snapshots()
+          .map(
+            (s) =>
+                s.docs.map(DocumentVersion.fromDoc).toList()
+                  ..sort((a, b) => b.version.compareTo(a.version)),
+          );
+
+  Stream<List<DocumentVersion>> _pollVersions(String id) async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/documents/$id/versions');
+      yield data.map(DocumentVersion.fromJson).toList()
+        ..sort((a, b) => b.version.compareTo(a.version));
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
       );
-  Stream<List<DocumentAuditEvent>> watchAudit(String id) => _docs
-      .doc(id)
-      .collection('auditTrail')
-      .snapshots()
-      .map((s) => s.docs.map(DocumentAuditEvent.fromDoc).toList());
+    }
+  }
+
+  Stream<List<DocumentAuditEvent>> watchAudit(String id) => _useApi
+      ? _pollAudit(id)
+      : _docs
+          .doc(id)
+          .collection('auditTrail')
+          .snapshots()
+          .map((s) => s.docs.map(DocumentAuditEvent.fromDoc).toList());
+
+  Stream<List<DocumentAuditEvent>> _pollAudit(String id) async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/documents/$id/audit');
+      yield data.map(DocumentAuditEvent.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
   Future<void> upload({
     required String ownerId,
     required String ownerName,
@@ -98,17 +125,24 @@ class DocumentRepository {
       throw StateError('Title and file are required.');
     }
     if (_useApi) {
+      final fileUrl = await CloudinaryUploadService.instance.uploadImage(
+        bytes,
+        scope: 'documents',
+        fileName: fileName,
+      );
       await _api.post('/api/v1/documents', {
         'title': title.trim(),
         'category': category.name,
         'description': '',
         'documentType': category.name,
-        'fileUrl': '',
-        'version': 1,
-        'status': 'draft',
+        'fileUrl': fileUrl,
+        'currentVersion': 1,
+        'status': 'pendingApproval',
         'ownerId': ownerId,
+        'ownerName': ownerName,
         'approverId': '',
         'expiresAt': expiresAt?.toIso8601String(),
+        'referenceNumber': reference.trim(),
         'tags': <String>[],
         'secureAccess': true,
       });
@@ -155,8 +189,23 @@ class DocumentRepository {
     required String notes,
     required String actorId,
   }) async {
-    final v = d.currentVersion + 1,
-        url = await _store(d.ownerId, d.id, v, fileName, mimeType, bytes),
+    final v = d.currentVersion + 1;
+    if (_useApi) {
+      final fileUrl = await CloudinaryUploadService.instance.uploadImage(
+        bytes,
+        scope: 'documents',
+        fileName: fileName,
+      );
+      await _api.post('/api/v1/documents/${d.id}/versions', {
+        'fileUrl': fileUrl,
+        'fileName': fileName,
+        'mimeType': mimeType,
+        'version': v,
+        'changeNotes': notes.trim(),
+      });
+      return;
+    }
+    final url = await _store(d.ownerId, d.id, v, fileName, mimeType, bytes),
         ref = _docs.doc(d.id),
         batch = _db.batch();
     batch.update(ref, {
@@ -206,6 +255,10 @@ class DocumentRepository {
   }
 
   Future<void> archive(ManagedDocument d, String actor) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/documents/${d.id}/archive', {}).then((_) {});
+      return;
+    }
     final ref = _docs.doc(d.id), batch = _db.batch();
     batch.update(ref, {
       'status': ManagedDocumentStatus.archived.name,
