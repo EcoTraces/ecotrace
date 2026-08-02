@@ -12,6 +12,18 @@ import mediaRoutes from "./media-routes.js";
 import repairRoutes from "./repair-routes.js";
 import recyclingRoutes from "./recycling-routes.js";
 import recoveryRoutes from "./recovery-routes.js";
+import hazardousRoutes from "./hazardous-routes.js";
+import reverseLogisticsRoutes from "./reverse-logistics-routes.js";
+import partnerRoutes from "./partner-routes.js";
+import marketplaceRoutes from "./marketplace-routes.js";
+import donationRoutes from "./donation-routes.js";
+import rewardRoutes from "./reward-routes.js";
+import paymentRoutes from "./payment-routes.js";
+import impactRoutes from "./impact-routes.js";
+import analyticsRoutes from "./analytics-routes.js";
+import reportRoutes from "./report-routes.js";
+import communicationRoutes from "./communication-routes.js";
+import supportRoutes from "./support-routes.js";
 import {publishNotificationEvent} from "./push-events.js";
 
 const router = Router();
@@ -22,6 +34,18 @@ router.use(mediaRoutes);
 router.use(repairRoutes);
 router.use(recyclingRoutes);
 router.use(recoveryRoutes);
+router.use(hazardousRoutes);
+router.use(reverseLogisticsRoutes);
+router.use(partnerRoutes);
+router.use(marketplaceRoutes);
+router.use(donationRoutes);
+router.use(rewardRoutes);
+router.use(paymentRoutes);
+router.use(impactRoutes);
+router.use(analyticsRoutes);
+router.use(reportRoutes);
+router.use(communicationRoutes);
+router.use(supportRoutes);
 const administrators = ["administrator", "superAdministrator"] as const;
 
 const centreSchema = z.object({

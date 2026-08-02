@@ -36,6 +36,15 @@ describe("EcoTrace API", () => {
     expect(response.body.paths["/repairs/{id}/quality-control"]).toBeDefined();
     expect(response.body.paths["/recycling/batches/{id}/verify"]).toBeDefined();
     expect(response.body.paths["/recovery/lots/{id}/sale"]).toBeDefined();
+    expect(response.body.paths["/hazardous/records/{id}/disposal"]).toBeDefined();
+    expect(response.body.paths["/logistics/transfers/{id}/receive"]).toBeDefined();
+    expect(response.body.paths["/partners/{id}/documents/{documentId}/verify"]).toBeDefined();
+    expect(response.body.paths["/marketplace/orders/{id}/confirm-receipt"]).toBeDefined();
+    expect(response.body.paths["/donations/requests/{id}/certificate"]).toBeDefined();
+    expect(response.body.paths["/rewards/redemptions"]).toBeDefined();
+    expect(response.body.paths["/payments/reconciliation"]).toBeDefined();
+    expect(response.body.paths["/impact/comparison"]).toBeDefined();
+    expect(response.body.paths["/analytics/operations"]).toBeDefined();
   });
 
   it("protects dispatch data with Firebase authentication", async () => {
@@ -91,6 +100,60 @@ describe("EcoTrace API", () => {
 
   it("protects resource recovery workflows with Firebase authentication", async () => {
     const response = await request(app).get("/api/v1/recovery/lots");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects hazardous waste workflows with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/hazardous/records");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects reverse logistics workflows with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/logistics/transfers");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects partner management workflows with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/partners");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects marketplace order workflows with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/marketplace/orders");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects donation workflows with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/donations/requests");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects reward workflows with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/rewards/wallet");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects payment workflows with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/payments/transactions");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects environmental impact workflows with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/impact/summary");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects analytics workflows with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/analytics/overview");
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("unauthenticated");
   });
