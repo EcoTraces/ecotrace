@@ -67,6 +67,7 @@ class ApiClient {
         headers: await _headers(authenticated: true, forceRefresh: true),
       );
     }
+    await _invalidateExpiredSession(response, authenticated: authenticated);
     final body = _decode(response);
     final data = body['data'];
     if (data is! List) throw const FormatException('API data is not a list.');
@@ -88,6 +89,7 @@ class ApiClient {
         headers: await _headers(authenticated: true, forceRefresh: true),
       );
     }
+    await _invalidateExpiredSession(response, authenticated: authenticated);
     final body = _decode(response);
     return Map<String, dynamic>.from(body['data'] as Map? ?? const {});
   }
@@ -108,6 +110,7 @@ class ApiClient {
         body: jsonEncode(payload),
       );
     }
+    await _invalidateExpiredSession(response);
     final body = _decode(response);
     return Map<String, dynamic>.from(body['data'] as Map? ?? const {});
   }
@@ -128,6 +131,7 @@ class ApiClient {
         body: jsonEncode(payload),
       );
     }
+    await _invalidateExpiredSession(response);
     final body = _decode(response);
     return Map<String, dynamic>.from(body['data'] as Map? ?? const {});
   }
@@ -141,8 +145,20 @@ class ApiClient {
         forceRefresh: true,
       );
     }
+    await _invalidateExpiredSession(response);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       _decode(response);
+    }
+  }
+
+  Future<void> _invalidateExpiredSession(
+    http.Response response, {
+    bool authenticated = true,
+  }) async {
+    if (authenticated &&
+        response.statusCode == 401 &&
+        _auth.currentUser != null) {
+      await _auth.signOut();
     }
   }
 

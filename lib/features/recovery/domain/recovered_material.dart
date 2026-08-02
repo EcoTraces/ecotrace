@@ -90,6 +90,31 @@ class RecoveredMaterialLot {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory RecoveredMaterialLot.fromJson(Map<String, dynamic> data) =>
+      RecoveredMaterialLot(
+        id: data['id']?.toString() ?? '',
+        lotCode: data['lotCode']?.toString() ?? data['id']?.toString() ?? '',
+        recyclingBatchId: data['recyclingBatchId']?.toString() ?? '',
+        recyclingBatchCode: data['recyclingBatchCode']?.toString() ?? '',
+        material: RecoverableMaterial.values.byName(
+          data['material']?.toString() ??
+              RecoverableMaterial.circuitBoards.name,
+        ),
+        weightKg: (data['weightKg'] as num? ?? 0).toDouble(),
+        quantity: (data['quantity'] as num? ?? 0).toInt(),
+        qualityGrade: MaterialQualityGrade.values.byName(
+          data['qualityGrade']?.toString() ?? MaterialQualityGrade.mixed.name,
+        ),
+        storageLocation: data['storageLocation']?.toString() ?? '',
+        unitMarketValue: (data['unitMarketValue'] as num? ?? 0).toDouble(),
+        buyerId: data['buyerId']?.toString() ?? '',
+        status: MaterialLotStatus.values.byName(
+          data['status']?.toString() ?? MaterialLotStatus.stored.name,
+        ),
+        saleRevenue: (data['saleRevenue'] as num? ?? 0).toDouble(),
+        createdAt: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+      );
 }
 
 class MaterialCategoryDefinition {
@@ -114,6 +139,16 @@ class MaterialCategoryDefinition {
       active: data['active'] as bool? ?? true,
     );
   }
+
+  factory MaterialCategoryDefinition.fromJson(Map<String, dynamic> data) =>
+      MaterialCategoryDefinition(
+        id: data['id']?.toString() ?? '',
+        material: RecoverableMaterial.values.byName(
+          data['material']?.toString() ?? data['id']?.toString() ?? '',
+        ),
+        defaultUnitValue: (data['defaultUnitValue'] as num? ?? 0).toDouble(),
+        active: data['active'] as bool? ?? true,
+      );
 }
 
 class MaterialBuyer {
@@ -136,6 +171,15 @@ class MaterialBuyer {
       ).map(RecoverableMaterial.values.byName).toList(),
     );
   }
+
+  factory MaterialBuyer.fromJson(Map<String, dynamic> data) => MaterialBuyer(
+    id: data['id']?.toString() ?? '',
+    name: data['name']?.toString() ?? '',
+    contact: data['contact']?.toString() ?? '',
+    materials: List<String>.from(
+      data['materials'] as List? ?? const [],
+    ).map(RecoverableMaterial.values.byName).toList(),
+  );
 }
 
 class MaterialTransferRecord {
@@ -163,4 +207,14 @@ class MaterialTransferRecord {
       at: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory MaterialTransferRecord.fromJson(Map<String, dynamic> data) =>
+      MaterialTransferRecord(
+        from: data['from']?.toString() ?? '',
+        to: data['to']?.toString() ?? '',
+        weightKg: (data['weightKg'] as num? ?? 0).toDouble(),
+        carrier: data['carrier']?.toString() ?? '',
+        reference: data['reference']?.toString() ?? '',
+        at: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+      );
 }

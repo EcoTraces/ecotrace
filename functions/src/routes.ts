@@ -11,6 +11,7 @@ import inventoryRoutes from "./inventory-routes.js";
 import mediaRoutes from "./media-routes.js";
 import repairRoutes from "./repair-routes.js";
 import recyclingRoutes from "./recycling-routes.js";
+import recoveryRoutes from "./recovery-routes.js";
 import {publishNotificationEvent} from "./push-events.js";
 
 const router = Router();
@@ -20,6 +21,7 @@ router.use(inventoryRoutes);
 router.use(mediaRoutes);
 router.use(repairRoutes);
 router.use(recyclingRoutes);
+router.use(recoveryRoutes);
 const administrators = ["administrator", "superAdministrator"] as const;
 
 const centreSchema = z.object({
