@@ -23,6 +23,7 @@ describe("EcoTrace API", () => {
     expect(response.body.paths["/inventory/items/{id}/traceability"]).toBeDefined();
     expect(response.body.paths["/media/upload-signature"]).toBeDefined();
     expect(response.body.paths["/repairs/{id}/quality-control"]).toBeDefined();
+    expect(response.body.paths["/recycling/batches/{id}/verify"]).toBeDefined();
   });
 
   it("protects dispatch data with Firebase authentication", async () => {
@@ -66,6 +67,12 @@ describe("EcoTrace API", () => {
 
   it("protects repair workflows with Firebase authentication", async () => {
     const response = await request(app).get("/api/v1/repairs");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects recycling workflows with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/recycling/batches");
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("unauthenticated");
   });

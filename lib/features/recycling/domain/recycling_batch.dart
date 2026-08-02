@@ -91,6 +91,27 @@ class RecyclingBatch {
       completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory RecyclingBatch.fromJson(Map<String, dynamic> data) => RecyclingBatch(
+    id: data['id']?.toString() ?? '',
+    code: data['batchCode']?.toString() ?? data['id']?.toString() ?? '',
+    facilityId: data['facilityId']?.toString() ?? '',
+    facilityName: data['facilityName']?.toString() ?? '',
+    itemIds: List<String>.from(data['itemIds'] as List? ?? const []),
+    itemCodes: List<String>.from(data['itemCodes'] as List? ?? const []),
+    inputWeightKg: (data['inputWeightKg'] as num? ?? 0).toDouble(),
+    recoveredWeightKg: (data['recoveredWeightKg'] as num? ?? 0).toDouble(),
+    hazardousWeightKg: (data['hazardousWeightKg'] as num? ?? 0).toDouble(),
+    disposedWeightKg: (data['disposedWeightKg'] as num? ?? 0).toDouble(),
+    processingLossKg: (data['processingLossKg'] as num? ?? 0).toDouble(),
+    stage: RecyclingStage.values.byName(
+      data['stage']?.toString() ?? RecyclingStage.created.name,
+    ),
+    completionVerified: data['completionVerified'] as bool? ?? false,
+    verificationNotes: data['verificationNotes']?.toString() ?? '',
+    createdAt: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+    completedAt: DateTime.tryParse(data['completedAt']?.toString() ?? ''),
+  );
 }
 
 class RecyclingProcessRecord {
@@ -124,6 +145,18 @@ class RecyclingProcessRecord {
       at: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory RecyclingProcessRecord.fromJson(Map<String, dynamic> data) =>
+      RecyclingProcessRecord(
+        type: data['type']?.toString() ?? '',
+        material: data['material']?.toString() ?? '',
+        component: data['component']?.toString() ?? '',
+        quantity: (data['quantity'] as num? ?? 0).toInt(),
+        weightKg: (data['weightKg'] as num? ?? 0).toDouble(),
+        notes: data['notes']?.toString() ?? '',
+        actorId: data['actorId']?.toString() ?? '',
+        at: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+      );
 }
 
 class FinalDisposalRecord {
@@ -151,4 +184,14 @@ class FinalDisposalRecord {
       at: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory FinalDisposalRecord.fromJson(Map<String, dynamic> data) =>
+      FinalDisposalRecord(
+        material: data['material']?.toString() ?? '',
+        weightKg: (data['weightKg'] as num? ?? 0).toDouble(),
+        facility: data['facility']?.toString() ?? '',
+        method: data['method']?.toString() ?? '',
+        manifestNumber: data['manifestNumber']?.toString() ?? '',
+        at: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+      );
 }

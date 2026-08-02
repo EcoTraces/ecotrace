@@ -13,15 +13,20 @@ function renderCredential(): ServiceAccount | undefined {
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error("The Firebase service-account secret is missing project_id, client_email, or private_key.");
   }
+  const expectedProjectId = process.env.FIREBASE_PROJECT_ID?.trim();
+  if (expectedProjectId && projectId !== expectedProjectId) {
+    throw new Error(`Firebase service account belongs to ${projectId}, expected ${expectedProjectId}.`);
+  }
   return {projectId, clientEmail, privateKey};
 }
 
 if (getApps().length === 0) {
   const serviceAccount = renderCredential();
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim() || serviceAccount?.projectId;
   initializeApp(serviceAccount ? {
     credential: cert(serviceAccount),
-    projectId: serviceAccount.projectId,
-  } : undefined);
+    projectId,
+  } : projectId ? {projectId} : undefined);
 }
 
 export const auth = getAuth();

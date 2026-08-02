@@ -26,11 +26,13 @@ class NotificationService {
 
   static Future<void> _registerToken(String uid, String token) async {
     if (ApiConfig.notificationsEnabled) {
-      await _api.post('/notifications/register-token', {
-        'userId': uid,
-        'deviceToken': token,
-        'platform': _platform,
-      });
+      await _retry(
+        () => _api.post('/notifications/register-token', {
+          'userId': uid,
+          'deviceToken': token,
+          'platform': _platform,
+        }),
+      );
       return;
     }
     await FirebaseFirestore.instance
@@ -53,10 +55,27 @@ class NotificationService {
           : null,
     );
     if (token == null) return;
-    await _api.delete(
-      '/notifications/remove-token',
-      payload: {'deviceToken': token},
+    await _retry(
+      () => _api.delete(
+        '/notifications/remove-token',
+        payload: {'deviceToken': token},
+      ),
     );
+  }
+
+  static Future<T> _retry<T>(Future<T> Function() operation) async {
+    Object? lastError;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) {
+          await Future<void>.delayed(Duration(seconds: 2 << attempt));
+        }
+      }
+    }
+    throw lastError!;
   }
 
   static String get _platform {

@@ -36,13 +36,16 @@ class ApiClient {
     return Uri.parse('$_baseUrl$normalized').replace(queryParameters: query);
   }
 
-  Future<Map<String, String>> _headers({required bool authenticated}) async {
+  Future<Map<String, String>> _headers({
+    required bool authenticated,
+    bool forceRefresh = false,
+  }) async {
     final headers = <String, String>{
       'accept': 'application/json',
       'content-type': 'application/json',
     };
     if (authenticated) {
-      final token = await _auth.currentUser?.getIdToken();
+      final token = await _auth.currentUser?.getIdToken(forceRefresh);
       if (token == null) throw const ApiException(401, 'Sign in is required.');
       headers['authorization'] = 'Bearer $token';
     }
@@ -54,10 +57,16 @@ class ApiClient {
     bool authenticated = true,
     Map<String, String>? query,
   }) async {
-    final response = await _http.get(
+    var response = await _http.get(
       _uri(path, query),
       headers: await _headers(authenticated: authenticated),
     );
+    if (authenticated && response.statusCode == 401) {
+      response = await _http.get(
+        _uri(path, query),
+        headers: await _headers(authenticated: true, forceRefresh: true),
+      );
+    }
     final body = _decode(response);
     final data = body['data'];
     if (data is! List) throw const FormatException('API data is not a list.');
@@ -69,10 +78,16 @@ class ApiClient {
     bool authenticated = true,
     Map<String, String>? query,
   }) async {
-    final response = await _http.get(
+    var response = await _http.get(
       _uri(path, query),
       headers: await _headers(authenticated: authenticated),
     );
+    if (authenticated && response.statusCode == 401) {
+      response = await _http.get(
+        _uri(path, query),
+        headers: await _headers(authenticated: true, forceRefresh: true),
+      );
+    }
     final body = _decode(response);
     return Map<String, dynamic>.from(body['data'] as Map? ?? const {});
   }
@@ -81,11 +96,18 @@ class ApiClient {
     String path,
     Map<String, dynamic> payload,
   ) async {
-    final response = await _http.post(
+    var response = await _http.post(
       _uri(path),
       headers: await _headers(authenticated: true),
       body: jsonEncode(payload),
     );
+    if (response.statusCode == 401) {
+      response = await _http.post(
+        _uri(path),
+        headers: await _headers(authenticated: true, forceRefresh: true),
+        body: jsonEncode(payload),
+      );
+    }
     final body = _decode(response);
     return Map<String, dynamic>.from(body['data'] as Map? ?? const {});
   }
@@ -94,24 +116,47 @@ class ApiClient {
     String path,
     Map<String, dynamic> payload,
   ) async {
-    final response = await _http.patch(
+    var response = await _http.patch(
       _uri(path),
       headers: await _headers(authenticated: true),
       body: jsonEncode(payload),
     );
+    if (response.statusCode == 401) {
+      response = await _http.patch(
+        _uri(path),
+        headers: await _headers(authenticated: true, forceRefresh: true),
+        body: jsonEncode(payload),
+      );
+    }
     final body = _decode(response);
     return Map<String, dynamic>.from(body['data'] as Map? ?? const {});
   }
 
   Future<void> delete(String path, {Map<String, dynamic>? payload}) async {
-    final request = http.Request('DELETE', _uri(path));
-    request.headers.addAll(await _headers(authenticated: true));
-    if (payload != null) request.body = jsonEncode(payload);
-    final streamed = await _http.send(request);
-    final response = await http.Response.fromStream(streamed);
+    var response = await _deleteRequest(path, payload: payload);
+    if (response.statusCode == 401) {
+      response = await _deleteRequest(
+        path,
+        payload: payload,
+        forceRefresh: true,
+      );
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       _decode(response);
     }
+  }
+
+  Future<http.Response> _deleteRequest(
+    String path, {
+    Map<String, dynamic>? payload,
+    bool forceRefresh = false,
+  }) async {
+    final request = http.Request('DELETE', _uri(path));
+    request.headers.addAll(
+      await _headers(authenticated: true, forceRefresh: forceRefresh),
+    );
+    if (payload != null) request.body = jsonEncode(payload);
+    return http.Response.fromStream(await _http.send(request));
   }
 
   Map<String, dynamic> _decode(http.Response response) {

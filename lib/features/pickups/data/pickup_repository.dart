@@ -59,6 +59,9 @@ class PickupRepository {
     required double? latitude,
     required double? longitude,
   }) async {
+    if (photos.isEmpty) {
+      throw ArgumentError('At least one pickup photo is required.');
+    }
     final photoUrls = await CloudinaryUploadService.instance.uploadImages(
       photos.map((photo) => Uint8List.fromList(photo.bytes)).toList(),
       scope: 'pickups',

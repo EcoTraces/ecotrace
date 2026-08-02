@@ -50,6 +50,19 @@ export async function seedDemoData(actorId: string) {
     ["Aberdeen", 8.4932, -13.2896],
   ] as const;
   const statuses = ["submitted", "approved", "assigned", "scheduled", "inProgress", "collected"];
+  set("systemConfiguration", "platform", {
+    wasteCategories: ["Computers", "Phones", "Appliances", "Batteries"],
+    itemConditions: ["Working", "Repairable", "Damaged", "Hazardous"],
+    serviceAreas: ["Freetown", "Waterloo", "Goderich", "Lumley", "Kissy", "Aberdeen"],
+    supportedLanguages: ["English"],
+    integrationNames: ["Mobile money", "Bank", "Card", "SMS", "Email", "Cloudinary"],
+    notificationTemplateNames: ["Pickup reminder", "Status update", "Payment alert", "Emergency alert"],
+    pickupFees: {base: 5, perItem: 1.5, perKg: 0.35, urgent: 10, taxPercent: 0, servicePercent: 5},
+    rewardRules: {pickupPoints: 20, referralPoints: 50},
+    environmentalFormulas: {reuseCarbonKg: 50, reuseEnergyKwh: 200, treeCarbonKg: 21, waterProtectedLitresPerHazardousKg: 1000},
+    settings: {currency: "SLE", timezone: "UTC", supportEmail: "", maintenanceMode: "false"},
+    updatedBy: actorId,
+  });
   const pickupCount = Math.max(6, citizens.length);
   for (let index = 0; index < pickupCount; index++) {
     const location = locations[index % locations.length];

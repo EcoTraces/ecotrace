@@ -1,43 +1,106 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
+
 import '../../inventory/domain/inventory_item.dart';
 import '../domain/recycling_batch.dart';
 
 class RecyclingRepository {
-  RecyclingRepository({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  RecyclingRepository({FirebaseFirestore? firestore, ApiClient? apiClient})
+    : _db = firestore ?? FirebaseFirestore.instance,
+      _api = apiClient ?? ApiClient.instance,
+      _useApi = apiClient != null || (firestore == null && ApiConfig.enabled);
   final FirebaseFirestore _db;
+  final ApiClient _api;
+  final bool _useApi;
 
   CollectionReference<Map<String, dynamic>> get _batches =>
       _db.collection('recyclingBatches');
 
-  Stream<List<RecyclingBatch>> watchBatches() => _batches.snapshots().map(
-    (snapshot) => snapshot.docs.map(RecyclingBatch.fromDoc).toList()
-      ..sort((a, b) => b.createdAt?.compareTo(a.createdAt ?? DateTime(0)) ?? 0),
-  );
-  Stream<RecyclingBatch> watchBatch(String id) => _batches
-      .doc(id)
-      .snapshots()
-      .where((document) => document.exists)
-      .map(RecyclingBatch.fromDoc);
-  Stream<List<RecyclingProcessRecord>> watchProcessRecords(String id) =>
-      _batches
-          .doc(id)
-          .collection('processRecords')
-          .orderBy('createdAt', descending: true)
-          .snapshots()
-          .map(
-            (snapshot) =>
-                snapshot.docs.map(RecyclingProcessRecord.fromDoc).toList(),
-          );
-  Stream<List<FinalDisposalRecord>> watchDisposals(String id) => _batches
-      .doc(id)
-      .collection('finalDisposals')
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map(
-        (snapshot) => snapshot.docs.map(FinalDisposalRecord.fromDoc).toList(),
+  Stream<List<RecyclingBatch>> watchBatches() => _useApi
+      ? _pollBatches()
+      : _batches.snapshots().map(
+          (snapshot) => snapshot.docs.map(RecyclingBatch.fromDoc).toList()
+            ..sort(
+              (a, b) => b.createdAt?.compareTo(a.createdAt ?? DateTime(0)) ?? 0,
+            ),
+        );
+  Stream<List<RecyclingBatch>> _pollBatches() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/recycling/batches');
+      yield data.map(RecyclingBatch.fromJson).toList()..sort(
+        (a, b) => b.createdAt?.compareTo(a.createdAt ?? DateTime(0)) ?? 0,
       );
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<RecyclingBatch> watchBatch(String id) => _useApi
+      ? _pollBatch(id)
+      : _batches
+            .doc(id)
+            .snapshots()
+            .where((document) => document.exists)
+            .map(RecyclingBatch.fromDoc);
+  Stream<RecyclingBatch> _pollBatch(String id) async* {
+    while (true) {
+      yield RecyclingBatch.fromJson(
+        await _api.get('/api/v1/recycling/batches/$id'),
+      );
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<RecyclingProcessRecord>> watchProcessRecords(String id) => _useApi
+      ? _pollProcessRecords(id)
+      : _batches
+            .doc(id)
+            .collection('processRecords')
+            .orderBy('createdAt', descending: true)
+            .snapshots()
+            .map(
+              (snapshot) =>
+                  snapshot.docs.map(RecyclingProcessRecord.fromDoc).toList(),
+            );
+  Stream<List<RecyclingProcessRecord>> _pollProcessRecords(String id) async* {
+    while (true) {
+      final data = await _api.getList(
+        '/api/v1/recycling/batches/$id/process-records',
+      );
+      yield data.map(RecyclingProcessRecord.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<FinalDisposalRecord>> watchDisposals(String id) => _useApi
+      ? _pollDisposals(id)
+      : _batches
+            .doc(id)
+            .collection('finalDisposals')
+            .orderBy('createdAt', descending: true)
+            .snapshots()
+            .map(
+              (snapshot) =>
+                  snapshot.docs.map(FinalDisposalRecord.fromDoc).toList(),
+            );
+  Stream<List<FinalDisposalRecord>> _pollDisposals(String id) async* {
+    while (true) {
+      final data = await _api.getList(
+        '/api/v1/recycling/batches/$id/disposals',
+      );
+      yield data.map(FinalDisposalRecord.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
 
   Future<void> createBatch({
     required List<InventoryItem> items,
@@ -46,6 +109,14 @@ class RecyclingRepository {
     required String actorId,
   }) async {
     if (items.isEmpty) throw ArgumentError('Select at least one item.');
+    if (_useApi) {
+      await _api.post('/api/v1/recycling/batches', {
+        'itemIds': items.map((item) => item.id).toList(),
+        'facilityId': facilityId.trim(),
+        'facilityName': facilityName.trim(),
+      });
+      return;
+    }
     final batchRef = _batches.doc();
     final totalWeight = items.fold<double>(
       0,
@@ -90,11 +161,20 @@ class RecyclingRepository {
     RecyclingBatch batch, {
     required String facilityId,
     required String facilityName,
-  }) => _batches.doc(batch.id).update({
-    'facilityId': facilityId.trim(),
-    'facilityName': facilityName.trim(),
-    'updatedAt': FieldValue.serverTimestamp(),
-  });
+  }) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/recycling/batches/${batch.id}/facility', {
+        'facilityId': facilityId.trim(),
+        'facilityName': facilityName.trim(),
+      });
+      return;
+    }
+    await _batches.doc(batch.id).update({
+      'facilityId': facilityId.trim(),
+      'facilityName': facilityName.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 
   Future<void> updateStage(
     RecyclingBatch batch,
@@ -104,6 +184,12 @@ class RecyclingRepository {
     if (stage.index < batch.stage.index &&
         stage != RecyclingStage.hazardousHandling) {
       throw StateError('Processing stages cannot move backwards.');
+    }
+    if (_useApi) {
+      await _api.patch('/api/v1/recycling/batches/${batch.id}/stage', {
+        'stage': stage.name,
+      });
+      return;
     }
     final ref = _batches.doc(batch.id);
     final write = _db.batch();
@@ -135,6 +221,17 @@ class RecyclingRepository {
     required String actorId,
   }) async {
     if (weightKg < 0 || quantity < 0) throw ArgumentError('Invalid quantity.');
+    if (_useApi) {
+      await _api.post('/api/v1/recycling/batches/${batch.id}/process-records', {
+        'type': type,
+        'material': material.trim(),
+        'component': component.trim(),
+        'quantity': quantity,
+        'weightKg': weightKg,
+        'notes': notes.trim(),
+      });
+      return;
+    }
     await _batches.doc(batch.id).collection('processRecords').add({
       'type': type,
       'material': material.trim(),
@@ -158,6 +255,13 @@ class RecyclingRepository {
       throw StateError(
         'Loss must be positive and within the batch mass balance.',
       );
+    }
+    if (_useApi) {
+      await _api.post('/api/v1/recycling/batches/${batch.id}/losses', {
+        'weightKg': weightKg,
+        'reason': reason.trim(),
+      });
+      return;
     }
     final ref = _batches.doc(batch.id);
     final write = _db.batch();
@@ -191,6 +295,16 @@ class RecyclingRepository {
         batch.accountedWeightKg + weightKg > batch.inputWeightKg) {
       throw StateError('Disposal weight exceeds the available batch balance.');
     }
+    if (_useApi) {
+      await _api.post('/api/v1/recycling/batches/${batch.id}/disposals', {
+        'material': material.trim(),
+        'weightKg': weightKg,
+        'facility': facility.trim(),
+        'method': method.trim(),
+        'manifestNumber': manifestNumber.trim(),
+      });
+      return;
+    }
     final ref = _batches.doc(batch.id);
     final write = _db.batch();
     write.update(ref, {
@@ -220,6 +334,12 @@ class RecyclingRepository {
     }
     if (batch.unaccountedWeightKg > batch.inputWeightKg * .02) {
       throw StateError('Account for all but at most 2% of the input weight.');
+    }
+    if (_useApi) {
+      await _api.patch('/api/v1/recycling/batches/${batch.id}/verify', {
+        'notes': notes.trim(),
+      });
+      return;
     }
     final ref = _batches.doc(batch.id);
     final write = _db.batch();

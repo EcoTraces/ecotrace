@@ -29,7 +29,14 @@ def initialize_firebase() -> firebase_admin.App:
         return firebase_admin.get_app()
     except ValueError:
         account = _service_account()
-        project_id = os.getenv("FIREBASE_PROJECT_ID", "").strip() or (account or {}).get("project_id")
+        expected_project_id = os.getenv("FIREBASE_PROJECT_ID", "").strip()
+        account_project_id = str((account or {}).get("project_id", "")).strip()
+        if expected_project_id and account_project_id and expected_project_id != account_project_id:
+            raise RuntimeError(
+                f"Firebase service account belongs to {account_project_id}, "
+                f"expected {expected_project_id}."
+            )
+        project_id = expected_project_id or account_project_id
         options = {"projectId": project_id} if project_id else None
         credential = credentials.Certificate(account) if account else credentials.ApplicationDefault()
         return firebase_admin.initialize_app(credential, options)
