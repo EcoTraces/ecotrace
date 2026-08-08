@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../admin/data/admin_repository.dart';
 import '../../admin/presentation/admin_dashboard_screen.dart';
@@ -1494,10 +1495,17 @@ class _LiveClockState extends State<_LiveClock> {
   }
 }
 
-class _ProfileScreen extends StatelessWidget {
+class _ProfileScreen extends StatefulWidget {
   const _ProfileScreen({required this.repository, required this.profile});
   final AuthRepository repository;
   final UserProfile profile;
+
+  @override
+  State<_ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<_ProfileScreen> {
+  bool _isUploading = false;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -1505,17 +1513,54 @@ class _ProfileScreen extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const CircleAvatar(radius: 42, child: Icon(Icons.person, size: 42)),
-        const SizedBox(height: 16),
+        Center(
+          child: Stack(
+            children: [
+              widget.profile.profilePictureUrl != null
+                  ? CircleAvatar(
+                      radius: 60,
+                      backgroundImage: NetworkImage(
+                        widget.profile.profilePictureUrl!,
+                      ),
+                    )
+                  : const CircleAvatar(
+                      radius: 60,
+                      child: Icon(Icons.person, size: 60),
+                    ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.camera_alt, color: Colors.white),
+                    onPressed: _isUploading ? null : () => _showProfilePictureOptions(context),
+                    tooltip: 'Change profile picture',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
         ListTile(
           title: const Text('Name'),
-          subtitle: Text(profile.displayName),
+          subtitle: Text(widget.profile.displayName),
         ),
-        ListTile(title: const Text('Email'), subtitle: Text(profile.email)),
-        ListTile(title: const Text('Role'), subtitle: Text(profile.role.label)),
+        ListTile(
+          title: const Text('Email'),
+          subtitle: Text(widget.profile.email),
+        ),
+        ListTile(
+          title: const Text('Role'),
+          subtitle: Text(widget.profile.role.label),
+        ),
         ListTile(
           title: const Text('Account status'),
-          subtitle: Text(profile.accountStatus.name),
+          subtitle: Text(widget.profile.accountStatus.name),
         ),
         const SizedBox(height: 12),
         FilledButton.tonalIcon(
@@ -1523,9 +1568,17 @@ class _ProfileScreen extends StatelessWidget {
           icon: const Icon(Icons.edit_outlined),
           label: const Text('Edit display name'),
         ),
+        if (widget.profile.profilePictureUrl != null) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _isUploading ? null : _removeProfilePicture,
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Remove profile picture'),
+          ),
+        ],
         const SizedBox(height: 8),
         OutlinedButton.icon(
-          onPressed: repository.signOut,
+          onPressed: widget.repository.signOut,
           icon: const Icon(Icons.logout),
           label: const Text('Sign out'),
         ),
@@ -1533,8 +1586,124 @@ class _ProfileScreen extends StatelessWidget {
     ),
   );
 
+  Future<void> _showProfilePictureOptions(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera),
+              title: const Text('Take a photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _uploadProfilePicture(source: ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.image),
+              title: const Text('Choose from gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                _uploadProfilePicture(source: ImageSource.gallery);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _uploadProfilePicture({required ImageSource source}) async {
+    try {
+      setState(() => _isUploading = true);
+
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(
+        source: source,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) {
+        setState(() => _isUploading = false);
+        return;
+      }
+
+      if (!mounted) return;
+
+      await widget.repository.uploadProfilePicture(pickedFile.path);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile picture updated successfully')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to upload picture: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
+    }
+  }
+
+  Future<void> _removeProfilePicture() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove profile picture'),
+        content: const Text('Are you sure you want to remove your profile picture?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      setState(() => _isUploading = true);
+      await widget.repository.deleteProfilePicture();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile picture removed successfully')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to remove picture: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isUploading = false);
+      }
+    }
+  }
+
   Future<void> _rename(BuildContext context) async {
-    final controller = TextEditingController(text: profile.displayName);
+    final controller = TextEditingController(text: widget.profile.displayName);
     final save = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -1555,7 +1724,9 @@ class _ProfileScreen extends StatelessWidget {
         ],
       ),
     );
-    if (save == true) await repository.updateDisplayName(controller.text);
+    if (save == true) {
+      await widget.repository.updateDisplayName(controller.text);
+    }
     controller.dispose();
   }
 }

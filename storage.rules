@@ -132,6 +132,15 @@ service firebase.storage {
     match /safetyIncidents/{incidentId}/{fileName} { allow read: if isReverseOperator(); allow create, update: if isReverseOperator() && request.resource.size < 8 * 1024 * 1024 && request.resource.contentType.matches('image/.*'); allow delete: if isAdministrator(); }
     match /managedDocuments/{ownerId}/{documentId}/{fileName} { allow read: if isComplianceManager() || (signedIn() && request.auth.uid == ownerId); allow create, update: if (isComplianceManager() || (signedIn() && request.auth.uid == ownerId)) && request.resource.size < 20 * 1024 * 1024; allow delete: if isAdministrator(); }
 
+    match /profile-pictures/{userId}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpg|jpeg|png|gif|webp)');
+      allow delete: if signedIn() && request.auth.uid == userId;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

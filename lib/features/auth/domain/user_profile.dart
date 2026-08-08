@@ -20,6 +20,7 @@ class UserProfile {
     required this.displayName,
     required this.role,
     required this.accountStatus,
+    this.profilePictureUrl,
   });
 
   final String uid;
@@ -27,6 +28,7 @@ class UserProfile {
   final String displayName;
   final AppRole role;
   final AccountStatus accountStatus;
+  final String? profilePictureUrl;
 
   factory UserProfile.fromSnapshot(
     DocumentSnapshot<Map<String, dynamic>> snapshot,
@@ -38,6 +40,7 @@ class UserProfile {
       displayName: data['displayName'] as String? ?? '',
       role: AppRole.fromValue(data['role'] as String?),
       accountStatus: AccountStatus.fromValue(data['accountStatus'] as String?),
+      profilePictureUrl: data['profilePictureUrl'] as String?,
     );
   }
 }
