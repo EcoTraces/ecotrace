@@ -6,6 +6,8 @@ type NotificationEvent =
   | "pickup_completed"
   | "recycler_received_item"
   | "recycling_completed"
+  | "organization_submitted"
+  | "organization_reviewed"
   | "security_alert";
 
 interface EventPayload {

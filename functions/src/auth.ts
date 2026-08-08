@@ -11,10 +11,14 @@ export const authenticate: RequestHandler = async (request, _response, next) => 
     if (!header?.startsWith("Bearer ")) {
       throw new ApiError(401, "A Firebase ID token is required.", "unauthenticated");
     }
-    const token = await auth.verifyIdToken(header.slice(7));
+    const token = await auth.verifyIdToken(header.slice(7), true);
+    const profile = await db.collection("users").doc(token.uid).get();
+    const accountStatus = String(profile.get("accountStatus") ?? "active");
+    if (["suspended", "disabled", "deleted"].includes(accountStatus)) {
+      throw new ApiError(403, "This account is not active.", "account_inactive");
+    }
     let role = token.role as EcoTraceRole | undefined;
     if (!role) {
-      const profile = await db.collection("users").doc(token.uid).get();
       role = profile.get("role") as EcoTraceRole | undefined;
     }
     request.user = {
@@ -40,4 +44,16 @@ export const requireRoles = (...roles: EcoTraceRole[]): RequestHandler =>
       return;
     }
     next();
+  };
+
+export const requirePermission = (permission: string): RequestHandler =>
+  async (request, _response, next) => {
+    try {
+      if (!request.user) throw new ApiError(401, "Authentication is required.", "unauthenticated");
+      if (request.user.role === "superAdministrator") return next();
+      const role = await db.collection("systemRoles").doc(request.user.role).get();
+      const permissions = role.get("permissions") as string[] | undefined;
+      if (!permissions?.includes(permission)) throw new ApiError(403, `Permission ${permission} is required.`, "forbidden");
+      next();
+    } catch (error) { next(error); }
   };

@@ -17,6 +17,69 @@ export const openApiDocument = {
     },
   },
   paths: {
+    "/organizations": {
+      get: {security: [{firebaseAuth: []}], summary: "List accessible organizations with search and status filters", responses: {"200": {description: "Organizations"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Register a business, institution, recycler, collection company, or repair provider", responses: {"201": {description: "Organization submitted for verification"}}},
+    },
+    "/organizations/{id}": {
+      get: {security: [{firebaseAuth: []}], summary: "Get an organization profile", responses: {"200": {description: "Organization"}}},
+      patch: {security: [{firebaseAuth: []}], summary: "Update organization contact and operational information", responses: {"200": {description: "Organization updated"}}},
+    },
+    "/organizations/{id}/submit": {patch: {security: [{firebaseAuth: []}], summary: "Resubmit a draft or rejected organization", responses: {"200": {description: "Organization submitted"}}}},
+    "/organizations/{id}/review": {patch: {security: [{firebaseAuth: []}], summary: "Approve or reject organization verification", responses: {"200": {description: "Organization reviewed"}}}},
+    "/organizations/{id}/status": {
+      get: {security: [{firebaseAuth: []}], summary: "Get organization verification and operational status", responses: {"200": {description: "Organization status"}}},
+      patch: {security: [{firebaseAuth: []}], summary: "Activate, reject, or suspend an organization", responses: {"200": {description: "Status updated"}}},
+    },
+    "/organizations/{id}/service-areas": {put: {security: [{firebaseAuth: []}], summary: "Replace organization service areas", responses: {"200": {description: "Service areas updated"}}}},
+    "/organizations/{id}/branches": {
+      get: {security: [{firebaseAuth: []}], summary: "List organization branches", responses: {"200": {description: "Branches"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Create an organization branch", responses: {"201": {description: "Branch created"}}},
+    },
+    "/organizations/{id}/branches/{branchId}": {
+      patch: {security: [{firebaseAuth: []}], summary: "Update an organization branch", responses: {"200": {description: "Branch updated"}}},
+      delete: {security: [{firebaseAuth: []}], summary: "Archive an organization branch", responses: {"200": {description: "Branch archived"}}},
+    },
+    "/organizations/{id}/members": {get: {security: [{firebaseAuth: []}], summary: "List organization owners, managers, staff, and viewers", responses: {"200": {description: "Members"}}}},
+    "/organizations/{id}/members/{uid}": {
+      patch: {security: [{firebaseAuth: []}], summary: "Update staff role, branch, or status", responses: {"200": {description: "Member updated"}}},
+      delete: {security: [{firebaseAuth: []}], summary: "Remove organization staff", responses: {"200": {description: "Member removed"}}},
+    },
+    "/organizations/{id}/invitations": {post: {security: [{firebaseAuth: []}], summary: "Invite organization staff", responses: {"201": {description: "Invitation created"}}}},
+    "/organization-invitations": {get: {security: [{firebaseAuth: []}], summary: "List invitations for the authenticated email", responses: {"200": {description: "Invitations"}}}},
+    "/organization-invitations/{id}/respond": {patch: {security: [{firebaseAuth: []}], summary: "Accept or decline an organization invitation", responses: {"200": {description: "Invitation response recorded"}}}},
+    "/organizations/{id}/documents": {
+      get: {security: [{firebaseAuth: []}], summary: "List organization verification documents", responses: {"200": {description: "Documents"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Register an uploaded Cloudinary organization document", responses: {"201": {description: "Document registered"}}},
+    },
+    "/organizations/{id}/documents/{documentId}/verify": {patch: {security: [{firebaseAuth: []}], summary: "Verify or reject an organization document", responses: {"200": {description: "Document reviewed"}}}},
+    "/identity/bootstrap": {post: {security: [{firebaseAuth: []}], summary: "Complete a Firebase self-service registration and record consent", responses: {"201": {description: "Identity profile created"}}}},
+    "/identity/profile": {
+      get: {security: [{firebaseAuth: []}], summary: "Get the authenticated identity profile", responses: {"200": {description: "Identity profile"}}},
+      patch: {security: [{firebaseAuth: []}], summary: "Update the authenticated identity profile", responses: {"200": {description: "Profile updated"}}},
+    },
+    "/identity/verification/sync": {post: {security: [{firebaseAuth: []}], summary: "Synchronize Firebase email and phone verification state", responses: {"200": {description: "Verification synchronized"}}}},
+    "/identity/providers": {get: {security: [{firebaseAuth: []}], summary: "List linked password, phone, and social identity providers", responses: {"200": {description: "Linked providers"}}}},
+    "/identity/mfa": {
+      get: {security: [{firebaseAuth: []}], summary: "Get multi-factor enrollment status", responses: {"200": {description: "MFA status"}}},
+      delete: {security: [{firebaseAuth: []}], summary: "Remove enrolled factors and revoke sessions", responses: {"200": {description: "MFA removed"}}},
+    },
+    "/identity/sessions": {
+      get: {security: [{firebaseAuth: []}], summary: "List active and historical devices and sessions", responses: {"200": {description: "Sessions"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Register a successful login session", responses: {"201": {description: "Session registered"}}},
+    },
+    "/identity/sessions/{id}": {delete: {security: [{firebaseAuth: []}], summary: "Revoke a device session", responses: {"200": {description: "Session revoked"}}}},
+    "/identity/sessions/revoke-all": {post: {security: [{firebaseAuth: []}], summary: "Revoke all refresh tokens and active sessions", responses: {"200": {description: "Sessions revoked"}}}},
+    "/identity/login-history": {get: {security: [{firebaseAuth: []}], summary: "List the current user's successful login history", responses: {"200": {description: "Login history"}}}},
+    "/identity/consents": {put: {security: [{firebaseAuth: []}], summary: "Accept current terms and privacy policy versions", responses: {"200": {description: "Consent recorded"}}}},
+    "/identity/permissions": {get: {security: [{firebaseAuth: []}], summary: "Get effective role permissions", responses: {"200": {description: "Effective permissions"}}}},
+    "/identity/deletion-request": {
+      get: {security: [{firebaseAuth: []}], summary: "Get the current account-deletion request", responses: {"200": {description: "Deletion request"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Request account deletion", responses: {"201": {description: "Deletion requested"}}},
+      delete: {security: [{firebaseAuth: []}], summary: "Cancel a pending account-deletion request", responses: {"200": {description: "Deletion cancelled"}}},
+    },
+    "/identity/deletion-requests": {get: {security: [{firebaseAuth: []}], summary: "List account-deletion requests for administrators", responses: {"200": {description: "Deletion requests"}}}},
+    "/identity/deletion-requests/{uid}": {patch: {security: [{firebaseAuth: []}], summary: "Approve or reject an account-deletion request", responses: {"200": {description: "Deletion request reviewed"}}}},
     "/media/upload-signature": {
       post: {
         security: [{ firebaseAuth: [] }],

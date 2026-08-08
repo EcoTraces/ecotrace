@@ -86,6 +86,13 @@ describe("EcoTrace API", () => {
     expect(response.body.paths["/administration/dashboard"]).toBeDefined();
     expect(response.body.paths["/administration/users/{uid}/role"]).toBeDefined();
     expect(response.body.paths["/administration/health"]).toBeDefined();
+    expect(response.body.paths["/identity/bootstrap"]).toBeDefined();
+    expect(response.body.paths["/identity/sessions"]).toBeDefined();
+    expect(response.body.paths["/identity/deletion-request"]).toBeDefined();
+    expect(response.body.paths["/organizations"]).toBeDefined();
+    expect(response.body.paths["/organizations/{id}/review"]).toBeDefined();
+    expect(response.body.paths["/organizations/{id}/members/{uid}"]).toBeDefined();
+    expect(response.body.paths["/organizations/{id}/documents/{documentId}/verify"]).toBeDefined();
   });
 
   it("protects audit records with Firebase authentication", async () => {
@@ -96,6 +103,30 @@ describe("EcoTrace API", () => {
 
   it("protects administration with Firebase authentication", async () => {
     const response = await request(app).get("/api/v1/administration/dashboard");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects identity profiles with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/identity/profile");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects identity sessions with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/identity/sessions");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects organization profiles with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/organizations");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects organization staff management with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/organizations/org-1/members");
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("unauthenticated");
   });

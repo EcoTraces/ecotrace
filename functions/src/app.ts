@@ -26,7 +26,7 @@ function allowedOrigin(origin: string | undefined, callback: (error: Error | nul
 }
 
 app.disable("x-powered-by");
-app.use(cors({origin: allowedOrigin, methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"], allowedHeaders: ["Authorization", "Content-Type", "X-EcoTrace-Event-Key"]}));
+app.use(cors({origin: allowedOrigin, methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allowedHeaders: ["Authorization", "Content-Type", "X-EcoTrace-Event-Key"]}));
 app.use(express.json({limit: "1mb"}));
 
 app.get("/", (_request, response) => response.json({status: "ok", service: "ecotrace-api", version: "1.0.0", message: "Welcome to EcoTrace API"}));

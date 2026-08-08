@@ -930,6 +930,10 @@ service cloud.firestore {
       allow read, create, update: if isAdministrator();
       allow delete: if false;
     }
+    match /accountDeletionRequests/{userId} {
+      allow read: if owns(userId) || isAdministrator();
+      allow write: if false;
+    }
 
     match /{document=**} {
       allow read, write: if false;
