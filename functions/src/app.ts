@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import swaggerUi from "swagger-ui-express";
 import {errorHandler, notFound} from "./errors.js";
 import {openApiDocument} from "./openapi.js";
 import routes from "./routes.js";
@@ -28,8 +29,10 @@ app.disable("x-powered-by");
 app.use(cors({origin: allowedOrigin, methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"], allowedHeaders: ["Authorization", "Content-Type", "X-EcoTrace-Event-Key"]}));
 app.use(express.json({limit: "1mb"}));
 
+app.get("/", (_request, response) => response.json({status: "ok", service: "ecotrace-api", version: "1.0.0", message: "Welcome to EcoTrace API"}));
 app.get("/health", (_request, response) => response.json({status: "ok", service: "ecotrace-api", version: "1.0.0"}));
 app.get("/openapi.json", (_request, response) => response.json(openApiDocument));
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
 app.use("/api/v1", routes);
 app.use(notFound);
 app.use(errorHandler);

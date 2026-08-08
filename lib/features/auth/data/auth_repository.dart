@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../audit/data/audit_repository.dart';
 import '../../audit/domain/audit_event.dart';
@@ -23,6 +25,7 @@ class AuthRepository {
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
   late final AuditRepository _audit;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   Stream<User?> get authStateChanges => _auth.userChanges();
 
@@ -139,6 +142,86 @@ class AuthRepository {
       description: 'Display name updated.',
       changes: {'displayName': value},
     );
+  }
+
+  Future<String> uploadProfilePicture(String filePath) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('User must be signed in to upload a profile picture.');
+    }
+
+    final file = File(filePath);
+    final fileExtension = filePath.split('.').last.toLowerCase();
+    
+    // Validate file type
+    const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    if (!allowedExtensions.contains(fileExtension)) {
+      throw StateError('Invalid file type. Only images are allowed.');
+    }
+
+    try {
+      // Upload to Firebase Storage
+      final storageRef = _storage
+          .ref()
+          .child('profile-pictures/${user.uid}/profile-$fileExtension}');
+      
+      final uploadTask = await storageRef.putFile(file);
+      final downloadUrl = await uploadTask.ref.getDownloadURL();
+
+      // Update Firestore with the profile picture URL
+      await _firestore.collection('users').doc(user.uid).update({
+        'profilePictureUrl': downloadUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Record audit log
+      await _audit.record(
+        action: AuditAction.update,
+        entityType: 'userProfile',
+        entityId: user.uid,
+        description: 'Profile picture updated.',
+        changes: {'profilePictureUrl': 'updated'},
+      );
+
+      return downloadUrl;
+    } catch (e) {
+      throw StateError('Failed to upload profile picture: $e');
+    }
+  }
+
+  Future<void> deleteProfilePicture() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('User must be signed in.');
+    }
+
+    try {
+      // Delete all profile pictures for this user from Storage
+      final listResult = await _storage
+          .ref()
+          .child('profile-pictures/${user.uid}')
+          .listAll();
+      
+      for (final item in listResult.items) {
+        await item.delete();
+      }
+
+      // Update Firestore to remove the profile picture URL
+      await _firestore.collection('users').doc(user.uid).update({
+        'profilePictureUrl': FieldValue.delete(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Record audit log
+      await _audit.record(
+        action: AuditAction.update,
+        entityType: 'userProfile',
+        entityId: user.uid,
+        description: 'Profile picture removed.',
+      );
+    } catch (e) {
+      throw StateError('Failed to delete profile picture: $e');
+    }
   }
 
   Future<void> signOut() async {
