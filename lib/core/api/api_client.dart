@@ -186,11 +186,37 @@ class ApiClient {
     http.Response response, {
     bool authenticated = true,
   }) async {
-    if (authenticated &&
-        response.statusCode == 401 &&
-        _auth.currentUser != null) {
+    if (!authenticated || response.statusCode != 401 || _auth.currentUser == null) {
+      return;
+    }
+
+    if (_shouldSignOutOnUnauthorized(response)) {
       await _auth.signOut();
     }
+  }
+
+  bool _shouldSignOutOnUnauthorized(http.Response response) {
+    try {
+      final body = response.body.isEmpty
+          ? null
+          : jsonDecode(response.body);
+      if (body is Map) {
+        final error = body['error'];
+        if (error is Map) {
+          final code = error['code']?.toString().toLowerCase();
+          final message = error['message']?.toString().toLowerCase();
+          if (code == 'unauthenticated' ||
+              message?.contains('token') == true ||
+              message?.contains('expired') == true ||
+              message?.contains('auth') == true) {
+            return true;
+          }
+        }
+      }
+    } catch (_) {
+      // If the API response is not JSON, fall back to not signing out.
+    }
+    return false;
   }
 
   Future<http.Response> _deleteRequest(
