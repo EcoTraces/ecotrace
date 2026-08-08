@@ -81,6 +81,23 @@ describe("EcoTrace API", () => {
     expect(response.body.paths["/documents/{id}/archive"]).toBeDefined();
     expect(response.body.paths["/documents/{id}/versions"]).toBeDefined();
     expect(response.body.paths["/documents/{id}/audit"]).toBeDefined();
+    expect(response.body.paths["/audit/events"]).toBeDefined();
+    expect(response.body.paths["/audit/integrity"]).toBeDefined();
+    expect(response.body.paths["/administration/dashboard"]).toBeDefined();
+    expect(response.body.paths["/administration/users/{uid}/role"]).toBeDefined();
+    expect(response.body.paths["/administration/health"]).toBeDefined();
+  });
+
+  it("protects audit records with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/audit/events");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects administration with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/administration/dashboard");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
   });
 
   it("protects compliance workflows with Firebase authentication", async () => {

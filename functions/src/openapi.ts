@@ -2011,6 +2011,55 @@ export const openApiDocument = {
         responses: { "200": { description: "Compliance score updated" } },
       },
     },
+    "/audit/events": {
+      get: {security: [{firebaseAuth: []}], summary: "Search and filter tamper-evident audit records", responses: {"200": {description: "Audit records"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Record a user or system activity", responses: {"201": {description: "Audit event recorded"}}},
+    },
+    "/audit/export": {
+      get: {security: [{firebaseAuth: []}], summary: "Export filtered audit records as JSON or CSV", responses: {"200": {description: "Audit export"}}},
+    },
+    "/audit/integrity": {
+      get: {security: [{firebaseAuth: []}], summary: "Verify the audit SHA-256 hash chain", responses: {"200": {description: "Integrity result"}}},
+    },
+    "/administration/dashboard": {
+      get: {security: [{firebaseAuth: []}], summary: "Get administrative platform totals", responses: {"200": {description: "Administration dashboard"}}},
+    },
+    "/administration/users": {
+      get: {security: [{firebaseAuth: []}], summary: "List authentication users and profiles", responses: {"200": {description: "Users"}}},
+    },
+    "/administration/users/{uid}": {
+      patch: {security: [{firebaseAuth: []}], summary: "Update or suspend a user", responses: {"200": {description: "User updated"}}},
+    },
+    "/administration/users/{uid}/role": {
+      put: {security: [{firebaseAuth: []}], summary: "Assign a role and synchronize Firebase claims", responses: {"200": {description: "Role assigned"}}},
+    },
+    "/administration/roles": {
+      get: {security: [{firebaseAuth: []}], summary: "List roles and their permissions", responses: {"200": {description: "Roles"}}},
+    },
+    "/administration/roles/{role}": {
+      put: {security: [{firebaseAuth: []}], summary: "Configure a role and permissions", responses: {"200": {description: "Role configured"}}},
+    },
+    "/administration/permissions": {
+      get: {security: [{firebaseAuth: []}], summary: "List platform permissions", responses: {"200": {description: "Permissions"}}},
+    },
+    "/administration/permissions/{code}": {
+      put: {security: [{firebaseAuth: []}], summary: "Create or update a permission", responses: {"200": {description: "Permission configured"}}},
+    },
+    "/administration/catalogs/{catalog}": {
+      get: {security: [{firebaseAuth: []}], summary: "List configurable catalog items", responses: {"200": {description: "Catalog items"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Create a catalog item", responses: {"201": {description: "Catalog item created"}}},
+    },
+    "/administration/catalogs/{catalog}/{id}": {
+      put: {security: [{firebaseAuth: []}], summary: "Update a catalog item", responses: {"200": {description: "Catalog item updated"}}},
+      delete: {security: [{firebaseAuth: []}], summary: "Archive a catalog item", responses: {"200": {description: "Catalog item archived"}}},
+    },
+    "/administration/configuration/{name}": {
+      get: {security: [{firebaseAuth: []}], summary: "Read formulas, system settings, or integrations", responses: {"200": {description: "Configuration"}}},
+      put: {security: [{firebaseAuth: []}], summary: "Update formulas, system settings, or integrations", responses: {"200": {description: "Configuration updated"}}},
+    },
+    "/administration/health": {
+      get: {security: [{firebaseAuth: []}], summary: "Monitor platform health", responses: {"200": {description: "Platform health"}}},
+    },
     "/compliance/audit-report": {
       get: {
         security: [{ firebaseAuth: [] }],

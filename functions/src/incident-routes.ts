@@ -128,7 +128,7 @@ router.post(
         hazardType: z.string().trim().max(200).default(""),
         immediateResponseAction: z.string().trim().max(2000).default(""),
         investigationStatus: incidentStatusSchema.default("reported"),
-        severity: incidentSeveritySchema.default("medium"),
+        severity: incidentSeveritySchema.default("moderate"),
         rootCause: z.string().trim().max(4000).default(""),
         correctiveAction: z.string().trim().max(4000).default(""),
         followUpMonitoring: z.string().trim().max(4000).default(""),

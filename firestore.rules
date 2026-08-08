@@ -904,19 +904,15 @@ service cloud.firestore {
       match /auditTrail/{id} { allow read, create: if isComplianceManager() || get(/databases/$(database)/documents/managedDocuments/$(documentId)).data.ownerId == request.auth.uid; allow update, delete: if false; }
     }
 
-    // Global audit records are append-only. Trusted backend triggers can add
-    // source=server records and enrich public IP metadata using Admin SDK.
+    // Global audit records are written only by the authenticated API through
+    // the Admin SDK so every entry participates in the server-side hash chain.
     match /auditLogs/{eventId} {
       allow read: if isAdministrator();
-      allow create: if signedIn()
-        && request.resource.data.actorId == request.auth.uid
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.keys().hasAll([
-          'actorId', 'action', 'entityType', 'entityId', 'description',
-          'deviceInformation', 'success', 'source', 'integrityVersion',
-          'createdAt'
-        ]);
-      allow update, delete: if false;
+      allow create, update, delete: if false;
+    }
+    match /systemMetadata/{documentId} {
+      allow read: if isAdministrator();
+      allow write: if false;
     }
     match /systemRoles/{roleId} {
       allow read, create, update: if isAdministrator();
@@ -925,6 +921,10 @@ service cloud.firestore {
     match /systemConfiguration/{documentId} {
       allow read, create, update: if isAdministrator();
       allow delete: if false;
+    }
+    match /systemPermissions/{permissionId} {
+      allow read: if isAdministrator();
+      allow write: if false;
     }
     match /roleChangeRequests/{requestId} {
       allow read, create, update: if isAdministrator();

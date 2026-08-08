@@ -27,9 +27,12 @@ import supportRoutes from "./support-routes.js";
 import complianceRoutes from "./compliance-routes.js";
 import incidentRoutes from "./incident-routes.js";
 import documentRoutes from "./document-routes.js";
+import auditRoutes, {auditMutations} from "./audit-routes.js";
+import administrationRoutes from "./administration-routes.js";
 import { publishNotificationEvent } from "./push-events.js";
 
 const router = Router();
+router.use(auditMutations);
 router.use(routeRoutes);
 router.use(centreRoutes);
 router.use(inventoryRoutes);
@@ -52,6 +55,8 @@ router.use(supportRoutes);
 router.use(complianceRoutes);
 router.use(incidentRoutes);
 router.use(documentRoutes);
+router.use(auditRoutes);
+router.use(administrationRoutes);
 const administrators = ["administrator", "superAdministrator"] as const;
 
 const centreSchema = z.object({
