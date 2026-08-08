@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../audit/data/audit_repository.dart';
 import '../../audit/domain/audit_event.dart';
@@ -144,28 +144,43 @@ class AuthRepository {
     );
   }
 
-  Future<String> uploadProfilePicture(String filePath) async {
+  Future<String> uploadProfilePicture(XFile file) async {
     final user = _auth.currentUser;
     if (user == null) {
       throw StateError('User must be signed in to upload a profile picture.');
     }
 
-    final file = File(filePath);
-    final fileExtension = filePath.split('.').last.toLowerCase();
-    
-    // Validate file type
+    final rawName = file.name.isNotEmpty ? file.name : file.path;
+    final safeName = rawName.split('/').last.split('\\').last;
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) {
+      throw StateError('Selected file is empty. Please choose a valid image.');
+    }
+
+    var fileExtension = '';
+    if (safeName.contains('.')) {
+      fileExtension = safeName.split('.').last.toLowerCase();
+    }
+
     const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    if (!allowedExtensions.contains(fileExtension)) {
+      fileExtension = _fileExtensionFromBytes(bytes);
+    }
     if (!allowedExtensions.contains(fileExtension)) {
       throw StateError('Invalid file type. Only images are allowed.');
     }
 
+    final contentType = _contentType(fileExtension);
+
     try {
-      // Upload to Firebase Storage
       final storageRef = _storage
           .ref()
-          .child('profile-pictures/${user.uid}/profile-$fileExtension}');
-      
-      final uploadTask = await storageRef.putFile(file);
+          .child('profile-pictures/${user.uid}/profile.$fileExtension');
+
+      final uploadTask = await storageRef.putData(
+        bytes,
+        SettableMetadata(contentType: contentType),
+      );
       final downloadUrl = await uploadTask.ref.getDownloadURL();
 
       // Update Firestore with the profile picture URL
@@ -186,6 +201,39 @@ class AuthRepository {
       return downloadUrl;
     } catch (e) {
       throw StateError('Failed to upload profile picture: $e');
+    }
+  }
+
+  static String _fileExtensionFromBytes(List<int> bytes) {
+    if (bytes.length >= 3 && bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) {
+      return 'jpg';
+    }
+    if (bytes.length >= 8 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
+      return 'png';
+    }
+    if (bytes.length >= 3 && bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46) {
+      return 'gif';
+    }
+    if (bytes.length >= 12 && bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 &&
+        bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50) {
+      return 'webp';
+    }
+    return '';
+  }
+
+  static String _contentType(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'application/octet-stream';
     }
   }
 

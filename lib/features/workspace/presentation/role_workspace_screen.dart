@@ -1633,7 +1633,7 @@ class _ProfileScreenState extends State<_ProfileScreen> {
 
       if (!mounted) return;
 
-      await widget.repository.uploadProfilePicture(pickedFile.path);
+      await widget.repository.uploadProfilePicture(pickedFile);
 
       if (!mounted) return;
 
