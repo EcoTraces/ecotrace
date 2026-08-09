@@ -87,6 +87,12 @@ router.post("/routes/optimize", authenticate, requireRoles(...supervisors), asyn
   }
   const schedule = await db.collection("collectionSchedules").doc(scheduleId).get();
   if (!schedule.exists) throw new ApiError(404, "Collection schedule not found.", "not_found");
+  if (!["planned", "dispatched", "inProgress"].includes(String(schedule.get("status")))) {
+    throw new ApiError(409, "Only an active collection schedule can be optimized.", "invalid_schedule_state");
+  }
+  if (!String(schedule.get("driverId") ?? "").trim()) {
+    throw new ApiError(409, "Assign a driver before generating the route.", "driver_required");
+  }
   const pickupIds = (schedule.get("pickupIds") ?? []) as string[];
   const pickupSnapshots = await db.getAll(...pickupIds.map((id) => db.collection("pickupRequests").doc(id)));
   if (pickupSnapshots.length === 0 || pickupSnapshots.some((pickup) => !pickup.exists)) {
@@ -172,9 +178,27 @@ router.post("/routes/optimize", authenticate, requireRoles(...supervisors), asyn
 });
 
 router.patch("/routes/:id/start", authenticate, requireRoles(...operators), async (request, response) => {
-  const {reference} = await accessibleRoute(parameter(request.params.id), request.user!.uid, request.user!.role);
-  await reference.update({status: "active", startedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()});
+  const {reference, snapshot} = await accessibleRoute(parameter(request.params.id), request.user!.uid, request.user!.role);
+  if (!["planned", "paused"].includes(String(snapshot.get("status")))) {
+    throw new ApiError(409, "Only a planned or paused route can be started.", "invalid_state");
+  }
+  await reference.update({
+    status: "active",
+    ...(snapshot.get("status") === "planned"
+      ? {startedAt: FieldValue.serverTimestamp()}
+      : {resumedAt: FieldValue.serverTimestamp()}),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
   response.json({data: {id: reference.id, status: "active"}});
+});
+
+router.patch("/routes/:id/pause", authenticate, requireRoles(...operators), async (request, response) => {
+  const {reference, snapshot} = await accessibleRoute(parameter(request.params.id), request.user!.uid, request.user!.role);
+  if (snapshot.get("status") !== "active") {
+    throw new ApiError(409, "Only an active route can be paused.", "invalid_state");
+  }
+  await reference.update({status: "paused", pausedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()});
+  response.json({data: {id: reference.id, status: "paused"}});
 });
 
 router.post("/routes/:id/positions", authenticate, requireRoles(...operators), async (request, response) => {
@@ -188,21 +212,23 @@ router.post("/routes/:id/positions", authenticate, requireRoles(...operators), a
   const {reference, snapshot} = await accessibleRoute(parameter(request.params.id), request.user!.uid, request.user!.role);
   if (snapshot.get("status") !== "active") throw new ApiError(409, "Start the route before sending GPS positions.", "route_not_active");
   const stops = (snapshot.get("stops") ?? []) as Array<Record<string, unknown>>;
-  const remaining = stops.filter((stop) => stop.arrived !== true);
-  remaining.sort((a, b) => distanceKm(position.latitude, position.longitude, Number(a.latitude), Number(a.longitude)) - distanceKm(position.latitude, position.longitude, Number(b.latitude), Number(b.longitude)));
+  const remaining = stops.filter((stop) => stop.arrived !== true)
+    .sort((a, b) => Number(a.sequence ?? 0) - Number(b.sequence ?? 0));
   const nearest = remaining[0];
   const nearestDistance = nearest ? distanceKm(position.latitude, position.longitude, Number(nearest.latitude), Number(nearest.longitude)) : 0;
   const arrivalRadiusKm = Number(snapshot.get("arrivalRadiusMetres") ?? 150) / 1000;
   const deviationRadiusKm = Number(snapshot.get("deviationRadiusMetres") ?? 2000) / 1000;
   const arrived = Boolean(nearest && nearestDistance <= arrivalRadiusKm);
-  const deviated = Boolean(nearest && nearestDistance > deviationRadiusKm);
+  const previousDeviationAt = snapshot.get("lastDeviationAlertAt")?.toDate?.() as Date | undefined;
+  const deviationCooldownElapsed = !previousDeviationAt || Date.now() - previousDeviationAt.getTime() >= 5 * 60 * 1000;
+  const deviated = Boolean(nearest && nearestDistance > deviationRadiusKm && deviationCooldownElapsed);
   const batch = db.batch();
   batch.update(reference, {
     currentLatitude: position.latitude,
     currentLongitude: position.longitude,
     lastLocationAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
-    ...(deviated ? {deviationCount: FieldValue.increment(1)} : {}),
+    ...(deviated ? {deviationCount: FieldValue.increment(1), lastDeviationAlertAt: FieldValue.serverTimestamp()} : {}),
     ...(arrived ? {stops: stops.map((stop) => stop.pickupId === nearest.pickupId ? {...stop, arrived: true} : stop)} : {}),
   });
   batch.set(reference.collection("locationHistory").doc(), {...position, recordedAt: position.recordedAt ?? FieldValue.serverTimestamp(), createdAt: FieldValue.serverTimestamp()});
@@ -224,6 +250,9 @@ router.post("/routes/:id/positions", authenticate, requireRoles(...operators), a
 
 router.patch("/routes/:id/complete", authenticate, requireRoles(...operators), async (request, response) => {
   const {reference, snapshot} = await accessibleRoute(parameter(request.params.id), request.user!.uid, request.user!.role);
+  if (!['active', 'paused'].includes(String(snapshot.get("status")))) {
+    throw new ApiError(409, "Only an active or paused route can be completed.", "invalid_state");
+  }
   const locations = await reference.collection("locationHistory").orderBy("recordedAt").limit(5000).get();
   const points = locations.docs.map((document) => ({latitude: Number(document.get("latitude")), longitude: Number(document.get("longitude"))})).filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude));
   const actualDistanceKm = routeLength(points);
@@ -231,6 +260,9 @@ router.patch("/routes/:id/complete", authenticate, requireRoles(...operators), a
   const actualMinutes = startedAt ? Math.max(0, (Date.now() - startedAt.getTime()) / 60000) : 0;
   const stops = (snapshot.get("stops") ?? []) as Array<Record<string, unknown>>;
   const reachedStops = stops.filter((stop) => stop.arrived === true).length;
+  if (reachedStops !== stops.length) {
+    throw new ApiError(409, "All route stops must be reached before completion.", "stops_incomplete");
+  }
   await reference.update({status: "completed", actualDistanceKm, actualMinutes, reachedStops, completionRate: stops.length === 0 ? 0 : reachedStops / stops.length * 100, completedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()});
   response.json({data: {id: reference.id, status: "completed", actualDistanceKm, actualMinutes, reachedStops}});
 });

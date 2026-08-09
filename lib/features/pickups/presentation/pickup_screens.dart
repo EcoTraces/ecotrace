@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
@@ -84,9 +86,51 @@ class _CreatePickupState extends State<CreatePickupScreen> {
   bool urgent = false, busy = false;
   final photos = <XFile>[];
   double? latitude, longitude;
+  PickupFeeEstimate? serverFee;
+  Timer? _feeTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshFee();
+  }
+
+  @override
+  void dispose() {
+    _feeTimer?.cancel();
+    q.dispose();
+    w.dispose();
+    condition.dispose();
+    location.dispose();
+    instructions.dispose();
+    super.dispose();
+  }
+
+  void _refreshFee() {
+    _feeTimer?.cancel();
+    _feeTimer = Timer(const Duration(milliseconds: 350), () async {
+      final quantity = int.tryParse(q.text);
+      final weight = double.tryParse(w.text);
+      if (quantity == null || quantity < 1 || weight == null || weight < 0) {
+        if (mounted) setState(() => serverFee = null);
+        return;
+      }
+      try {
+        final estimate = await widget.repository.estimateFee(
+          quantity: quantity,
+          weight: weight,
+          urgent: urgent,
+        );
+        if (mounted) setState(() => serverFee = estimate);
+      } catch (_) {
+        if (mounted) setState(() => serverFee = null);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext c) {
-    final fee = estimatePickupFee(
+    final localFee = estimatePickupFee(
       quantity: int.tryParse(q.text) ?? 0,
       weight: double.tryParse(w.text) ?? 0,
       urgent: urgent,
@@ -107,7 +151,10 @@ class _CreatePickupState extends State<CreatePickupScreen> {
           TextField(
             controller: q,
             keyboardType: TextInputType.number,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) {
+              setState(() {});
+              _refreshFee();
+            },
             decoration: const InputDecoration(labelText: 'Quantity'),
           ),
           const SizedBox(height: 12),
@@ -143,7 +190,10 @@ class _CreatePickupState extends State<CreatePickupScreen> {
           TextField(
             controller: w,
             keyboardType: TextInputType.number,
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) {
+              setState(() {});
+              _refreshFee();
+            },
             decoration: const InputDecoration(
               labelText: 'Estimated weight (kg)',
             ),
@@ -201,7 +251,10 @@ class _CreatePickupState extends State<CreatePickupScreen> {
           ),
           SwitchListTile(
             value: urgent,
-            onChanged: (x) => setState(() => urgent = x),
+            onChanged: (x) {
+              setState(() => urgent = x);
+              _refreshFee();
+            },
             title: const Text('Urgent pickup'),
           ),
           TextField(
@@ -213,73 +266,88 @@ class _CreatePickupState extends State<CreatePickupScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Estimated fee: SLE ${fee.toStringAsFixed(2)}',
+            'Estimated fee: ${serverFee?.currency ?? 'SLE'} ${(serverFee?.total ?? localFee).toStringAsFixed(2)}',
             style: Theme.of(c).textTheme.titleMedium,
           ),
+          if (serverFee != null)
+            Text(
+              'Items: SLE ${serverFee!.baseFee.toStringAsFixed(2)} • Weight: SLE ${serverFee!.weightFee.toStringAsFixed(2)} • Urgent: SLE ${serverFee!.urgentFee.toStringAsFixed(2)}',
+              style: Theme.of(c).textTheme.bodySmall,
+            ),
           const SizedBox(height: 16),
-          FilledButton(
-            onPressed: busy
-                ? null
-                : () async {
-                    final quantity = int.tryParse(q.text);
-                    final weight = double.tryParse(w.text);
-                    if (quantity == null ||
-                        quantity < 1 ||
-                        weight == null ||
-                        weight < 0 ||
-                        condition.text.trim().isEmpty ||
-                        location.text.trim().isEmpty ||
-                        photos.isEmpty) {
-                      ScaffoldMessenger.of(c).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Complete all required details and add at least one pickup photo.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    setState(() => busy = true);
-                    try {
-                      final uploads = await Future.wait(
-                        photos.map(
-                          (photo) async => PickupPhoto(
-                            name: photo.name,
-                            bytes: await photo.readAsBytes(),
-                          ),
-                        ),
-                      );
-                      await widget.repository.create(
-                        uid: widget.uid,
-                        category: category,
-                        quantity: quantity,
-                        weight: weight,
-                        condition: condition.text,
-                        location: location.text,
-                        scheduledAt: date,
-                        urgent: urgent,
-                        instructions: instructions.text,
-                        photos: uploads,
-                        latitude: latitude,
-                        longitude: longitude,
-                      );
-                      if (c.mounted) Navigator.pop(c);
-                    } catch (error) {
-                      if (c.mounted) {
-                        ScaffoldMessenger.of(c).showSnackBar(
-                          SnackBar(
-                            content: Text('Could not create pickup: $error'),
-                          ),
-                        );
-                      }
-                      if (mounted) setState(() => busy = false);
-                    }
-                  },
-            child: const Text('Confirm pickup request'),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: busy ? null : () => _save(c, submit: false),
+                  child: const Text('Save draft'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  onPressed: busy ? null : () => _save(c, submit: true),
+                  child: const Text('Confirm pickup request'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _save(BuildContext context, {required bool submit}) async {
+    final quantity = int.tryParse(q.text);
+    final weight = double.tryParse(w.text);
+    if (quantity == null ||
+        quantity < 1 ||
+        weight == null ||
+        weight < 0 ||
+        condition.text.trim().isEmpty ||
+        location.text.trim().isEmpty ||
+        photos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Complete all required details and add at least one pickup photo.',
+          ),
+        ),
+      );
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      final uploads = await Future.wait(
+        photos.map(
+          (photo) async =>
+              PickupPhoto(name: photo.name, bytes: await photo.readAsBytes()),
+        ),
+      );
+      await widget.repository.create(
+        uid: widget.uid,
+        category: category,
+        quantity: quantity,
+        weight: weight,
+        condition: condition.text,
+        location: location.text,
+        scheduledAt: date,
+        urgent: urgent,
+        instructions: instructions.text,
+        photos: uploads,
+        latitude: latitude,
+        longitude: longitude,
+        submit: submit,
+      );
+      if (context.mounted) Navigator.pop(context);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save pickup: $error')),
+        );
+      }
+      if (mounted) setState(() => busy = false);
+    }
   }
 }
 
@@ -313,7 +381,77 @@ class PickupDetailScreen extends StatelessWidget {
           Text(pickup.location),
           Text('Scheduled: ${pickup.scheduledAt.toLocal()}'),
           Text('Estimated fee: SLE ${pickup.fee.toStringAsFixed(2)}'),
-          const Spacer(),
+          if (pickup.instructions.isNotEmpty)
+            Text('Instructions: ${pickup.instructions}'),
+          if (pickup.photoUrls.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 96,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: pickup.photoUrls.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (_, index) => ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    pickup.photoUrls[index],
+                    width: 96,
+                    height: 96,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const SizedBox(
+                      width: 96,
+                      child: Icon(Icons.broken_image_outlined),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Expanded(
+            child: FutureBuilder<List<PickupEvent>>(
+              future: repository.history(pickup.id),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final events = snapshot.data!;
+                if (events.isEmpty) {
+                  return const Center(child: Text('No tracking events yet.'));
+                }
+                return ListView.builder(
+                  itemCount: events.length,
+                  itemBuilder: (_, index) {
+                    final event = events[index];
+                    return ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.check_circle_outline),
+                      title: Text(event.to.isEmpty ? event.type : event.to),
+                      subtitle: Text(
+                        [
+                          if (event.reason.isNotEmpty) event.reason,
+                          if (event.createdAt != null)
+                            event.createdAt!.toLocal().toString(),
+                        ].join(' • '),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          if (pickup.status == PickupStatus.draft)
+            FilledButton.icon(
+              onPressed: pickup.photoUrls.isEmpty
+                  ? null
+                  : () => repository.confirm(pickup.id),
+              icon: const Icon(Icons.send_outlined),
+              label: Text(
+                pickup.photoUrls.isEmpty
+                    ? 'Add a photo before confirming'
+                    : 'Confirm draft',
+              ),
+            ),
           if ([
             PickupStatus.submitted,
             PickupStatus.approved,
@@ -345,9 +483,7 @@ class PickupDetailScreen extends StatelessWidget {
             PickupStatus.collected,
           ].contains(pickup.status))
             OutlinedButton(
-              onPressed: () => repository.cancel(pickup.id).then((_) {
-                if (c.mounted) Navigator.pop(c);
-              }),
+              onPressed: () => _cancel(c, pickup.id),
               child: const Text('Cancel request'),
             ),
           if (pickup.status == PickupStatus.completed)
@@ -356,7 +492,7 @@ class PickupDetailScreen extends StatelessWidget {
               children: [
                 for (var i = 1; i <= 5; i++)
                   IconButton(
-                    onPressed: () => repository.rate(pickup.id, i),
+                    onPressed: () => _rate(c, pickup.id, i),
                     icon: Icon(
                       (pickup.rating ?? 0) >= i
                           ? Icons.star
@@ -369,4 +505,64 @@ class PickupDetailScreen extends StatelessWidget {
       ),
     ),
   );
+
+  Future<void> _cancel(BuildContext context, String id) async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel pickup request?'),
+        content: TextField(
+          controller: controller,
+          maxLength: 500,
+          decoration: const InputDecoration(labelText: 'Reason (optional)'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep request'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Cancel pickup'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await repository.cancel(id, reason: controller.text.trim());
+      if (context.mounted) Navigator.pop(context);
+    }
+    controller.dispose();
+  }
+
+  Future<void> _rate(BuildContext context, String id, int rating) async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Rate this pickup $rating/5'),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          maxLength: 1000,
+          decoration: const InputDecoration(labelText: 'Comment (optional)'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Submit rating'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await repository.rate(id, rating, comment: controller.text.trim());
+    }
+    controller.dispose();
+  }
 }

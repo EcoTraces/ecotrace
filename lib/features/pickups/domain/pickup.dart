@@ -105,6 +105,51 @@ class PickupPhoto {
   final List<int> bytes;
 }
 
+class PickupFeeEstimate {
+  const PickupFeeEstimate({
+    required this.total,
+    required this.currency,
+    required this.baseFee,
+    required this.weightFee,
+    required this.urgentFee,
+  });
+
+  final double total, baseFee, weightFee, urgentFee;
+  final String currency;
+
+  factory PickupFeeEstimate.fromJson(Map<String, dynamic> data) =>
+      PickupFeeEstimate(
+        total: (data['total'] as num? ?? 0).toDouble(),
+        currency: data['currency']?.toString() ?? 'SLE',
+        baseFee: (data['baseFee'] as num? ?? 0).toDouble(),
+        weightFee: (data['weightFee'] as num? ?? 0).toDouble(),
+        urgentFee: (data['urgentFee'] as num? ?? 0).toDouble(),
+      );
+}
+
+class PickupEvent {
+  const PickupEvent({
+    required this.id,
+    required this.type,
+    required this.from,
+    required this.to,
+    required this.reason,
+    required this.createdAt,
+  });
+
+  final String id, type, from, to, reason;
+  final DateTime? createdAt;
+
+  factory PickupEvent.fromJson(Map<String, dynamic> data) => PickupEvent(
+    id: data['id']?.toString() ?? '',
+    type: data['type']?.toString() ?? 'statusChanged',
+    from: data['from']?.toString() ?? '',
+    to: data['to']?.toString() ?? '',
+    reason: data['reason']?.toString() ?? '',
+    createdAt: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+  );
+}
+
 double estimatePickupFee({
   required int quantity,
   required double weight,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../data/organization_repository.dart';
 import '../domain/organization.dart';
@@ -15,7 +16,21 @@ class OrganizationListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Organizations')),
+    appBar: AppBar(
+      title: const Text('Organizations'),
+      actions: [
+        IconButton(
+          tooltip: 'Invitations',
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  OrganizationInvitationsScreen(repository: repository),
+            ),
+          ),
+          icon: const Icon(Icons.mark_email_unread_outlined),
+        ),
+      ],
+    ),
     body: StreamBuilder<List<Organization>>(
       stream: repository.watchForUser(userId),
       builder: (context, snapshot) {
@@ -423,7 +438,11 @@ class OrganizationDetailScreen extends StatelessWidget {
           children: [
             _StatusCard(organization: organization),
             const SizedBox(height: 12),
-            _InformationCard(organization: organization),
+            _InformationCard(
+              organization: organization,
+              onEditServiceAreas: () =>
+                  _editServiceAreas(context, organization),
+            ),
             const SizedBox(height: 12),
             _SectionCard(
               title: 'Verification documents',
@@ -470,8 +489,94 @@ class OrganizationDetailScreen extends StatelessWidget {
                 icon: const Icon(Icons.person_add_alt),
                 label: const Text('Invite'),
               ),
-              child: const Text(
-                'Invite staff by email. Membership becomes active after the invitation is accepted.',
+              child: StreamBuilder<List<OrganizationMember>>(
+                stream: repository.watchMembers(organizationId),
+                builder: (context, memberSnapshot) {
+                  final members =
+                      memberSnapshot.data ?? const <OrganizationMember>[];
+                  if (memberSnapshot.hasError) {
+                    return Text(
+                      'Unable to load staff: ${memberSnapshot.error}',
+                    );
+                  }
+                  if (!memberSnapshot.hasData) {
+                    return const LinearProgressIndicator();
+                  }
+                  if (members.isEmpty) {
+                    return const Text('No active organization members.');
+                  }
+                  return Column(
+                    children: members
+                        .map(
+                          (member) => ListTile(
+                            leading: const Icon(Icons.badge_outlined),
+                            title: Text(
+                              member.userId == userId ? 'You' : member.userId,
+                            ),
+                            subtitle: Text('${member.role} • ${member.status}'),
+                            trailing: member.role == 'owner'
+                                ? const Chip(label: Text('Owner'))
+                                : PopupMenuButton<String>(
+                                    onSelected: (action) async {
+                                      if (action == 'remove') {
+                                        await repository.removeMember(
+                                          organizationId,
+                                          member.userId,
+                                        );
+                                      } else if (action.startsWith('role:')) {
+                                        await repository.updateMember(
+                                          organizationId,
+                                          member.userId,
+                                          role: action.substring(5),
+                                          status: member.status,
+                                          branchId: member.branchId,
+                                        );
+                                      } else {
+                                        await repository.updateMember(
+                                          organizationId,
+                                          member.userId,
+                                          role: member.role,
+                                          status: action == 'suspend'
+                                              ? 'suspended'
+                                              : 'active',
+                                          branchId: member.branchId,
+                                        );
+                                      }
+                                    },
+                                    itemBuilder: (_) => [
+                                      const PopupMenuItem(
+                                        value: 'role:manager',
+                                        child: Text('Make manager'),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'role:staff',
+                                        child: Text('Make staff'),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'role:viewer',
+                                        child: Text('Make viewer'),
+                                      ),
+                                      PopupMenuItem(
+                                        value: member.status == 'active'
+                                            ? 'suspend'
+                                            : 'activate',
+                                        child: Text(
+                                          member.status == 'active'
+                                              ? 'Suspend'
+                                              : 'Activate',
+                                        ),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'remove',
+                                        child: Text('Remove'),
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        )
+                        .toList(),
+                  );
+                },
               ),
             ),
           ],
@@ -481,13 +586,35 @@ class OrganizationDetailScreen extends StatelessWidget {
   );
 
   Future<void> _upload(BuildContext context) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Document selection is temporarily unavailable. The secure Storage upload service is configured.',
-        ),
-      ),
-    );
+    try {
+      final selection = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['pdf', 'png', 'jpg', 'jpeg'],
+        withData: true,
+      );
+      final file = selection?.files.single;
+      if (file == null) return;
+      final bytes = file.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        throw StateError('The selected document could not be read.');
+      }
+      await repository.uploadDocument(
+        organizationId,
+        fileName: file.name,
+        bytes: bytes,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Document uploaded for verification.')),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to upload document: $error')),
+        );
+      }
+    }
   }
 
   Future<void> _addBranch(BuildContext context) async {
@@ -594,6 +721,135 @@ class OrganizationDetailScreen extends StatelessWidget {
     }
     email.dispose();
   }
+
+  Future<void> _editServiceAreas(
+    BuildContext context,
+    Organization organization,
+  ) async {
+    final controller = TextEditingController(
+      text: organization.serviceAreas.join(', '),
+    );
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit service areas'),
+        content: TextField(
+          controller: controller,
+          minLines: 2,
+          maxLines: 4,
+          decoration: const InputDecoration(
+            labelText: 'Comma-separated service areas',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    final areas = controller.text
+        .split(',')
+        .map((value) => value.trim())
+        .where((value) => value.length >= 2)
+        .toSet()
+        .toList();
+    if (confirmed == true && areas.isNotEmpty) {
+      await repository.updateServiceAreas(organizationId, areas);
+    }
+    controller.dispose();
+  }
+}
+
+class OrganizationInvitationsScreen extends StatefulWidget {
+  const OrganizationInvitationsScreen({super.key, required this.repository});
+  final OrganizationRepository repository;
+
+  @override
+  State<OrganizationInvitationsScreen> createState() =>
+      _OrganizationInvitationsScreenState();
+}
+
+class _OrganizationInvitationsScreenState
+    extends State<OrganizationInvitationsScreen> {
+  late Future<List<OrganizationInvitation>> _invitations;
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    _invitations = widget.repository.invitations();
+  }
+
+  Future<void> _respond(OrganizationInvitation invitation, bool accept) async {
+    await widget.repository.respondToInvitation(invitation.id, accept);
+    if (!mounted) return;
+    setState(_reload);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(accept ? 'Invitation accepted.' : 'Invitation declined.'),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Organization invitations')),
+    body: FutureBuilder<List<OrganizationInvitation>>(
+      future: _invitations,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Unable to load invitations: ${snapshot.error}'),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final invitations = snapshot.data!;
+        if (invitations.isEmpty) {
+          return const Center(child: Text('No pending invitations.'));
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: invitations.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final invitation = invitations[index];
+            return Card(
+              child: ListTile(
+                leading: const Icon(Icons.apartment_outlined),
+                title: Text(invitation.organizationName),
+                subtitle: Text('Role: ${invitation.role}'),
+                trailing: Wrap(
+                  spacing: 4,
+                  children: [
+                    IconButton(
+                      tooltip: 'Decline',
+                      onPressed: () => _respond(invitation, false),
+                      icon: const Icon(Icons.close),
+                    ),
+                    FilledButton(
+                      onPressed: () => _respond(invitation, true),
+                      child: const Text('Accept'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ),
+  );
 }
 
 class _StatusCard extends StatelessWidget {
@@ -614,12 +870,21 @@ class _StatusCard extends StatelessWidget {
 }
 
 class _InformationCard extends StatelessWidget {
-  const _InformationCard({required this.organization});
+  const _InformationCard({
+    required this.organization,
+    required this.onEditServiceAreas,
+  });
   final Organization organization;
+  final VoidCallback onEditServiceAreas;
 
   @override
   Widget build(BuildContext context) => _SectionCard(
     title: 'Organization information',
+    action: IconButton(
+      tooltip: 'Edit service areas',
+      onPressed: onEditServiceAreas,
+      icon: const Icon(Icons.edit_location_alt_outlined),
+    ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

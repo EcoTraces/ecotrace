@@ -99,7 +99,10 @@ const centreSchema = z.object({
 });
 
 const scheduleSchema = z.object({
-  scheduledAt: z.coerce.date(),
+  scheduledAt: z.coerce.date().refine(
+    (value) => value.getTime() > Date.now(),
+    "Collection schedules must be created for a future date and time.",
+  ),
   pickupIds: z.array(z.string().trim().min(1)).min(1),
   collectorIds: z.array(z.string().trim().min(1)).default([]),
   driverId: z.string().trim().min(1),
@@ -411,11 +414,13 @@ router.post(
       return !collector?.exists || collector.get("role") !== "collector" || collector.get("dispatchAvailable") === false;
     });
     if (invalidCollector) throw new ApiError(409, "One or more collectors are not available.", "collector_unavailable");
-    const conflict = activeSchedules.docs.find((schedule) =>
-      ["planned", "dispatched", "inProgress"].includes(String(schedule.get("status"))) &&
-      (schedule.get("vehicleId") === input.vehicleId || schedule.get("driverId") === input.driverId),
-    );
-    if (conflict) throw new ApiError(409, "The driver or vehicle already has a nearby active assignment.", "schedule_conflict");
+    const requestedStaff = new Set([input.driverId, ...input.collectorIds]);
+    const conflict = activeSchedules.docs.find((schedule) => {
+      if (!["planned", "dispatched", "inProgress"].includes(String(schedule.get("status")))) return false;
+      const assignedStaff = [String(schedule.get("driverId") ?? ""), ...(schedule.get("collectorIds") ?? []).map(String)];
+      return schedule.get("vehicleId") === input.vehicleId || assignedStaff.some((id) => requestedStaff.has(id));
+    });
+    if (conflict) throw new ApiError(409, "A selected driver, collector, or vehicle already has a nearby active assignment.", "schedule_conflict");
     const estimatedWeight = pickups.reduce(
       (total, pickup) => total + Number(pickup.get("estimatedWeight") ?? 0),
       0,
@@ -787,7 +792,13 @@ router.patch(
   requireRoles(...dispatchSupervisors),
   async (request, response) => {
     const input = z
-      .object({scheduledAt: z.coerce.date(), reason: z.string().trim().min(2).max(1000)})
+      .object({
+        scheduledAt: z.coerce.date().refine(
+          (value) => value.getTime() > Date.now(),
+          "The replacement collection date must be in the future.",
+        ),
+        reason: z.string().trim().min(2).max(1000),
+      })
       .parse(request.body);
     const { reference, snapshot } = await scheduleForAction(
       routeParameter(request.params.id),
@@ -796,6 +807,22 @@ router.patch(
     );
     if (["completed", "cancelled"].includes(String(snapshot.get("status")))) {
       throw new ApiError(409, "A completed or cancelled schedule cannot be rescheduled.", "invalid_state");
+    }
+    const conflicts = await db.collection("collectionSchedules")
+      .where("scheduledAt", ">=", Timestamp.fromDate(new Date(input.scheduledAt.getTime() - 12 * 60 * 60 * 1000)))
+      .where("scheduledAt", "<", Timestamp.fromDate(new Date(input.scheduledAt.getTime() + 12 * 60 * 60 * 1000)))
+      .limit(500).get();
+    const assignedStaff = new Set([
+      String(snapshot.get("driverId") ?? ""),
+      ...(snapshot.get("collectorIds") ?? []).map(String),
+    ]);
+    const conflict = conflicts.docs.find((candidate) => {
+      if (candidate.id === reference.id || !["planned", "dispatched", "inProgress"].includes(String(candidate.get("status")))) return false;
+      const candidateStaff = [String(candidate.get("driverId") ?? ""), ...(candidate.get("collectorIds") ?? []).map(String)];
+      return candidate.get("vehicleId") === snapshot.get("vehicleId") || candidateStaff.some((id) => assignedStaff.has(id));
+    });
+    if (conflict) {
+      throw new ApiError(409, "The assigned team or vehicle is not available at the replacement time.", "schedule_conflict");
     }
     const batch = db.batch();
     batch.update(reference, {
@@ -838,6 +865,20 @@ router.patch(
       createdAt: FieldValue.serverTimestamp(),
     });
     await batch.commit();
+    void publishNotificationEvent({
+      event: "pickup_rescheduled",
+      affectedUserIds: [
+        ...new Set([
+          String(snapshot.get("driverId") ?? ""),
+          ...(snapshot.get("collectorIds") ?? []).map(String),
+        ].filter(Boolean)),
+      ],
+      data: {
+        scheduleId: reference.id,
+        scheduledAt: input.scheduledAt.toISOString(),
+        reason: input.reason,
+      },
+    });
     response.json({ data: { id: reference.id, status: "planned" } });
   },
 );

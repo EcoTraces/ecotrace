@@ -74,7 +74,8 @@ class InventoryItem {
       status: ProcessingStatus.values.byName(d['processingStatus']),
       batchId: d['batchId'],
       imageUrls: List<String>.from(d['imageUrls'] ?? const []),
-      barcodeValue: d['barcodeValue']?.toString() ?? d['itemCode']?.toString() ?? doc.id,
+      barcodeValue:
+          d['barcodeValue']?.toString() ?? d['itemCode']?.toString() ?? doc.id,
       qrPayload:
           d['qrPayload']?.toString() ??
           'ecotrace://inventory/${d['itemCode'] ?? doc.id}',
@@ -98,7 +99,8 @@ class InventoryItem {
     ),
     batchId: d['batchId']?.toString(),
     imageUrls: List<String>.from(d['imageUrls'] ?? const []),
-    barcodeValue: d['barcodeValue']?.toString() ?? d['itemCode']?.toString() ?? '',
+    barcodeValue:
+        d['barcodeValue']?.toString() ?? d['itemCode']?.toString() ?? '',
     qrPayload:
         d['qrPayload']?.toString() ??
         'ecotrace://inventory/${d['itemCode'] ?? d['id'] ?? ''}',
@@ -111,8 +113,16 @@ class InventoryBatch {
     required this.code,
     required this.name,
     required this.location,
+    required this.status,
+    required this.itemCount,
+    required this.totalWeight,
+    required this.closed,
   });
   final String id, code, name, location;
+  final String status;
+  final int itemCount;
+  final double totalWeight;
+  final bool closed;
   factory InventoryBatch.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
     final x = d.data()!;
     return InventoryBatch(
@@ -120,6 +130,10 @@ class InventoryBatch {
       code: x['batchCode'],
       name: x['name'],
       location: x['currentLocation'],
+      status: x['processingStatus'] ?? 'registered',
+      itemCount: (x['itemCount'] as num? ?? 0).toInt(),
+      totalWeight: (x['totalWeight'] as num? ?? 0).toDouble(),
+      closed: x['closed'] as bool? ?? false,
     );
   }
   factory InventoryBatch.fromJson(Map<String, dynamic> x) => InventoryBatch(
@@ -127,7 +141,42 @@ class InventoryBatch {
     code: x['batchCode']?.toString() ?? '',
     name: x['name']?.toString() ?? '',
     location: x['currentLocation']?.toString() ?? '',
+    status: x['processingStatus']?.toString() ?? 'registered',
+    itemCount: (x['itemCount'] as num? ?? 0).toInt(),
+    totalWeight: (x['totalWeight'] as num? ?? 0).toDouble(),
+    closed: x['closed'] as bool? ?? false,
   );
+}
+
+class InventorySummary {
+  const InventorySummary({
+    required this.totalItems,
+    required this.totalWeightKg,
+    required this.batchedItems,
+    required this.batches,
+    required this.byCondition,
+    required this.byStatus,
+  });
+
+  final int totalItems, batchedItems, batches;
+  final double totalWeightKg;
+  final Map<String, int> byCondition, byStatus;
+
+  factory InventorySummary.fromJson(Map<String, dynamic> data) =>
+      InventorySummary(
+        totalItems: (data['totalItems'] as num? ?? 0).toInt(),
+        totalWeightKg: (data['totalWeightKg'] as num? ?? 0).toDouble(),
+        batchedItems: (data['batchedItems'] as num? ?? 0).toInt(),
+        batches: (data['batches'] as num? ?? 0).toInt(),
+        byCondition: _integerMap(data['byCondition']),
+        byStatus: _integerMap(data['byStatus']),
+      );
+
+  static Map<String, int> _integerMap(dynamic value) => value is Map
+      ? value.map(
+          (key, item) => MapEntry(key.toString(), (item as num? ?? 0).toInt()),
+        )
+      : const {};
 }
 
 class InventoryEvent {

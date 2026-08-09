@@ -41,8 +41,13 @@ class ItemAssessment {
     required this.confidence,
     required this.status,
     required this.notes,
+    required this.itemId,
+    required this.version,
+    required this.reviewReason,
   });
-  final String id, notes;
+  final String id, notes, itemId;
+  final int version;
+  final String? reviewReason;
   final DeviceCategory category;
   final Map<String, double> materials;
   final List<String> hazards;
@@ -72,6 +77,9 @@ class ItemAssessment {
       confidence: (x['confidence'] as num).toDouble(),
       status: AssessmentStatus.values.byName(x['status']),
       notes: x['notes'] ?? '',
+      itemId: d.reference.parent.parent?.id ?? '',
+      version: (x['version'] as num? ?? 1).toInt(),
+      reviewReason: x['reviewReason']?.toString(),
     );
   }
   factory ItemAssessment.fromJson(Map<String, dynamic> x) => ItemAssessment(
@@ -98,5 +106,36 @@ class ItemAssessment {
       x['status']?.toString() ?? 'pendingSupervisor',
     ),
     notes: x['notes']?.toString() ?? '',
+    itemId: x['itemId']?.toString() ?? '',
+    version: (x['version'] as num? ?? 1).toInt(),
+    reviewReason: x['reviewReason']?.toString(),
   );
+}
+
+class ClassificationSummary {
+  const ClassificationSummary({
+    required this.totalAssessments,
+    required this.averageConfidence,
+    required this.byStatus,
+    required this.byCategory,
+    required this.byRecommendation,
+  });
+  final int totalAssessments;
+  final double averageConfidence;
+  final Map<String, int> byStatus, byCategory, byRecommendation;
+
+  factory ClassificationSummary.fromJson(Map<String, dynamic> data) =>
+      ClassificationSummary(
+        totalAssessments: (data['totalAssessments'] as num? ?? 0).toInt(),
+        averageConfidence: (data['averageConfidence'] as num? ?? 0).toDouble(),
+        byStatus: _map(data['byStatus']),
+        byCategory: _map(data['byCategory']),
+        byRecommendation: _map(data['byRecommendation']),
+      );
+
+  static Map<String, int> _map(dynamic value) => value is Map
+      ? value.map(
+          (key, item) => MapEntry(key.toString(), (item as num? ?? 0).toInt()),
+        )
+      : const {};
 }

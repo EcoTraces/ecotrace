@@ -12,6 +12,8 @@ type NotificationEvent =
   | "recycling_completed"
   | "organization_submitted"
   | "organization_reviewed"
+  | "classification_assessment_submitted"
+  | "classification_assessment_reviewed"
   | "security_alert";
 
 interface EventPayload {

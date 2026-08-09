@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_config.dart';
+import '../../../core/media/cloudinary_upload_service.dart';
 import '../domain/vehicle.dart';
 
 class FleetRepository {
@@ -239,5 +242,58 @@ class FleetRepository {
       },
     );
     return data.map(VehicleUtilization.fromJson).toList();
+  }
+
+  Future<List<FleetWorkRecord>> getMaintenance(String vehicleId) async {
+    if (!_useApi) return const [];
+    final data = await _api.getList('/api/v1/vehicles/$vehicleId/maintenance');
+    return data.map(FleetWorkRecord.fromJson).toList();
+  }
+
+  Future<List<FleetWorkRecord>> getBreakdowns(String vehicleId) async {
+    if (!_useApi) return const [];
+    final data = await _api.getList('/api/v1/vehicles/$vehicleId/breakdowns');
+    return data.map(FleetWorkRecord.fromJson).toList();
+  }
+
+  Future<void> completeMaintenance({
+    required String vehicleId,
+    required String recordId,
+    required double actualCostSLE,
+    required String workPerformed,
+    required DateTime nextMaintenanceAt,
+    required List<Uint8List> evidence,
+  }) async {
+    if (evidence.isEmpty) {
+      throw StateError('At least one maintenance evidence image is required.');
+    }
+    final urls = await CloudinaryUploadService.instance.uploadImages(
+      evidence,
+      scope: 'fleet-maintenance',
+    );
+    await _api.patch(
+      '/api/v1/vehicles/$vehicleId/maintenance/$recordId/complete',
+      {
+        'actualCostSLE': actualCostSLE,
+        'workPerformed': workPerformed.trim(),
+        'nextMaintenanceAt': nextMaintenanceAt.toUtc().toIso8601String(),
+        'evidenceUrls': urls,
+      },
+    );
+  }
+
+  Future<void> resolveBreakdown({
+    required String vehicleId,
+    required String recordId,
+    required String resolution,
+    required double repairCostSLE,
+  }) async {
+    await _api.patch(
+      '/api/v1/vehicles/$vehicleId/breakdowns/$recordId/resolve',
+      {
+        'resolution': resolution.trim(),
+        'repairCostSLE': repairCostSLE,
+      },
+    );
   }
 }

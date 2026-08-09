@@ -37,9 +37,15 @@ EVENTS: dict[EventName, EventTemplate] = {
     EventName.COLLECTOR_ASSIGNED: EventTemplate(NotificationType.COLLECTOR_ASSIGNED, "Collector Assigned", "A collector has been assigned to your pickup."),
     EventName.DRIVER_EN_ROUTE: EventTemplate(NotificationType.DRIVER_EN_ROUTE, "Driver On The Way", "Your assigned driver is on the way."),
     EventName.PICKUP_COMPLETED: EventTemplate(NotificationType.PICKUP_COMPLETED, "Pickup Completed", "Your electronic waste has been successfully collected."),
+    EventName.PICKUP_CANCELLED: EventTemplate(NotificationType.PICKUP_REQUEST, "Collection Cancelled", "A scheduled collection has been cancelled."),
+    EventName.PICKUP_RESCHEDULED: EventTemplate(NotificationType.PICKUP_REQUEST, "Collection Rescheduled", "Your collection assignment has been moved to a new date."),
+    EventName.PICKUP_FAILED: EventTemplate(NotificationType.PICKUP_REQUEST, "Collection Exception", "A collection could not be completed and requires attention."),
+    EventName.PICKUP_STATUS_UPDATED: EventTemplate(NotificationType.PICKUP_REQUEST, "Pickup Status Updated", "The status of a pickup request has changed."),
     EventName.RECYCLER_RECEIVED_ITEM: EventTemplate(NotificationType.RECYCLER_RECEIVED, "Recycler Received Item", "Your electronic waste has arrived at the recycling facility."),
     EventName.RECYCLING_COMPLETED: EventTemplate(NotificationType.RECYCLING_COMPLETED, "Recycling Completed", "Your electronic waste has been successfully recycled."),
     EventName.SECURITY_ALERT: EventTemplate(NotificationType.SECURITY_ALERT, "Security Alert", "A security-related change was detected on your EcoTrace account."),
+    EventName.CLASSIFICATION_ASSESSMENT_SUBMITTED: EventTemplate(NotificationType.CLASSIFICATION, "Classification Review Required", "A new e-waste classification assessment is awaiting supervisor review.", True),
+    EventName.CLASSIFICATION_ASSESSMENT_REVIEWED: EventTemplate(NotificationType.CLASSIFICATION, "Classification Reviewed", "Your e-waste classification assessment has been reviewed."),
 }
 
 

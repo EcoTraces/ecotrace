@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum RoutePlanStatus { planned, active, completed, cancelled }
+enum RoutePlanStatus { planned, active, paused, completed, cancelled }
 
 class RouteStop {
   const RouteStop({

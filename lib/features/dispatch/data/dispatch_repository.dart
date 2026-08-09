@@ -56,6 +56,16 @@ class NearbyPickupGroup {
   );
 }
 
+class DispatchAvailability {
+  const DispatchAvailability({
+    required this.availableStaffIds,
+    required this.availableVehicleIds,
+  });
+
+  final Set<String> availableStaffIds;
+  final Set<String> availableVehicleIds;
+}
+
 class DispatchRepository {
   DispatchRepository({FirebaseFirestore? firestore, ApiClient? apiClient})
     : _db = firestore ?? FirebaseFirestore.instance,
@@ -134,6 +144,30 @@ class DispatchRepository {
       query: {'radiusKm': radiusKm.toString()},
     );
     return data.map(NearbyPickupGroup.fromJson).toList();
+  }
+
+  Future<DispatchAvailability?> availability(DateTime at) async {
+    if (!_useApi) return null;
+    final data = await _api.get(
+      '/api/v1/dispatch/availability',
+      query: {'at': at.toUtc().toIso8601String()},
+    );
+    final staff = List<Map<String, dynamic>>.from(
+      data['staff'] as List? ?? const [],
+    );
+    final vehicles = List<Map<String, dynamic>>.from(
+      data['vehicles'] as List? ?? const [],
+    );
+    return DispatchAvailability(
+      availableStaffIds: staff
+          .where((item) => item['available'] == true)
+          .map((item) => item['id'].toString())
+          .toSet(),
+      availableVehicleIds: vehicles
+          .where((item) => item['available'] == true)
+          .map((item) => item['id'].toString())
+          .toSet(),
+    );
   }
 
   Stream<List<T>> _pollList<T>(

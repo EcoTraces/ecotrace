@@ -75,6 +75,13 @@ const createSchema = z.object({
       message: "Latitude and longitude must be supplied together.",
     });
   }
+  if (input.scheduledAt.getTime() <= Date.now()) {
+    context.addIssue({
+      code: "custom",
+      path: ["scheduledAt"],
+      message: "The pickup date and time must be in the future.",
+    });
+  }
 });
 
 const draftUpdateSchema = z.object({
@@ -350,7 +357,10 @@ router.patch("/pickup-requests/:id/cancel", authenticate, async (request, respon
 
 router.patch("/pickup-requests/:id/reschedule", authenticate, async (request, response) => {
   const input = z.object({
-    scheduledAt: z.coerce.date(),
+    scheduledAt: z.coerce.date().refine(
+      (value) => value.getTime() > Date.now(),
+      "The pickup date and time must be in the future.",
+    ),
     reason: z.string().trim().max(500).default(""),
   }).parse(request.body);
   const {reference, snapshot} = await customerPickup(

@@ -76,6 +76,28 @@ class AssessmentRepository {
     };
   }
 
+  Future<ClassificationSummary> summary() async {
+    if (!_useApi) {
+      return const ClassificationSummary(
+        totalAssessments: 0,
+        averageConfidence: 0,
+        byStatus: {},
+        byCategory: {},
+        byRecommendation: {},
+      );
+    }
+    return ClassificationSummary.fromJson(
+      await _api.get('/api/v1/classification/summary'),
+    );
+  }
+
+  Future<List<ItemAssessment>> reviewQueue() async {
+    if (!_useApi) return const [];
+    return (await _api.getList(
+      '/api/v1/classification/review-queue',
+    )).map(ItemAssessment.fromJson).toList();
+  }
+
   Future<void> submit({
     required InventoryItem item,
     required DeviceCategory category,
@@ -157,6 +179,31 @@ class AssessmentRepository {
               : AssessmentStatus.rejected.name,
           'reviewReason': reason,
           'reviewedAt': FieldValue.serverTimestamp(),
+        });
+  }
+
+  Future<void> update(
+    String itemId,
+    ItemAssessment assessment, {
+    required String notes,
+    required double recoveryValue,
+  }) async {
+    if (_useApi) {
+      await _api.patch(
+        '/api/v1/inventory/items/$itemId/assessments/${assessment.id}',
+        {'notes': notes.trim(), 'recoveryValue': recoveryValue},
+      );
+      return;
+    }
+    await _db
+        .collection('inventoryItems')
+        .doc(itemId)
+        .collection('assessments')
+        .doc(assessment.id)
+        .update({
+          'notes': notes.trim(),
+          'recoveryValue': recoveryValue,
+          'updatedAt': FieldValue.serverTimestamp(),
         });
   }
 }

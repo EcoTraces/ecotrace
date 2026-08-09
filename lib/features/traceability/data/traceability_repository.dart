@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_config.dart';
+import '../../../core/media/cloudinary_upload_service.dart';
 import '../../inventory/domain/inventory_item.dart';
 
 class TraceEvent {
@@ -14,8 +17,14 @@ class TraceEvent {
     required this.at,
     required this.sequence,
     required this.integrityHash,
+    required this.evidenceUrls,
+    required this.custodianId,
+    required this.facilityId,
+    required this.status,
   });
   final String id, type, from, to, actor, notes, integrityHash;
+  final String? custodianId, facilityId, status;
+  final List<String> evidenceUrls;
   final int sequence;
   final DateTime? at;
   factory TraceEvent.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
@@ -30,6 +39,10 @@ class TraceEvent {
       at: (x['createdAt'] as Timestamp?)?.toDate(),
       sequence: (x['sequence'] as num? ?? 0).toInt(),
       integrityHash: x['integrityHash']?.toString() ?? '',
+      evidenceUrls: List<String>.from(x['evidenceUrls'] as List? ?? const []),
+      custodianId: x['custodianId']?.toString(),
+      facilityId: x['facilityId']?.toString(),
+      status: x['status']?.toString(),
     );
   }
   factory TraceEvent.fromJson(Map<String, dynamic> x) => TraceEvent(
@@ -42,6 +55,10 @@ class TraceEvent {
     at: DateTime.tryParse(x['createdAt']?.toString() ?? ''),
     sequence: (x['sequence'] as num? ?? 0).toInt(),
     integrityHash: x['integrityHash']?.toString() ?? '',
+    evidenceUrls: List<String>.from(x['evidenceUrls'] as List? ?? const []),
+    custodianId: x['custodianId']?.toString(),
+    facilityId: x['facilityId']?.toString(),
+    status: x['status']?.toString(),
   );
 }
 
@@ -76,7 +93,9 @@ class TraceabilityRepository {
 
   Future<InventoryItem?> findByCode(String code) async {
     final normalized = code.trim().startsWith('ecotrace://inventory/')
-        ? Uri.decodeComponent(code.trim().substring('ecotrace://inventory/'.length))
+        ? Uri.decodeComponent(
+            code.trim().substring('ecotrace://inventory/'.length),
+          )
         : code.trim();
     if (_useApi) {
       try {
@@ -161,6 +180,12 @@ class TraceabilityRepository {
     await batch.commit();
   }
 
+  Future<List<String>> uploadEvidence(List<Uint8List> images) =>
+      CloudinaryUploadService.instance.uploadImages(
+        images,
+        scope: 'traceability',
+      );
+
   Future<void> assign(
     InventoryItem item, {
     required String assignmentType,
@@ -170,16 +195,14 @@ class TraceabilityRepository {
     String notes = '',
   }) async {
     if (_useApi) {
-      await _api.post(
-        '/api/v1/inventory/items/${item.id}/traceability/assign',
-        {
-          'assignmentType': assignmentType,
-          'assigneeId': assigneeId.trim(),
-          'assigneeName': assigneeName.trim(),
-          'destination': destination.trim(),
-          'notes': notes.trim(),
-        },
-      );
+      await _api
+          .post('/api/v1/inventory/items/${item.id}/traceability/assign', {
+            'assignmentType': assignmentType,
+            'assigneeId': assigneeId.trim(),
+            'assigneeName': assigneeName.trim(),
+            'destination': destination.trim(),
+            'notes': notes.trim(),
+          });
       return;
     }
     await record(
@@ -198,30 +221,37 @@ class TraceabilityRepository {
 
   Future<Map<String, dynamic>> certificate(InventoryItem item) async {
     if (_useApi) {
-      return _api.get(
+      final certificate = await _api.get(
         '/api/v1/inventory/items/${item.id}/traceability/certificate',
       );
+      final integrity = await audit(item);
+      certificate['integrityVerified'] = integrity['integrityVerified'] == true;
+      certificate['integrityIssues'] = integrity['integrityIssues'] ?? const [];
+      return certificate;
     }
     final events = await watch(item.id).first;
     return {
-      'certificateNumber': 'TRACE-${(item.id.length > 10 ? item.id.substring(0, 10) : item.id).toUpperCase()}',
+      'certificateNumber':
+          'TRACE-${(item.id.length > 10 ? item.id.substring(0, 10) : item.id).toUpperCase()}',
       'issuedAt': DateTime.now().toIso8601String(),
-      'chainOfCustody': events.map((event) => {
-        'type': event.type,
-        'from': event.from,
-        'to': event.to,
-        'actor': event.actor,
-        'notes': event.notes,
-        'createdAt': event.at?.toIso8601String(),
-      }).toList(),
+      'chainOfCustody': events
+          .map(
+            (event) => {
+              'type': event.type,
+              'from': event.from,
+              'to': event.to,
+              'actor': event.actor,
+              'notes': event.notes,
+              'createdAt': event.at?.toIso8601String(),
+            },
+          )
+          .toList(),
     };
   }
 
   Future<Map<String, dynamic>> audit(InventoryItem item) async {
     if (_useApi) {
-      return _api.get(
-        '/api/v1/inventory/items/${item.id}/traceability/audit',
-      );
+      return _api.get('/api/v1/inventory/items/${item.id}/traceability/audit');
     }
     return {'integrityVerified': true, 'integrityIssues': const []};
   }

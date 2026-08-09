@@ -362,6 +362,13 @@ export const openApiDocument = {
         responses: { "200": { description: "Route activated" } },
       },
     },
+    "/routes/{id}/pause": {
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Pause server-side live route navigation",
+        responses: { "200": { description: "Route paused" } },
+      },
+    },
     "/routes/{id}/positions": {
       post: {
         security: [{ firebaseAuth: [] }],

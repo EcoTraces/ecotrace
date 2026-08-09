@@ -270,6 +270,7 @@ class _CreateScheduleState extends State<CreateScheduleScreen> {
   List<DispatchStaff> staff = [];
   List<Vehicle> vehicles = [];
   List<NearbyPickupGroup> nearbyGroups = [];
+  DispatchAvailability? availability;
   final selectedPickups = <String>{};
   final selectedCollectors = <String>{};
   final area = TextEditingController();
@@ -304,6 +305,7 @@ class _CreateScheduleState extends State<CreateScheduleScreen> {
       staff = values[1] as List<DispatchStaff>;
       vehicles = values[2] as List<Vehicle>;
       nearbyGroups = values[3] as List<NearbyPickupGroup>;
+      availability = await widget.repository.availability(scheduled);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -323,8 +325,23 @@ class _CreateScheduleState extends State<CreateScheduleScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-    final collectors = staff.where((x) => x.role == 'collector' && x.available);
-    final drivers = staff.where((x) => x.role == 'driver' && x.available);
+    final availableStaff = availability?.availableStaffIds;
+    final availableVehicles = availability?.availableVehicleIds;
+    final collectors = staff.where(
+      (x) =>
+          x.role == 'collector' &&
+          x.available &&
+          (availableStaff == null || availableStaff.contains(x.id)),
+    );
+    final drivers = staff.where(
+      (x) =>
+          x.role == 'driver' &&
+          x.available &&
+          (availableStaff == null || availableStaff.contains(x.id)),
+    );
+    final selectableVehicles = vehicles.where(
+      (x) => availableVehicles == null || availableVehicles.contains(x.id),
+    );
     return Scaffold(
       appBar: AppBar(title: const Text('Create collection schedule')),
       body: ListView(
@@ -347,10 +364,13 @@ class _CreateScheduleState extends State<CreateScheduleScreen> {
                 lastDate: DateTime.now().add(const Duration(days: 365)),
               );
               if (date != null) {
-                setState(
-                  () =>
-                      scheduled = DateTime(date.year, date.month, date.day, 9),
-                );
+                setState(() {
+                  scheduled = DateTime(date.year, date.month, date.day, 9);
+                  driverId = null;
+                  vehicleId = null;
+                  selectedCollectors.clear();
+                });
+                await _refreshAvailability();
               }
             },
           ),
@@ -375,7 +395,7 @@ class _CreateScheduleState extends State<CreateScheduleScreen> {
           DropdownButtonFormField<String>(
             initialValue: vehicleId,
             decoration: const InputDecoration(labelText: 'Available vehicle'),
-            items: vehicles
+            items: selectableVehicles
                 .map(
                   (x) => DropdownMenuItem(
                     value: x.id,
@@ -477,6 +497,19 @@ class _CreateScheduleState extends State<CreateScheduleScreen> {
           context,
         ).showSnackBar(SnackBar(content: Text('$error')));
         setState(() => busy = false);
+      }
+    }
+  }
+
+  Future<void> _refreshAvailability() async {
+    try {
+      final result = await widget.repository.availability(scheduled);
+      if (mounted) setState(() => availability = result);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to refresh availability: $error')),
+        );
       }
     }
   }

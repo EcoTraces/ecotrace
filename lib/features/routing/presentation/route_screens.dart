@@ -192,7 +192,8 @@ class _DriverRouteState extends State<DriverRouteScreen> {
     setState(() => requestingPermission = true);
     try {
       if (!await _ensureBackgroundLocationPermission()) return;
-      if (route.status == RoutePlanStatus.planned) {
+      if (route.status == RoutePlanStatus.planned ||
+          route.status == RoutePlanStatus.paused) {
         await widget.repository.start(route.id);
       }
       await subscription?.cancel();
@@ -356,9 +357,10 @@ class _DriverRouteState extends State<DriverRouteScreen> {
       ) ??
       false;
 
-  Future<void> _pause() async {
+  Future<void> _pause({String? routeId}) async {
     await subscription?.cancel();
     subscription = null;
+    if (routeId != null) await widget.repository.pause(routeId);
     if (mounted) setState(() => tracking = false);
   }
 
@@ -435,13 +437,16 @@ class _DriverRouteState extends State<DriverRouteScreen> {
                 ),
               ),
             const SizedBox(height: 12),
-            if (route.status == RoutePlanStatus.planned)
+            if (route.status == RoutePlanStatus.planned ||
+                route.status == RoutePlanStatus.paused)
               FilledButton.icon(
                 onPressed: requestingPermission ? null : () => _start(route),
                 icon: const Icon(Icons.navigation),
                 label: Text(
                   requestingPermission
                       ? 'Requesting permission…'
+                      : route.status == RoutePlanStatus.paused
+                      ? 'Resume live navigation'
                       : 'Start live navigation',
                 ),
               ),
@@ -453,17 +458,23 @@ class _DriverRouteState extends State<DriverRouteScreen> {
               ),
             if (route.status == RoutePlanStatus.active && tracking)
               OutlinedButton.icon(
-                onPressed: _pause,
+                onPressed: () => _pause(routeId: route.id),
                 icon: const Icon(Icons.pause),
                 label: const Text('Pause GPS tracking'),
               ),
             if (route.status == RoutePlanStatus.active)
               FilledButton(
-                onPressed: () async {
-                  await _pause();
-                  await widget.repository.complete(route.id);
-                },
-                child: const Text('Complete route'),
+                onPressed: next != null
+                    ? null
+                    : () async {
+                        await _pause();
+                        await widget.repository.complete(route.id);
+                      },
+                child: Text(
+                  next == null
+                      ? 'Complete route'
+                      : 'Reach all stops to complete',
+                ),
               ),
             const Divider(),
             FutureBuilder<List<RouteLocation>>(

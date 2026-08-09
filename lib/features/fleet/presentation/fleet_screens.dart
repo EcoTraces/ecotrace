@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../data/fleet_repository.dart';
 import '../domain/vehicle.dart';
 
@@ -301,6 +302,32 @@ class VehicleDetailScreen extends StatelessWidget {
               onPressed: () => _event(c, 'breakdown'),
               child: const Text('Breakdown'),
             ),
+            FilledButton.tonal(
+              onPressed: () => Navigator.push(
+                c,
+                MaterialPageRoute(
+                  builder: (_) => FleetWorkScreen(
+                    repository: repository,
+                    vehicle: vehicle,
+                    maintenance: true,
+                  ),
+                ),
+              ),
+              child: const Text('Maintenance records'),
+            ),
+            FilledButton.tonal(
+              onPressed: () => Navigator.push(
+                c,
+                MaterialPageRoute(
+                  builder: (_) => FleetWorkScreen(
+                    repository: repository,
+                    vehicle: vehicle,
+                    maintenance: false,
+                  ),
+                ),
+              ),
+              child: const Text('Breakdown records'),
+            ),
           ],
         ),
         const Divider(),
@@ -463,5 +490,219 @@ class VehicleDetailScreen extends StatelessWidget {
     details.dispose();
     value1.dispose();
     value2.dispose();
+  }
+}
+
+class FleetWorkScreen extends StatefulWidget {
+  const FleetWorkScreen({
+    super.key,
+    required this.repository,
+    required this.vehicle,
+    required this.maintenance,
+  });
+
+  final FleetRepository repository;
+  final Vehicle vehicle;
+  final bool maintenance;
+
+  @override
+  State<FleetWorkScreen> createState() => _FleetWorkScreenState();
+}
+
+class _FleetWorkScreenState extends State<FleetWorkScreen> {
+  late Future<List<FleetWorkRecord>> records = _load();
+
+  Future<List<FleetWorkRecord>> _load() => widget.maintenance
+      ? widget.repository.getMaintenance(widget.vehicle.id)
+      : widget.repository.getBreakdowns(widget.vehicle.id);
+
+  void _reload() => setState(() => records = _load());
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: Text(widget.maintenance ? 'Maintenance records' : 'Breakdowns'),
+    ),
+    body: FutureBuilder<List<FleetWorkRecord>>(
+      future: records,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Unable to load records: ${snapshot.error}'));
+        }
+        final rows = snapshot.data ?? const [];
+        if (rows.isEmpty) return const Center(child: Text('No records found.'));
+        return ListView(
+          padding: const EdgeInsets.all(12),
+          children: rows
+              .map(
+                (record) => Card(
+                  child: ListTile(
+                    leading: Icon(
+                      record.status == 'completed' || record.status == 'resolved'
+                          ? Icons.check_circle_outline
+                          : Icons.build_circle_outlined,
+                    ),
+                    title: Text('${record.type} • ${record.status}'),
+                    subtitle: Text(
+                      '${record.description}\n${record.scheduledAt ?? ''} • SLE ${record.costSLE.toStringAsFixed(2)}',
+                    ),
+                    isThreeLine: true,
+                    trailing: record.status == 'completed' ||
+                            record.status == 'resolved'
+                        ? null
+                        : TextButton(
+                            onPressed: () => widget.maintenance
+                                ? _completeMaintenance(record)
+                                : _resolveBreakdown(record),
+                            child: Text(widget.maintenance ? 'Complete' : 'Resolve'),
+                          ),
+                  ),
+                ),
+              )
+              .toList(),
+        );
+      },
+    ),
+  );
+
+  Future<void> _completeMaintenance(FleetWorkRecord record) async {
+    final work = TextEditingController();
+    final cost = TextEditingController();
+    DateTime nextDate = DateTime.now().add(const Duration(days: 90));
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Complete maintenance'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: work,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Work performed'),
+              ),
+              TextField(
+                controller: cost,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Actual cost (SLE)'),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Next maintenance'),
+                subtitle: Text('$nextDate'),
+                onTap: () async {
+                  final selected = await showDatePicker(
+                    context: context,
+                    initialDate: nextDate,
+                    firstDate: DateTime.now().add(const Duration(days: 1)),
+                    lastDate: DateTime.now().add(const Duration(days: 3650)),
+                  );
+                  if (selected != null) setDialogState(() => nextDate = selected);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Select evidence'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (accepted == true) {
+      try {
+        final amount = double.tryParse(cost.text);
+        if (work.text.trim().length < 2 || amount == null || amount < 0) {
+          throw StateError('Enter the work performed and a valid cost.');
+        }
+        final files = await ImagePicker().pickMultiImage(imageQuality: 75);
+        await widget.repository.completeMaintenance(
+          vehicleId: widget.vehicle.id,
+          recordId: record.id,
+          actualCostSLE: amount,
+          workPerformed: work.text,
+          nextMaintenanceAt: nextDate,
+          evidence: await Future.wait(files.map((file) => file.readAsBytes())),
+        );
+        _reload();
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Unable to complete maintenance: $error')),
+          );
+        }
+      }
+    }
+    work.dispose();
+    cost.dispose();
+  }
+
+  Future<void> _resolveBreakdown(FleetWorkRecord record) async {
+    final resolution = TextEditingController();
+    final cost = TextEditingController();
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Resolve breakdown'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: resolution,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Resolution'),
+            ),
+            TextField(
+              controller: cost,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Repair cost (SLE)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Resolve'),
+          ),
+        ],
+      ),
+    );
+    if (accepted == true) {
+      try {
+        final amount = double.tryParse(cost.text);
+        if (resolution.text.trim().length < 2 || amount == null || amount < 0) {
+          throw StateError('Enter a resolution and valid repair cost.');
+        }
+        await widget.repository.resolveBreakdown(
+          vehicleId: widget.vehicle.id,
+          recordId: record.id,
+          resolution: resolution.text,
+          repairCostSLE: amount,
+        );
+        _reload();
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Unable to resolve breakdown: $error')),
+          );
+        }
+      }
+    }
+    resolution.dispose();
+    cost.dispose();
   }
 }

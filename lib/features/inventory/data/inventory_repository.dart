@@ -37,6 +37,36 @@ class InventoryRepository {
                   s.docs.map(InventoryItem.fromDoc).toList()
                     ..sort((a, b) => a.itemCode.compareTo(b.itemCode)),
             );
+
+  Future<InventorySummary> summary() async {
+    if (_useApi) {
+      return InventorySummary.fromJson(
+        await _api.get('/api/v1/inventory/summary'),
+      );
+    }
+    final items = await _db.collection('inventoryItems').get();
+    final batches = await _db.collection('inventoryBatches').count().get();
+    final conditions = <String, int>{}, statuses = <String, int>{};
+    var weight = 0.0, batched = 0;
+    for (final item in items.docs) {
+      final data = item.data();
+      final condition = data['condition']?.toString() ?? 'unknown';
+      final status = data['processingStatus']?.toString() ?? 'unknown';
+      conditions[condition] = (conditions[condition] ?? 0) + 1;
+      statuses[status] = (statuses[status] ?? 0) + 1;
+      weight += (data['weight'] as num? ?? 0).toDouble();
+      if (data['batchId'] != null) batched++;
+    }
+    return InventorySummary(
+      totalItems: items.size,
+      totalWeightKg: weight,
+      batchedItems: batched,
+      batches: batches.count ?? 0,
+      byCondition: conditions,
+      byStatus: statuses,
+    );
+  }
+
   Stream<List<InventoryItem>> _pollItems() async* {
     while (true) {
       final data = await _api.getList('/api/v1/inventory/items');
@@ -83,6 +113,7 @@ class InventoryRepository {
     }
     return InventoryItem.fromDoc(snapshot.docs.first);
   }
+
   Stream<List<InventoryEvent>> watchHistory(String id) => _useApi
       ? _pollHistory(id)
       : _db
@@ -221,6 +252,35 @@ class InventoryRepository {
     );
   }
 
+  Future<void> updateDetails(
+    InventoryItem item, {
+    required String deviceType,
+    required String brand,
+    required String model,
+    required String serialNumber,
+    required ItemCondition condition,
+    required double weight,
+    required String source,
+  }) async {
+    final data = <String, dynamic>{
+      'deviceType': deviceType.trim(),
+      'brand': brand.trim(),
+      'model': model.trim(),
+      'serialNumber': serialNumber.trim(),
+      'condition': condition.name,
+      'weight': weight,
+      'source': source.trim(),
+    };
+    if (_useApi) {
+      await _api.patch('/api/v1/inventory/items/${item.id}', data);
+    } else {
+      await _db.collection('inventoryItems').doc(item.id).update({
+        ...data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
   Future<String> createBatch({
     required String name,
     required String location,
@@ -287,6 +347,32 @@ class InventoryRepository {
       'batchId': null,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<void> updateBatch(
+    InventoryBatch batch, {
+    required String name,
+    required String location,
+    required ProcessingStatus status,
+    required bool closed,
+  }) async {
+    final data = {
+      'name': name.trim(),
+      'location': location.trim(),
+      'status': status.name,
+      'closed': closed,
+    };
+    if (_useApi) {
+      await _api.patch('/api/v1/inventory/batches/${batch.id}', data);
+    } else {
+      await _db.collection('inventoryBatches').doc(batch.id).update({
+        'name': name.trim(),
+        'currentLocation': location.trim(),
+        'processingStatus': status.name,
+        'closed': closed,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
   }
 
   Future<void> replaceImages(String id, List<Uint8List> images) async {

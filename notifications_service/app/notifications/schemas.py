@@ -17,6 +17,7 @@ class NotificationType(StrEnum):
     ANNOUNCEMENT = "ANNOUNCEMENT"
     SECURITY_ALERT = "SECURITY_ALERT"
     ADMIN_MESSAGE = "ADMIN_MESSAGE"
+    CLASSIFICATION = "CLASSIFICATION"
 
 
 class DevicePlatform(StrEnum):
@@ -81,9 +82,15 @@ class EventName(StrEnum):
     COLLECTOR_ASSIGNED = "collector_assigned"
     DRIVER_EN_ROUTE = "driver_en_route"
     PICKUP_COMPLETED = "pickup_completed"
+    PICKUP_CANCELLED = "pickup_cancelled"
+    PICKUP_RESCHEDULED = "pickup_rescheduled"
+    PICKUP_FAILED = "pickup_failed"
+    PICKUP_STATUS_UPDATED = "pickup_status_updated"
     RECYCLER_RECEIVED_ITEM = "recycler_received_item"
     RECYCLING_COMPLETED = "recycling_completed"
     SECURITY_ALERT = "security_alert"
+    CLASSIFICATION_ASSESSMENT_SUBMITTED = "classification_assessment_submitted"
+    CLASSIFICATION_ASSESSMENT_REVIEWED = "classification_assessment_reviewed"
 
 
 class EventNotificationRequest(BaseModel):
@@ -96,7 +103,10 @@ class EventNotificationRequest(BaseModel):
 
     @model_validator(mode="after")
     def require_recipient(self) -> "EventNotificationRequest":
-        no_recipient = self.event not in {EventName.PICKUP_REQUEST_SUBMITTED} and not self.recipient_id and not self.affected_user_ids
+        no_recipient = self.event not in {
+            EventName.PICKUP_REQUEST_SUBMITTED,
+            EventName.CLASSIFICATION_ASSESSMENT_SUBMITTED,
+        } and not self.recipient_id and not self.affected_user_ids
         if no_recipient:
             raise ValueError("A recipientId or affectedUserIds value is required for this event.")
         return self

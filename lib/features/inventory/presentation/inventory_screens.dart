@@ -52,6 +52,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
           onPressed: () => _createBatch(c),
         ),
         IconButton(
+          icon: const Icon(Icons.inventory_2_outlined),
+          tooltip: 'Manage batches',
+          onPressed: () => Navigator.push(
+            c,
+            MaterialPageRoute(
+              builder: (_) =>
+                  InventoryBatchesScreen(repository: widget.repository),
+            ),
+          ),
+        ),
+        IconButton(
           icon: const Icon(Icons.table_view),
           tooltip: 'Export CSV',
           onPressed: () => _exportCsv(c),
@@ -65,6 +76,35 @@ class _InventoryScreenState extends State<InventoryScreen> {
     ),
     body: Column(
       children: [
+        FutureBuilder<InventorySummary>(
+          future: widget.repository.summary(),
+          builder: (context, snapshot) {
+            final summary = snapshot.data;
+            if (summary == null) return const LinearProgressIndicator();
+            return SizedBox(
+              height: 88,
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                scrollDirection: Axis.horizontal,
+                children: [
+                  _MetricCard(label: 'Items', value: '${summary.totalItems}'),
+                  _MetricCard(
+                    label: 'Weight',
+                    value: '${summary.totalWeightKg.toStringAsFixed(1)} kg',
+                  ),
+                  _MetricCard(
+                    label: 'Batched',
+                    value: '${summary.batchedItems}',
+                  ),
+                  _MetricCard(label: 'Batches', value: '${summary.batches}'),
+                ],
+              ),
+            );
+          },
+        ),
         Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -456,9 +496,23 @@ class InventoryDetailScreen extends StatelessWidget {
               label: const Text('Update status or location'),
             ),
             OutlinedButton.icon(
-              onPressed: () => _assignBatch(c, x),
+              onPressed: () => _editDetails(c, x),
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Edit item details'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _replaceImages(c, x),
+              icon: const Icon(Icons.photo_library_outlined),
+              label: const Text('Replace item images'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => x.batchId == null
+                  ? _assignBatch(c, x)
+                  : repository.unassignBatch(x),
               icon: const Icon(Icons.inventory_2),
-              label: const Text('Assign to batch'),
+              label: Text(
+                x.batchId == null ? 'Assign to batch' : 'Remove from batch',
+              ),
             ),
             FilledButton.tonalIcon(
               onPressed: () => Navigator.push(
@@ -553,6 +607,120 @@ class InventoryDetailScreen extends StatelessWidget {
     loc.dispose();
   }
 
+  Future<void> _editDetails(BuildContext context, InventoryItem item) async {
+    final type = TextEditingController(text: item.deviceType);
+    final brand = TextEditingController(text: item.brand);
+    final model = TextEditingController(text: item.model);
+    final serial = TextEditingController(text: item.serialNumber);
+    final weight = TextEditingController(text: item.weight.toString());
+    final source = TextEditingController(text: item.source);
+    var condition = item.condition;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Edit inventory item'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: type,
+                  decoration: const InputDecoration(labelText: 'Device type'),
+                ),
+                TextField(
+                  controller: brand,
+                  decoration: const InputDecoration(labelText: 'Brand'),
+                ),
+                TextField(
+                  controller: model,
+                  decoration: const InputDecoration(labelText: 'Model'),
+                ),
+                TextField(
+                  controller: serial,
+                  decoration: const InputDecoration(labelText: 'Serial number'),
+                ),
+                TextField(
+                  controller: weight,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Weight (kg)'),
+                ),
+                TextField(
+                  controller: source,
+                  decoration: const InputDecoration(labelText: 'Source'),
+                ),
+                DropdownButtonFormField<ItemCondition>(
+                  initialValue: condition,
+                  items: ItemCondition.values
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(value.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) => setState(() => condition = value!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    final kg = double.tryParse(weight.text);
+    if (confirmed == true &&
+        type.text.trim().isNotEmpty &&
+        source.text.trim().isNotEmpty &&
+        kg != null &&
+        kg >= 0) {
+      await repository.updateDetails(
+        item,
+        deviceType: type.text,
+        brand: brand.text,
+        model: model.text,
+        serialNumber: serial.text,
+        condition: condition,
+        weight: kg,
+        source: source.text,
+      );
+    }
+    for (final controller in [type, brand, model, serial, weight, source]) {
+      controller.dispose();
+    }
+  }
+
+  Future<void> _replaceImages(BuildContext context, InventoryItem item) async {
+    final selected = await ImagePicker().pickMultiImage(imageQuality: 75);
+    if (selected.isEmpty) return;
+    if (selected.length > 5) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Select no more than five images.')),
+        );
+      }
+      return;
+    }
+    await repository.replaceImages(
+      item.id,
+      await Future.wait(selected.map((image) => image.readAsBytes())),
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Item images updated.')));
+    }
+  }
+
   Future<void> _assignBatch(BuildContext c, InventoryItem x) async {
     final batches = await repository.watchBatches().first;
     if (!c.mounted) return;
@@ -589,4 +757,148 @@ class InventoryDetailScreen extends StatelessWidget {
     );
     if (result != null) await repository.assignBatch(x, result);
   }
+}
+
+class InventoryBatchesScreen extends StatelessWidget {
+  const InventoryBatchesScreen({super.key, required this.repository});
+  final InventoryRepository repository;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Inventory batches')),
+    body: StreamBuilder<List<InventoryBatch>>(
+      stream: repository.watchBatches(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Unable to load batches: ${snapshot.error}'),
+          );
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final batches = snapshot.data!;
+        if (batches.isEmpty) {
+          return const Center(child: Text('No inventory batches.'));
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: batches.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final batch = batches[index];
+            return Card(
+              child: ListTile(
+                leading: Icon(
+                  batch.closed ? Icons.inventory_2 : Icons.inventory_2_outlined,
+                ),
+                title: Text('${batch.code} — ${batch.name}'),
+                subtitle: Text(
+                  '${batch.itemCount} items • ${batch.totalWeight.toStringAsFixed(1)} kg\n${batch.location} • ${batch.status}',
+                ),
+                isThreeLine: true,
+                trailing: Chip(label: Text(batch.closed ? 'Closed' : 'Open')),
+                onTap: () => _edit(context, batch),
+              ),
+            );
+          },
+        );
+      },
+    ),
+  );
+
+  Future<void> _edit(BuildContext context, InventoryBatch batch) async {
+    final name = TextEditingController(text: batch.name);
+    final location = TextEditingController(text: batch.location);
+    var status =
+        ProcessingStatus.values
+            .where((value) => value.name == batch.status)
+            .firstOrNull ??
+        ProcessingStatus.registered;
+    var closed = batch.closed;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text(batch.code),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'Batch name'),
+              ),
+              TextField(
+                controller: location,
+                decoration: const InputDecoration(labelText: 'Location'),
+              ),
+              DropdownButtonFormField<ProcessingStatus>(
+                initialValue: status,
+                items: ProcessingStatus.values
+                    .map(
+                      (value) => DropdownMenuItem(
+                        value: value,
+                        child: Text(value.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) => setState(() => status = value!),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Close batch'),
+                value: closed,
+                onChanged: (value) => setState(() => closed = value),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed == true &&
+        name.text.trim().isNotEmpty &&
+        location.text.trim().isNotEmpty) {
+      await repository.updateBatch(
+        batch,
+        name: name.text,
+        location: location.text,
+        status: status,
+        closed: closed,
+      );
+    }
+    name.dispose();
+    location.dispose();
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({required this.label, required this.value});
+  final String label, value;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: SizedBox(
+      width: 132,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(value, style: Theme.of(context).textTheme.titleLarge),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
+    ),
+  );
 }

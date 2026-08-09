@@ -226,6 +226,13 @@ class RouteRepository {
         'startedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+  Future<void> pause(String routeId) => _useApi
+      ? _api.patch('/api/v1/routes/$routeId/pause', const {}).then((_) {})
+      : _db.collection('routePlans').doc(routeId).update({
+          'status': RoutePlanStatus.paused.name,
+          'pausedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
   Future<void> recordPosition(String routeId, Position position) async {
     if (_useApi) {
       await _api.post('/api/v1/routes/$routeId/positions', {

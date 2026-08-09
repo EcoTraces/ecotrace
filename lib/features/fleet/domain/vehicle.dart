@@ -164,3 +164,39 @@ class VehicleUtilization {
         utilizationScore: (data['utilizationScore'] as num? ?? 0).toDouble(),
       );
 }
+
+class FleetWorkRecord {
+  const FleetWorkRecord({
+    required this.id,
+    required this.type,
+    required this.description,
+    required this.status,
+    required this.scheduledAt,
+    required this.costSLE,
+  });
+
+  final String id, type, description, status;
+  final DateTime? scheduledAt;
+  final double costSLE;
+
+  factory FleetWorkRecord.fromJson(Map<String, dynamic> data) =>
+      FleetWorkRecord(
+        id: data['id']?.toString() ?? '',
+        type: data['type']?.toString() ?? data['severity']?.toString() ?? '',
+        description:
+            data['description']?.toString() ??
+            data['resolution']?.toString() ??
+            '',
+        status: data['status']?.toString() ?? '',
+        scheduledAt: DateTime.tryParse(
+          data['scheduledAt']?.toString() ??
+              data['occurredAt']?.toString() ??
+              '',
+        ),
+        costSLE: (data['actualCostSLE'] as num? ??
+                data['estimatedCostSLE'] as num? ??
+                data['repairCostSLE'] as num? ??
+                0)
+            .toDouble(),
+      );
+}

@@ -73,6 +73,20 @@ class Organization {
       rejectionReason: data['rejectionReason'] as String?,
     );
   }
+
+  factory Organization.fromJson(Map<String, dynamic> data) => Organization(
+    id: data['id']?.toString() ?? '',
+    name: data['name']?.toString() ?? '',
+    type: OrganizationType.fromValue(data['type']?.toString()),
+    registrationNumber: data['registrationNumber']?.toString() ?? '',
+    contactEmail: data['contactEmail']?.toString() ?? '',
+    contactPhone: data['contactPhone']?.toString() ?? '',
+    address: data['address']?.toString() ?? '',
+    serviceAreas: List<String>.from(data['serviceAreas'] as List? ?? const []),
+    status: OrganizationStatus.fromValue(data['status']?.toString()),
+    ownerId: data['ownerId']?.toString() ?? '',
+    rejectionReason: data['rejectionReason']?.toString(),
+  );
 }
 
 class OrganizationBranch {
@@ -84,6 +98,12 @@ class OrganizationBranch {
   final String id;
   final String name;
   final String address;
+  factory OrganizationBranch.fromJson(Map<String, dynamic> data) =>
+      OrganizationBranch(
+        id: data['id']?.toString() ?? '',
+        name: data['name']?.toString() ?? '',
+        address: data['address']?.toString() ?? '',
+      );
 }
 
 class OrganizationDocument {
@@ -95,4 +115,47 @@ class OrganizationDocument {
   final String id;
   final String name;
   final String downloadUrl;
+  factory OrganizationDocument.fromJson(Map<String, dynamic> data) =>
+      OrganizationDocument(
+        id: data['id']?.toString() ?? '',
+        name: data['name']?.toString() ?? '',
+        downloadUrl:
+            data['fileUrl']?.toString() ??
+            data['downloadUrl']?.toString() ??
+            '',
+      );
+}
+
+class OrganizationMember {
+  const OrganizationMember({
+    required this.userId,
+    required this.role,
+    required this.status,
+    required this.branchId,
+  });
+  final String userId, role, status, branchId;
+  factory OrganizationMember.fromJson(Map<String, dynamic> data) =>
+      OrganizationMember(
+        userId: data['userId']?.toString() ?? data['id']?.toString() ?? '',
+        role: data['organizationRole']?.toString() ?? 'staff',
+        status: data['status']?.toString() ?? 'active',
+        branchId: data['branchId']?.toString() ?? '',
+      );
+}
+
+class OrganizationInvitation {
+  const OrganizationInvitation({
+    required this.id,
+    required this.organizationName,
+    required this.role,
+    required this.status,
+  });
+  final String id, organizationName, role, status;
+  factory OrganizationInvitation.fromJson(Map<String, dynamic> data) =>
+      OrganizationInvitation(
+        id: data['id']?.toString() ?? '',
+        organizationName: data['organizationName']?.toString() ?? '',
+        role: data['organizationRole']?.toString() ?? 'staff',
+        status: data['status']?.toString() ?? 'pending',
+      );
 }

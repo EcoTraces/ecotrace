@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -30,6 +31,14 @@ class TraceabilityScreen extends StatelessWidget {
                 width: 80,
                 height: 80,
               ),
+              pw.SizedBox(height: 4),
+              pw.BarcodeWidget(
+                barcode: pw.Barcode.code128(),
+                data: item.barcodeValue,
+                width: 160,
+                height: 24,
+                drawText: false,
+              ),
               pw.Text(item.itemCode),
               pw.Text('${item.brand} ${item.model}'),
             ],
@@ -57,6 +66,9 @@ class TraceabilityScreen extends StatelessWidget {
           pw.Text('Condition: ${item.condition.name}'),
           pw.Text('Current location: ${item.location}'),
           pw.Text('Processing status: ${item.status.name}'),
+          pw.Text(
+            'Integrity verified: ${certificate['integrityVerified'] == true ? 'Yes' : 'No'}',
+          ),
           pw.SizedBox(height: 16),
           pw.Header(level: 1, text: 'Chain of custody'),
           ...events.map(
@@ -65,7 +77,9 @@ class TraceabilityScreen extends StatelessWidget {
             ),
           ),
           pw.SizedBox(height: 12),
-          pw.Text('Integrity hash: ${certificate['finalIntegrityHash'] ?? 'Legacy record'}'),
+          pw.Text(
+            'Integrity hash: ${certificate['finalIntegrityHash'] ?? 'Legacy record'}',
+          ),
         ],
       ),
     );
@@ -138,15 +152,24 @@ class TraceabilityScreen extends StatelessWidget {
           builder: (context, snapshot) {
             if (!snapshot.hasData) return const LinearProgressIndicator();
             final verified = snapshot.data!['integrityVerified'] == true;
+            final issues = List<String>.from(
+              snapshot.data!['integrityIssues'] as List? ?? const [],
+            );
             return ListTile(
               leading: Icon(
                 verified ? Icons.verified_user : Icons.warning_amber,
                 color: verified ? Colors.green : Colors.orange,
               ),
-              title: Text(verified ? 'Chain integrity verified' : 'Chain integrity warning'),
-              subtitle: Text(verified
-                  ? 'Recorded custody events have not been altered.'
-                  : 'One or more traceability events require an audit.'),
+              title: Text(
+                verified
+                    ? 'Chain integrity verified'
+                    : 'Chain integrity warning',
+              ),
+              subtitle: Text(
+                verified
+                    ? 'Recorded custody events have not been altered.'
+                    : 'Events requiring investigation: ${issues.join(', ')}',
+              ),
             );
           },
         ),
@@ -157,10 +180,15 @@ class TraceabilityScreen extends StatelessWidget {
             children: (s.data ?? [])
                 .map(
                   (e) => ListTile(
-                    leading: Icon(e.integrityHash.isEmpty ? Icons.route : Icons.verified),
-                    title: Text(e.sequence > 0 ? '#${e.sequence} ${e.type}' : e.type),
+                    leading: Icon(
+                      e.integrityHash.isEmpty ? Icons.route : Icons.verified,
+                    ),
+                    title: Text(
+                      e.sequence > 0 ? '#${e.sequence} ${e.type}' : e.type,
+                    ),
                     subtitle: Text(
-                      '${e.from} → ${e.to}\n${e.actor} • ${e.notes}\n${e.at ?? ''}',
+                      '${e.from} → ${e.to}\n${e.actor} • ${e.notes}\n${e.at ?? ''}'
+                      '${e.evidenceUrls.isEmpty ? '' : '\n${e.evidenceUrls.length} evidence image(s)'}',
                     ),
                     isThreeLine: true,
                   ),
@@ -175,64 +203,97 @@ class TraceabilityScreen extends StatelessWidget {
     final destination = TextEditingController(text: item.location),
         actor = TextEditingController(),
         notes = TextEditingController();
+    final evidence = <XFile>[];
     var selectedStatus = item.status;
     final ok = await showDialog<bool>(
       context: c,
-      builder: (c) => AlertDialog(
-        title: Text(type),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: destination,
-              decoration: const InputDecoration(
-                labelText: 'Facility or destination',
+      builder: (c) => StatefulBuilder(
+        builder: (c, setDialogState) => AlertDialog(
+          title: Text(type),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: destination,
+                decoration: const InputDecoration(
+                  labelText: 'Facility or destination',
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: actor,
-              decoration: const InputDecoration(
-                labelText: 'Collector, facility, or custodian',
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: notes,
-              decoration: const InputDecoration(labelText: 'Notes'),
-            ),
-            if (type == 'statusUpdated') ...[
               const SizedBox(height: 8),
-              DropdownButtonFormField<ProcessingStatus>(
-                initialValue: selectedStatus,
-                decoration: const InputDecoration(labelText: 'Processing status'),
-                items: ProcessingStatus.values
-                    .map((value) => DropdownMenuItem(
+              TextField(
+                controller: actor,
+                decoration: const InputDecoration(
+                  labelText: 'Collector, facility, or custodian',
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: notes,
+                decoration: const InputDecoration(labelText: 'Notes'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: evidence.length >= 5
+                    ? null
+                    : () async {
+                        final picked = await ImagePicker().pickMultiImage(
+                          imageQuality: 75,
+                        );
+                        setDialogState(
+                          () =>
+                              evidence.addAll(picked.take(5 - evidence.length)),
+                        );
+                      },
+                icon: const Icon(Icons.add_a_photo_outlined),
+                label: Text('Evidence images (${evidence.length}/5)'),
+              ),
+              if (type == 'statusUpdated') ...[
+                const SizedBox(height: 8),
+                DropdownButtonFormField<ProcessingStatus>(
+                  initialValue: selectedStatus,
+                  decoration: const InputDecoration(
+                    labelText: 'Processing status',
+                  ),
+                  items: ProcessingStatus.values
+                      .map(
+                        (value) => DropdownMenuItem(
                           value: value,
                           child: Text(value.name),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  if (value != null) selectedStatus = value;
-                },
-              ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) selectedStatus = value;
+                  },
+                ),
+              ],
             ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('Record'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('Record'),
-          ),
-        ],
       ),
     );
     if (ok == true) {
       try {
+        if ((type == 'damaged' || type == 'missing') && evidence.isEmpty) {
+          throw ArgumentError(
+            'Photo evidence is required for damaged or missing items.',
+          );
+        }
+        final evidenceUrls = evidence.isEmpty
+            ? <String>[]
+            : await repository.uploadEvidence(
+                await Future.wait(evidence.map((image) => image.readAsBytes())),
+              );
         await repository.record(
           item,
           type: type,
@@ -240,7 +301,9 @@ class TraceabilityScreen extends StatelessWidget {
           actor: actor.text,
           notes: notes.text,
           status: type == 'statusUpdated' ? selectedStatus : null,
-          updateLocation: type != 'damaged' && type != 'missing' && type != 'statusUpdated',
+          evidenceUrls: evidenceUrls,
+          updateLocation:
+              type != 'damaged' && type != 'missing' && type != 'statusUpdated',
         );
         if (c.mounted) {
           ScaffoldMessenger.of(c).showSnackBar(
@@ -268,20 +331,28 @@ class TraceabilityScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(assignmentType == 'collector'
-            ? 'Assign item to collector'
-            : 'Assign item to facility'),
+        title: Text(
+          assignmentType == 'collector'
+              ? 'Assign item to collector'
+              : 'Assign item to facility',
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: id,
-                decoration: InputDecoration(labelText: '${assignmentType == 'collector' ? 'Collector' : 'Facility'} ID'),
+                decoration: InputDecoration(
+                  labelText:
+                      '${assignmentType == 'collector' ? 'Collector' : 'Facility'} ID',
+                ),
               ),
               TextField(
                 controller: name,
-                decoration: InputDecoration(labelText: '${assignmentType == 'collector' ? 'Collector' : 'Facility'} name'),
+                decoration: InputDecoration(
+                  labelText:
+                      '${assignmentType == 'collector' ? 'Collector' : 'Facility'} name',
+                ),
               ),
               TextField(
                 controller: destination,
@@ -289,14 +360,22 @@ class TraceabilityScreen extends StatelessWidget {
               ),
               TextField(
                 controller: notes,
-                decoration: const InputDecoration(labelText: 'Assignment notes'),
+                decoration: const InputDecoration(
+                  labelText: 'Assignment notes',
+                ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Assign')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Assign'),
+          ),
         ],
       ),
     );
@@ -343,43 +422,89 @@ class _TraceScannerState extends State<TraceScannerScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Scan item QR')),
-    body: MobileScanner(
-      onDetect: (capture) async {
-        if (processing) return;
-        final code = capture.barcodes.firstOrNull?.rawValue;
-        if (code == null) return;
-        processing = true;
-        InventoryItem? item;
-        try {
-          item = await widget.repository.findByCode(code);
-        } catch (error) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Unable to scan item: $error')),
-            );
-          }
-          processing = false;
-          return;
-        }
-        if (!context.mounted) return;
-        if (item == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Inventory item not found.')),
-          );
-          processing = false;
-          return;
-        }
-        final foundItem = item;
-        await Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => TraceabilityScreen(
-              item: foundItem,
-              repository: widget.repository,
+    body: Column(
+      children: [
+        Expanded(
+          child: MobileScanner(
+            onDetect: (capture) {
+              final code = capture.barcodes.firstOrNull?.rawValue;
+              if (code != null) _handleCode(code);
+            },
+          ),
+        ),
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: processing ? null : _enterCode,
+                icon: const Icon(Icons.keyboard),
+                label: const Text('Enter item code manually'),
+              ),
             ),
           ),
-        );
-      },
+        ),
+      ],
     ),
   );
+
+  Future<void> _enterCode() async {
+    final controller = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enter item code'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'ECO-2026-XXXXXXXX'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Find item'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (code != null && code.isNotEmpty) await _handleCode(code);
+  }
+
+  Future<void> _handleCode(String code) async {
+    if (processing) return;
+    processing = true;
+    InventoryItem? item;
+    try {
+      item = await widget.repository.findByCode(code);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Unable to scan item: $error')));
+      }
+      processing = false;
+      return;
+    }
+    if (!mounted) return;
+    if (item == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Inventory item not found.')),
+      );
+      processing = false;
+      return;
+    }
+    await Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            TraceabilityScreen(item: item!, repository: widget.repository),
+      ),
+    );
+  }
 }

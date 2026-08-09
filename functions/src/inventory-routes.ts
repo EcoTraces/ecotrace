@@ -6,6 +6,7 @@ import {authenticate, requireRoles} from "./auth.js";
 import {ApiError} from "./errors.js";
 import {db} from "./firebase.js";
 import {documentJson} from "./firestore-json.js";
+import {publishNotificationEvent} from "./push-events.js";
 
 const router = Router();
 const operators = ["administrator", "superAdministrator", "collector", "collectionCentreOperator", "repairTechnician", "recycler"] as const;
@@ -371,7 +372,12 @@ router.post("/inventory/items/:id/assessments", authenticate, requireRoles(...op
   });
   batch.update(ref, {processingStatus: "inspecting", updatedAt: FieldValue.serverTimestamp()});
   batch.set(ref.collection("history").doc(), {action: "assessmentSubmitted", details: `${input.category}: ${input.recommendation}`, actorId: request.user!.uid, createdAt: FieldValue.serverTimestamp()});
-  await batch.commit(); response.status(201).json({data: {id: assessment.id}});
+  await batch.commit();
+  void publishNotificationEvent({
+    event: "classification_assessment_submitted",
+    data: {itemId: ref.id, assessmentId: assessment.id, assessorId: request.user!.uid},
+  });
+  response.status(201).json({data: {id: assessment.id}});
 });
 router.get("/inventory/items/:id/assessments/:assessmentId", authenticate, async (request, response) => {
   const ref = (await itemRef(id(request.params.id))).collection("assessments").doc(id(request.params.assessmentId));
@@ -455,6 +461,11 @@ router.patch("/inventory/items/:id/assessments/:assessmentId/review", authentica
     createdAt: FieldValue.serverTimestamp(),
   });
   await batch.commit();
+  void publishNotificationEvent({
+    event: "classification_assessment_reviewed",
+    recipientId: String(snapshot.get("createdBy") ?? ""),
+    data: {itemId: root.id, assessmentId: ref.id, status, reason: input.reason ?? ""},
+  });
   response.json({data: {id: ref.id, status}});
 });
 
@@ -479,6 +490,7 @@ router.post("/inventory/items/:id/traceability", authenticate, requireRoles(...o
     if (value.type === "facilityAssigned" && !value.facilityId) context.addIssue({code: "custom", path: ["facilityId"], message: "A facility is required."});
     if (value.type === "statusUpdated" && !value.status) context.addIssue({code: "custom", path: ["status"], message: "A processing status is required."});
     if (["damaged", "missing"].includes(value.type) && !value.notes) context.addIssue({code: "custom", path: ["notes"], message: "Exception details are required."});
+    if (["damaged", "missing"].includes(value.type) && value.evidenceUrls.length === 0) context.addIssue({code: "custom", path: ["evidenceUrls"], message: "Photo evidence is required for damaged or missing items."});
   }).parse(request.body);
   const ref = await itemRef(id(request.params.id));
   const event = ref.collection("traceability").doc();
