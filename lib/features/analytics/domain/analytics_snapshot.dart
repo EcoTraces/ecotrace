@@ -43,4 +43,12 @@ class ReportSchedule {
   final ReportType type;
   final List<String> recipients;
   final bool active;
+  factory ReportSchedule.fromJson(Map<String, dynamic> data) => ReportSchedule(
+    id: data['id']?.toString() ?? '',
+    name: data['name']?.toString() ?? 'Scheduled report',
+    type: ReportType.values.where((value) => value.name == data['type']).firstOrNull ?? ReportType.custom,
+    frequency: data['frequency']?.toString() ?? 'monthly',
+    recipients: List<String>.from(data['recipientEmails'] as List? ?? data['recipients'] as List? ?? const []),
+    active: data['active'] != false,
+  );
 }

@@ -26,7 +26,7 @@ class TraceabilityScreen extends StatelessWidget {
             children: [
               pw.BarcodeWidget(
                 barcode: pw.Barcode.qrCode(),
-                data: item.itemCode,
+                data: item.qrPayload,
                 width: 80,
                 height: 80,
               ),
@@ -41,12 +41,17 @@ class TraceabilityScreen extends StatelessWidget {
   }
 
   Future<void> _certificate() async {
-    final events = await repository.watch(item.id).first;
+    final certificate = await repository.certificate(item);
+    final events = (certificate['chainOfCustody'] as List? ?? const [])
+        .map((value) => Map<String, dynamic>.from(value as Map))
+        .toList();
     final doc = pw.Document();
     doc.addPage(
       pw.MultiPage(
         build: (_) => [
           pw.Header(level: 0, text: 'EcoTrace Traceability Certificate'),
+          pw.Text('Certificate: ${certificate['certificateNumber'] ?? ''}'),
+          pw.Text('Issued: ${certificate['issuedAt'] ?? ''}'),
           pw.Text('Item: ${item.itemCode}'),
           pw.Text('Device: ${item.brand} ${item.model}'),
           pw.Text('Condition: ${item.condition.name}'),
@@ -54,11 +59,13 @@ class TraceabilityScreen extends StatelessWidget {
           pw.Text('Processing status: ${item.status.name}'),
           pw.SizedBox(height: 16),
           pw.Header(level: 1, text: 'Chain of custody'),
-          ...events.reversed.map(
+          ...events.map(
             (e) => pw.Text(
-              '${e.at ?? ''} • ${e.type}: ${e.from} → ${e.to} • ${e.actor} • ${e.notes}',
+              '${e['createdAt'] ?? ''} • ${e['type'] ?? ''}: ${e['from'] ?? ''} → ${e['to'] ?? ''} • ${e['actor'] ?? ''} • ${e['notes'] ?? ''}',
             ),
           ),
+          pw.SizedBox(height: 12),
+          pw.Text('Integrity hash: ${certificate['finalIntegrityHash'] ?? 'Legacy record'}'),
         ],
       ),
     );
@@ -85,7 +92,7 @@ class TraceabilityScreen extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Center(child: QrImageView(data: item.itemCode, size: 160)),
+        Center(child: QrImageView(data: item.qrPayload, size: 160)),
         Center(child: SelectableText(item.itemCode)),
         Wrap(
           alignment: WrapAlignment.center,
@@ -94,6 +101,14 @@ class TraceabilityScreen extends StatelessWidget {
             FilledButton(
               onPressed: () => _record(c, 'movement'),
               child: const Text('Record movement'),
+            ),
+            OutlinedButton(
+              onPressed: () => _assign(c, 'collector'),
+              child: const Text('Assign collector'),
+            ),
+            OutlinedButton(
+              onPressed: () => _assign(c, 'facility'),
+              child: const Text('Assign facility'),
             ),
             OutlinedButton(
               onPressed: () => _record(c, 'custodyTransfer'),
@@ -111,9 +126,30 @@ class TraceabilityScreen extends StatelessWidget {
               onPressed: () => _record(c, 'missing'),
               child: const Text('Missing'),
             ),
+            OutlinedButton(
+              onPressed: () => _record(c, 'statusUpdated'),
+              child: const Text('Update status'),
+            ),
           ],
         ),
         const Divider(),
+        FutureBuilder<Map<String, dynamic>>(
+          future: repository.audit(item),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return const LinearProgressIndicator();
+            final verified = snapshot.data!['integrityVerified'] == true;
+            return ListTile(
+              leading: Icon(
+                verified ? Icons.verified_user : Icons.warning_amber,
+                color: verified ? Colors.green : Colors.orange,
+              ),
+              title: Text(verified ? 'Chain integrity verified' : 'Chain integrity warning'),
+              subtitle: Text(verified
+                  ? 'Recorded custody events have not been altered.'
+                  : 'One or more traceability events require an audit.'),
+            );
+          },
+        ),
         Text('Processing timeline', style: Theme.of(c).textTheme.titleLarge),
         StreamBuilder<List<TraceEvent>>(
           stream: repository.watch(item.id),
@@ -121,8 +157,8 @@ class TraceabilityScreen extends StatelessWidget {
             children: (s.data ?? [])
                 .map(
                   (e) => ListTile(
-                    leading: const Icon(Icons.route),
-                    title: Text(e.type),
+                    leading: Icon(e.integrityHash.isEmpty ? Icons.route : Icons.verified),
+                    title: Text(e.sequence > 0 ? '#${e.sequence} ${e.type}' : e.type),
                     subtitle: Text(
                       '${e.from} → ${e.to}\n${e.actor} • ${e.notes}\n${e.at ?? ''}',
                     ),
@@ -139,6 +175,7 @@ class TraceabilityScreen extends StatelessWidget {
     final destination = TextEditingController(text: item.location),
         actor = TextEditingController(),
         notes = TextEditingController();
+    var selectedStatus = item.status;
     final ok = await showDialog<bool>(
       context: c,
       builder: (c) => AlertDialog(
@@ -164,6 +201,22 @@ class TraceabilityScreen extends StatelessWidget {
               controller: notes,
               decoration: const InputDecoration(labelText: 'Notes'),
             ),
+            if (type == 'statusUpdated') ...[
+              const SizedBox(height: 8),
+              DropdownButtonFormField<ProcessingStatus>(
+                initialValue: selectedStatus,
+                decoration: const InputDecoration(labelText: 'Processing status'),
+                items: ProcessingStatus.values
+                    .map((value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(value.name),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) selectedStatus = value;
+                },
+              ),
+            ],
           ],
         ),
         actions: [
@@ -179,17 +232,100 @@ class TraceabilityScreen extends StatelessWidget {
       ),
     );
     if (ok == true) {
-      await repository.record(
-        item,
-        type: type,
-        destination: destination.text,
-        actor: actor.text,
-        notes: notes.text,
-        updateLocation: type != 'damaged' && type != 'missing',
-      );
+      try {
+        await repository.record(
+          item,
+          type: type,
+          destination: destination.text,
+          actor: actor.text,
+          notes: notes.text,
+          status: type == 'statusUpdated' ? selectedStatus : null,
+          updateLocation: type != 'damaged' && type != 'missing' && type != 'statusUpdated',
+        );
+        if (c.mounted) {
+          ScaffoldMessenger.of(c).showSnackBar(
+            const SnackBar(content: Text('Traceability event recorded.')),
+          );
+        }
+      } catch (error) {
+        if (c.mounted) {
+          ScaffoldMessenger.of(c).showSnackBar(
+            SnackBar(content: Text('Unable to record event: $error')),
+          );
+        }
+      }
     }
     destination.dispose();
     actor.dispose();
+    notes.dispose();
+  }
+
+  Future<void> _assign(BuildContext context, String assignmentType) async {
+    final id = TextEditingController();
+    final name = TextEditingController();
+    final destination = TextEditingController(text: item.location);
+    final notes = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(assignmentType == 'collector'
+            ? 'Assign item to collector'
+            : 'Assign item to facility'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: id,
+                decoration: InputDecoration(labelText: '${assignmentType == 'collector' ? 'Collector' : 'Facility'} ID'),
+              ),
+              TextField(
+                controller: name,
+                decoration: InputDecoration(labelText: '${assignmentType == 'collector' ? 'Collector' : 'Facility'} name'),
+              ),
+              TextField(
+                controller: destination,
+                decoration: const InputDecoration(labelText: 'Destination'),
+              ),
+              TextField(
+                controller: notes,
+                decoration: const InputDecoration(labelText: 'Assignment notes'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Assign')),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      try {
+        await repository.assign(
+          item,
+          assignmentType: assignmentType,
+          assigneeId: id.text,
+          assigneeName: name.text,
+          destination: destination.text,
+          notes: notes.text,
+        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Custody assignment recorded.')),
+          );
+        }
+      } catch (error) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Unable to assign custody: $error')),
+          );
+        }
+      }
+    }
+    id.dispose();
+    name.dispose();
+    destination.dispose();
     notes.dispose();
   }
 }
@@ -213,7 +349,18 @@ class _TraceScannerState extends State<TraceScannerScreen> {
         final code = capture.barcodes.firstOrNull?.rawValue;
         if (code == null) return;
         processing = true;
-        final item = await widget.repository.findByCode(code);
+        InventoryItem? item;
+        try {
+          item = await widget.repository.findByCode(code);
+        } catch (error) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Unable to scan item: $error')),
+            );
+          }
+          processing = false;
+          return;
+        }
         if (!context.mounted) return;
         if (item == null) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -222,11 +369,14 @@ class _TraceScannerState extends State<TraceScannerScreen> {
           processing = false;
           return;
         }
+        final foundItem = item;
         await Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                TraceabilityScreen(item: item, repository: widget.repository),
+            builder: (_) => TraceabilityScreen(
+              item: foundItem,
+              repository: widget.repository,
+            ),
           ),
         );
       },

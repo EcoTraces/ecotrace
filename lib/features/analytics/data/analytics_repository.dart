@@ -1,11 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
 import '../domain/analytics_snapshot.dart';
 
 class AnalyticsRepository {
-  AnalyticsRepository({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  AnalyticsRepository({FirebaseFirestore? firestore, ApiClient? apiClient})
+    : _db = firestore ?? FirebaseFirestore.instance,
+      _api = apiClient ?? ApiClient.instance,
+      _useApi = apiClient != null || (firestore == null && ApiConfig.enabled);
   final FirebaseFirestore _db;
+  final ApiClient _api;
+  final bool _useApi;
   Future<AnalyticsSnapshot> load(DateTime from, DateTime to) async {
+    if (_useApi) return _loadApi(from, to);
     Future<List<Map<String, dynamic>>> c(String n) async =>
         (await _db.collection(n).get()).docs
             .map((d) => {'id': d.id, ...d.data()})
@@ -125,7 +132,52 @@ class AnalyticsRepository {
     );
   }
 
-  Stream<List<ReportSchedule>> watchSchedules() => _db
+  Future<AnalyticsSnapshot> _loadApi(DateTime from, DateTime to) async {
+    final query = {'from': from.toUtc().toIso8601String(), 'to': to.toUtc().toIso8601String()};
+    final results = await Future.wait([
+      _api.get('/api/v1/analytics/overview', query: query),
+      _api.get('/api/v1/analytics/waste/categories', query: query),
+      _api.get('/api/v1/analytics/waste/regions', query: query),
+      _api.get('/api/v1/analytics/operations', query: query),
+      _api.get('/api/v1/analytics/revenue', query: query),
+      _api.get('/api/v1/analytics/environmental', query: query),
+    ]);
+    final overview = results[0], categoriesData = results[1], regionsData = results[2], operations = results[3], revenue = results[4], impact = results[5];
+    double number(Map<String, dynamic> map, String key) => (map[key] as num? ?? 0).toDouble();
+    final categories = <String, double>{};
+    for (final entry in categoriesData.entries) {
+      if (entry.value is Map) categories[entry.key] = ((entry.value as Map)['weightKg'] as num? ?? 0).toDouble();
+    }
+    final regions = <String, double>{};
+    for (final entry in regionsData.entries) {
+      if (entry.value is Map) regions[entry.key] = ((entry.value as Map)['requests'] as num? ?? 0).toDouble();
+    }
+    return AnalyticsSnapshot(
+      from: from,
+      to: to,
+      metrics: {
+        'collections': number(overview, 'collectedKg'),
+        'pickups': number(overview, 'pickupRequests'),
+        'pickupCompletionRate': number(overview, 'pickupCompletionRate'),
+        'inventoryItems': 0,
+        'recycledKg': number(impact, 'recycledKg'),
+        'recyclingRate': number(operations, 'recyclingRate'),
+        'recoveredKg': number(impact, 'recoveredKg'),
+        'recoveryRate': number(operations, 'resourceRecoveryRate'),
+        'repairsCompleted': number(impact, 'reusableDevices'),
+        'users': number(overview, 'newUsers'),
+        'partners': number(overview, 'newPartners'),
+        'partnerRating': 0,
+        'revenue': number(revenue, 'combinedRevenue'),
+        'hazardousHandledKg': number(impact, 'hazardousKg'),
+      },
+      categories: categories,
+      regions: regions,
+      rows: const [],
+    );
+  }
+
+  Stream<List<ReportSchedule>> watchSchedules() => _useApi ? _pollSchedules() : _db
       .collection('reportSchedules')
       .snapshots()
       .map(
@@ -141,17 +193,46 @@ class AnalyticsRepository {
           );
         }).toList(),
       );
+  Stream<List<ReportSchedule>> _pollSchedules() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/reports/schedules');
+      yield data.map(ReportSchedule.fromJson).toList();
+      await Future<void>.delayed(const Duration(seconds: ApiConfig.pollingSeconds));
+    }
+  }
   Future<void> schedule({
     required String name,
     required ReportType type,
     required String frequency,
     required List<String> recipients,
-  }) => _db.collection('reportSchedules').add({
+  }) async {
+    if (_useApi) {
+      final definition = await _api.post('/api/v1/reports/definitions', {
+        'name': name,
+        'type': type.name,
+        'sourceCollection': type == ReportType.custom ? 'pickupRequests' : '',
+        'fields': ['status', 'createdAt'],
+        'filters': <Map<String, dynamic>>[],
+        'metrics': ['count'],
+        'active': true,
+      });
+      await _api.post('/api/v1/reports/schedules', {
+        'definitionId': definition['id'],
+        'frequency': frequency,
+        'format': 'pdf',
+        'recipientEmails': recipients.map((value) => value.contains('@') ? value : '$value@ecotrace.local').toList(),
+        'nextRunAt': DateTime.now().add(const Duration(days: 30)).toUtc().toIso8601String(),
+        'active': true,
+      });
+      return;
+    }
+    await _db.collection('reportSchedules').add({
     'name': name,
     'type': type.name,
     'frequency': frequency,
     'recipients': recipients,
     'active': true,
     'createdAt': FieldValue.serverTimestamp(),
-  });
+    });
+  }
 }

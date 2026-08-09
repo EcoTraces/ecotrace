@@ -1,5 +1,5 @@
 import {Router} from "express";
-import {FieldValue} from "firebase-admin/firestore";
+import {FieldValue, Timestamp} from "firebase-admin/firestore";
 import {z} from "zod";
 import {authenticate, requireRoles} from "./auth.js";
 import {ApiError} from "./errors.js";
@@ -21,6 +21,21 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): num
   const a = Math.sin(dLat / 2) ** 2 +
     Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(dLon / 2) ** 2;
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function trafficMultiplier(departure: Date): number {
+  const hour = departure.getUTCHours();
+  if ((hour >= 7 && hour < 10) || (hour >= 16 && hour < 19)) return 1.35;
+  if ((hour >= 6 && hour < 7) || (hour >= 10 && hour < 12) || (hour >= 14 && hour < 16)) return 1.15;
+  return 1;
+}
+
+function routeLength(points: Array<{latitude: number; longitude: number}>): number {
+  let total = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    total += distanceKm(points[index - 1].latitude, points[index - 1].longitude, points[index].latitude, points[index].longitude);
+  }
+  return total;
 }
 
 async function accessibleRoute(id: string, uid: string, role: string) {
@@ -55,7 +70,15 @@ router.get("/routes/:id", authenticate, requireRoles(...operators), async (reque
 });
 
 router.post("/routes/optimize", authenticate, requireRoles(...supervisors), async (request, response) => {
-  const {scheduleId} = z.object({scheduleId: z.string().trim().min(1)}).parse(request.body);
+  const input = z.object({
+    scheduleId: z.string().trim().min(1),
+    departureAt: z.coerce.date().default(new Date()),
+    averageSpeedKph: z.number().min(5).max(120).default(30),
+    trafficAware: z.boolean().default(true),
+    arrivalRadiusMetres: z.number().int().min(25).max(1000).default(150),
+    deviationRadiusMetres: z.number().int().min(250).max(10000).default(2000),
+  }).parse(request.body);
+  const {scheduleId} = input;
   const existing = await db.collection("routePlans").where("scheduleId", "==", scheduleId).limit(1).get();
   if (!existing.empty) {
     const route = existing.docs[0];
@@ -115,7 +138,9 @@ router.post("/routes/optimize", authenticate, requireRoles(...supervisors), asyn
     };
   });
   const reference = db.collection("routePlans").doc();
-  const estimatedMinutes = totalDistance / 30 * 60;
+  const baselineMinutes = totalDistance / input.averageSpeedKph * 60;
+  const trafficFactor = input.trafficAware ? trafficMultiplier(input.departureAt) : 1;
+  const estimatedMinutes = baselineMinutes * trafficFactor;
   const batch = db.batch();
   batch.set(reference, {
     scheduleId,
@@ -123,7 +148,15 @@ router.post("/routes/optimize", authenticate, requireRoles(...supervisors), asyn
     vehicleId: schedule.get("vehicleId") ?? "",
     stops,
     distanceKm: totalDistance,
+    baselineMinutes,
     estimatedMinutes,
+    trafficAware: input.trafficAware,
+    trafficFactor,
+    trafficModel: input.trafficAware ? "timeOfDay" : "disabled",
+    departureAt: Timestamp.fromDate(input.departureAt),
+    arrivalRadiusMetres: input.arrivalRadiusMetres,
+    deviationRadiusMetres: input.deviationRadiusMetres,
+    offlineReady: true,
     status: "planned",
     currentLatitude: startLatitude,
     currentLongitude: startLongitude,
@@ -159,8 +192,10 @@ router.post("/routes/:id/positions", authenticate, requireRoles(...operators), a
   remaining.sort((a, b) => distanceKm(position.latitude, position.longitude, Number(a.latitude), Number(a.longitude)) - distanceKm(position.latitude, position.longitude, Number(b.latitude), Number(b.longitude)));
   const nearest = remaining[0];
   const nearestDistance = nearest ? distanceKm(position.latitude, position.longitude, Number(nearest.latitude), Number(nearest.longitude)) : 0;
-  const arrived = Boolean(nearest && nearestDistance <= 0.15);
-  const deviated = nearestDistance > 2;
+  const arrivalRadiusKm = Number(snapshot.get("arrivalRadiusMetres") ?? 150) / 1000;
+  const deviationRadiusKm = Number(snapshot.get("deviationRadiusMetres") ?? 2000) / 1000;
+  const arrived = Boolean(nearest && nearestDistance <= arrivalRadiusKm);
+  const deviated = Boolean(nearest && nearestDistance > deviationRadiusKm);
   const batch = db.batch();
   batch.update(reference, {
     currentLatitude: position.latitude,
@@ -188,9 +223,62 @@ router.post("/routes/:id/positions", authenticate, requireRoles(...operators), a
 });
 
 router.patch("/routes/:id/complete", authenticate, requireRoles(...operators), async (request, response) => {
+  const {reference, snapshot} = await accessibleRoute(parameter(request.params.id), request.user!.uid, request.user!.role);
+  const locations = await reference.collection("locationHistory").orderBy("recordedAt").limit(5000).get();
+  const points = locations.docs.map((document) => ({latitude: Number(document.get("latitude")), longitude: Number(document.get("longitude"))})).filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude));
+  const actualDistanceKm = routeLength(points);
+  const startedAt = snapshot.get("startedAt")?.toDate?.() as Date | undefined;
+  const actualMinutes = startedAt ? Math.max(0, (Date.now() - startedAt.getTime()) / 60000) : 0;
+  const stops = (snapshot.get("stops") ?? []) as Array<Record<string, unknown>>;
+  const reachedStops = stops.filter((stop) => stop.arrived === true).length;
+  await reference.update({status: "completed", actualDistanceKm, actualMinutes, reachedStops, completionRate: stops.length === 0 ? 0 : reachedStops / stops.length * 100, completedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()});
+  response.json({data: {id: reference.id, status: "completed", actualDistanceKm, actualMinutes, reachedStops}});
+});
+
+router.get("/routes/:id/location-history", authenticate, requireRoles(...operators), async (request, response) => {
   const {reference} = await accessibleRoute(parameter(request.params.id), request.user!.uid, request.user!.role);
-  await reference.update({status: "completed", completedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()});
-  response.json({data: {id: reference.id, status: "completed"}});
+  const range = z.object({from: z.coerce.date().optional(), to: z.coerce.date().optional(), limit: z.coerce.number().int().min(1).max(5000).default(1000)}).parse(request.query);
+  let query: FirebaseFirestore.Query = reference.collection("locationHistory").orderBy("recordedAt", "desc");
+  if (range.from) query = query.where("recordedAt", ">=", Timestamp.fromDate(range.from));
+  if (range.to) query = query.where("recordedAt", "<", Timestamp.fromDate(range.to));
+  const snapshot = await query.limit(range.limit).get();
+  response.json({data: snapshot.docs.map((document) => documentJson(document.id, document.data()))});
+});
+
+router.get("/routes/:id/alerts", authenticate, requireRoles(...operators), async (request, response) => {
+  const {reference} = await accessibleRoute(parameter(request.params.id), request.user!.uid, request.user!.role);
+  const snapshot = await reference.collection("alerts").orderBy("createdAt", "desc").limit(1000).get();
+  response.json({data: snapshot.docs.map((document) => documentJson(document.id, document.data()))});
+});
+
+router.get("/routes/:id/performance", authenticate, requireRoles(...operators), async (request, response) => {
+  const {snapshot} = await accessibleRoute(parameter(request.params.id), request.user!.uid, request.user!.role);
+  const data = snapshot.data()!;
+  const stops = (data.stops ?? []) as Array<Record<string, unknown>>;
+  const reachedStops = stops.filter((stop) => stop.arrived === true).length;
+  response.json({data: {
+    routeId: snapshot.id, status: data.status, plannedDistanceKm: Number(data.distanceKm ?? 0), actualDistanceKm: Number(data.actualDistanceKm ?? 0),
+    estimatedMinutes: Number(data.estimatedMinutes ?? 0), actualMinutes: Number(data.actualMinutes ?? 0), stops: stops.length, reachedStops,
+    completionRate: stops.length === 0 ? 0 : reachedStops / stops.length * 100, deviationCount: Number(data.deviationCount ?? 0), trafficFactor: Number(data.trafficFactor ?? 1),
+  }});
+});
+
+router.get("/routing/reports/performance", authenticate, requireRoles(...supervisors), async (request, response) => {
+  const range = z.object({from: z.coerce.date(), to: z.coerce.date()}).parse(request.query);
+  const snapshot = await db.collection("routePlans").where("createdAt", ">=", Timestamp.fromDate(range.from)).where("createdAt", "<", Timestamp.fromDate(range.to)).limit(2000).get();
+  const routes = snapshot.docs.map((document) => document.data());
+  const completed = routes.filter((route) => route.status === "completed");
+  const sum = (field: string, source = routes) => source.reduce((total, route) => total + Number(route[field] ?? 0), 0);
+  response.json({data: {routes: routes.length, completed: completed.length, active: routes.filter((route) => route.status === "active").length, plannedDistanceKm: sum("distanceKm"), actualDistanceKm: sum("actualDistanceKm", completed), estimatedMinutes: sum("estimatedMinutes"), actualMinutes: sum("actualMinutes", completed), deviations: sum("deviationCount"), averageCompletionRate: completed.length === 0 ? 0 : sum("completionRate", completed) / completed.length}});
+});
+
+router.get("/routing/service-coverage", authenticate, requireRoles(...operators), async (_request, response) => {
+  const [centres, pickups] = await Promise.all([db.collection("collectionCentres").where("status", "==", "active").limit(500).get(), db.collection("pickupRequests").limit(2000).get()]);
+  const points = [
+    ...centres.docs.map((document) => ({id: document.id, type: "centre", name: String(document.get("name") ?? "Collection centre"), latitude: Number(document.get("latitude")), longitude: Number(document.get("longitude"))})),
+    ...pickups.docs.map((document) => ({id: document.id, type: "pickup", name: String(document.get("location") ?? "Pickup"), latitude: Number(document.get("latitude")), longitude: Number(document.get("longitude"))})),
+  ].filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude));
+  response.json({data: points});
 });
 
 export default router;

@@ -38,6 +38,24 @@ class DispatchStaff {
   );
 }
 
+class NearbyPickupGroup {
+  const NearbyPickupGroup({
+    required this.id,
+    required this.serviceArea,
+    required this.pickupIds,
+    required this.totalWeightKg,
+  });
+  final String id, serviceArea;
+  final List<String> pickupIds;
+  final double totalWeightKg;
+  factory NearbyPickupGroup.fromJson(Map<String, dynamic> data) => NearbyPickupGroup(
+    id: data['groupId']?.toString() ?? '',
+    serviceArea: data['serviceArea']?.toString() ?? '',
+    pickupIds: List<String>.from(data['pickupIds'] as List? ?? const []),
+    totalWeightKg: (data['totalWeightKg'] as num? ?? 0).toDouble(),
+  );
+}
+
 class DispatchRepository {
   DispatchRepository({FirebaseFirestore? firestore, ApiClient? apiClient})
     : _db = firestore ?? FirebaseFirestore.instance,
@@ -108,6 +126,15 @@ class DispatchRepository {
             )
             .snapshots()
             .map((s) => s.docs.map(Vehicle.fromDoc).toList());
+
+  Future<List<NearbyPickupGroup>> nearbyGroups({double radiusKm = 10}) async {
+    if (!_useApi) return const [];
+    final data = await _api.getList(
+      '/api/v1/dispatch/nearby-groups',
+      query: {'radiusKm': radiusKm.toString()},
+    );
+    return data.map(NearbyPickupGroup.fromJson).toList();
+  }
 
   Stream<List<T>> _pollList<T>(
     String path,
@@ -281,6 +308,9 @@ class DispatchRepository {
     CollectionSchedule schedule,
     List<Uint8List> evidence,
   ) async {
+    if (evidence.isEmpty) {
+      throw StateError('At least one collection evidence image is required.');
+    }
     final urls = await CloudinaryUploadService.instance.uploadImages(
       evidence,
       scope: 'collection-evidence',
@@ -322,10 +352,12 @@ class DispatchRepository {
   Future<void> markMissedAndReschedule(
     CollectionSchedule schedule,
     DateTime nextDate,
+    {required String reason}
   ) async {
     if (_useApi) {
       await _api.patch('/api/v1/dispatch/schedules/${schedule.id}/reschedule', {
         'scheduledAt': nextDate.toUtc().toIso8601String(),
+        'reason': reason.trim(),
       });
       return;
     }
@@ -334,6 +366,7 @@ class DispatchRepository {
       'status': DispatchStatus.planned.name,
       'scheduledAt': Timestamp.fromDate(nextDate),
       'missedAt': FieldValue.serverTimestamp(),
+      'rescheduleReason': reason.trim(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
     batch.update(_db.collection('vehicles').doc(schedule.vehicleId), {
@@ -344,6 +377,33 @@ class DispatchRepository {
       batch.update(_db.collection('pickupRequests').doc(id), {
         'status': PickupStatus.assigned.name,
         'scheduledAt': Timestamp.fromDate(nextDate),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+
+  Future<void> cancel(CollectionSchedule schedule, String reason) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/dispatch/schedules/${schedule.id}/cancel', {
+        'reason': reason.trim(),
+      });
+      return;
+    }
+    final batch = _db.batch();
+    batch.update(_db.collection('collectionSchedules').doc(schedule.id), {
+      'status': DispatchStatus.cancelled.name,
+      'cancellationReason': reason.trim(),
+      'cancelledAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(_db.collection('vehicles').doc(schedule.vehicleId), {
+      'availability': VehicleAvailability.available.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    for (final pickupId in schedule.pickupIds) {
+      batch.update(_db.collection('pickupRequests').doc(pickupId), {
+        'status': PickupStatus.approved.name,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     }

@@ -28,15 +28,18 @@ const managers = [
   "administrator",
   "superAdministrator",
 ] as const;
+const isManager = (role: string) => (managers as readonly string[]).includes(role);
 
 router.get(
   "/documents",
   authenticate,
   requireRoles(...users),
-  async (_request, response) => {
+  async (request, response) => {
     const snapshot = await db.collection("documents").limit(500).get();
     response.json({
-      data: snapshot.docs.map((doc) => documentJson(doc.id, doc.data())),
+      data: snapshot.docs
+        .filter((doc) => isManager(request.user!.role) || doc.get("ownerId") === request.user!.uid)
+        .map((doc) => documentJson(doc.id, doc.data())),
     });
   },
 );
@@ -102,6 +105,15 @@ router.post(
         },
       ],
     });
+    const batch = db.batch();
+    batch.set(ref.collection("versions").doc(String(input.currentVersion)), {
+      version: input.currentVersion, fileName: input.fileName, mimeType: input.mimeType,
+      url: input.fileUrl, changeNotes: "Initial upload", uploadedBy: request.user!.uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    batch.set(ref.collection("auditTrail").doc(), {action: "created", actorId: request.user!.uid,
+      details: "Initial document upload", createdAt: FieldValue.serverTimestamp()});
+    await batch.commit();
 
     response.status(201).json({ data: { id: ref.id } });
   },
@@ -120,6 +132,10 @@ router.get(
       response.status(404).json({
         error: { code: "not_found", message: "Document not found." },
       });
+      return;
+    }
+    if (!isManager(request.user!.role) && snapshot.get("ownerId") !== request.user!.uid) {
+      response.status(403).json({error: {code: "forbidden", message: "You cannot access this document."}});
       return;
     }
     response.json({ data: documentJson(snapshot.id, snapshot.data()!) });
@@ -148,6 +164,8 @@ router.patch(
         createdAt: FieldValue.serverTimestamp(),
       }),
     });
+    await ref.collection("auditTrail").add({action: "archived", actorId: request.user!.uid,
+      details: "Document archived", createdAt: FieldValue.serverTimestamp()});
     response.json({ data: { id: ref.id } });
   },
 );
@@ -192,6 +210,8 @@ router.post(
         uploadedBy: request.user!.uid,
         createdAt: FieldValue.serverTimestamp(),
       });
+      tx.set(ref.collection("auditTrail").doc(), {action: "versionAdded", actorId: request.user!.uid,
+        details: input.changeNotes, createdAt: FieldValue.serverTimestamp()});
       tx.update(ref, {
         auditTrail: FieldValue.arrayUnion({
           action: "versionAdded",
@@ -255,6 +275,10 @@ router.patch(
   authenticate,
   requireRoles(...managers),
   async (request, response) => {
+    const input = z.object({
+      approved: z.boolean().default(true),
+      notes: z.string().trim().max(2000).default(""),
+    }).parse(request.body);
     const ref = db.collection("documents").doc(id(request.params.id));
     const snapshot = await ref.get();
     if (!snapshot.exists) {
@@ -264,15 +288,18 @@ router.patch(
       return;
     }
     await ref.update({
-      status: "approved",
+      status: input.approved ? "approved" : "rejected",
       approverId: request.user!.uid,
+      approvalNotes: input.notes,
       updatedAt: FieldValue.serverTimestamp(),
       auditTrail: FieldValue.arrayUnion({
-        action: "approved",
+        action: input.approved ? "approved" : "rejected",
         actorId: request.user!.uid,
         createdAt: FieldValue.serverTimestamp(),
       }),
     });
+    await ref.collection("auditTrail").add({action: input.approved ? "approved" : "rejected",
+      actorId: request.user!.uid, details: input.notes, createdAt: FieldValue.serverTimestamp()});
     response.json({ data: { id: ref.id } });
   },
 );

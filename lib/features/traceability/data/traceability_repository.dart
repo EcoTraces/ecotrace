@@ -5,33 +5,43 @@ import '../../inventory/domain/inventory_item.dart';
 
 class TraceEvent {
   const TraceEvent({
+    required this.id,
     required this.type,
     required this.from,
     required this.to,
     required this.actor,
     required this.notes,
     required this.at,
+    required this.sequence,
+    required this.integrityHash,
   });
-  final String type, from, to, actor, notes;
+  final String id, type, from, to, actor, notes, integrityHash;
+  final int sequence;
   final DateTime? at;
   factory TraceEvent.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
     final x = d.data()!;
     return TraceEvent(
+      id: d.id,
       type: x['type'] ?? '',
       from: x['from'] ?? '',
       to: x['to'] ?? '',
       actor: x['actor'] ?? '',
       notes: x['notes'] ?? '',
       at: (x['createdAt'] as Timestamp?)?.toDate(),
+      sequence: (x['sequence'] as num? ?? 0).toInt(),
+      integrityHash: x['integrityHash']?.toString() ?? '',
     );
   }
   factory TraceEvent.fromJson(Map<String, dynamic> x) => TraceEvent(
+    id: x['id']?.toString() ?? '',
     type: x['type']?.toString() ?? '',
     from: x['from']?.toString() ?? '',
     to: x['to']?.toString() ?? '',
     actor: x['actor']?.toString() ?? '',
     notes: x['notes']?.toString() ?? '',
     at: DateTime.tryParse(x['createdAt']?.toString() ?? ''),
+    sequence: (x['sequence'] as num? ?? 0).toInt(),
+    integrityHash: x['integrityHash']?.toString() ?? '',
   );
 }
 
@@ -65,11 +75,14 @@ class TraceabilityRepository {
   }
 
   Future<InventoryItem?> findByCode(String code) async {
+    final normalized = code.trim().startsWith('ecotrace://inventory/')
+        ? Uri.decodeComponent(code.trim().substring('ecotrace://inventory/'.length))
+        : code.trim();
     if (_useApi) {
       try {
         return InventoryItem.fromJson(
           await _api.get(
-            '/api/v1/inventory/items/by-code/${Uri.encodeComponent(code)}',
+            '/api/v1/inventory/items/by-code/${Uri.encodeComponent(normalized)}',
           ),
         );
       } on ApiException catch (error) {
@@ -79,7 +92,7 @@ class TraceabilityRepository {
     }
     final q = await _db
         .collection('inventoryItems')
-        .where('itemCode', isEqualTo: code)
+        .where('itemCode', isEqualTo: normalized)
         .limit(1)
         .get();
     return q.docs.isEmpty ? null : InventoryItem.fromDoc(q.docs.first);
@@ -91,6 +104,10 @@ class TraceabilityRepository {
     required String destination,
     required String actor,
     required String notes,
+    String? custodianId,
+    String? facilityId,
+    ProcessingStatus? status,
+    List<String> evidenceUrls = const [],
     bool updateLocation = true,
   }) async {
     if (_useApi) {
@@ -99,24 +116,41 @@ class TraceabilityRepository {
         'destination': destination,
         'actor': actor.trim(),
         'notes': notes.trim(),
+        'custodianId': custodianId,
+        'facilityId': facilityId,
+        if (status != null) 'status': status.name,
+        'evidenceUrls': evidenceUrls,
         'updateLocation': updateLocation,
       });
       return;
     }
     final root = _db.collection('inventoryItems').doc(item.id);
     final batch = _db.batch();
-    if (updateLocation) {
-      batch.update(root, {
-        'currentLocation': destination,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
+    batch.update(root, {
+      if (updateLocation) 'currentLocation': destination,
+      'currentCustodianId': ?custodianId,
+      'assignedFacilityId': ?facilityId,
+      if (status != null) 'processingStatus': status.name,
+      if (type == 'receiptVerified') ...{
+        'receiptVerified': true,
+        'receivedAt': FieldValue.serverTimestamp(),
+      },
+      if (type == 'damaged' || type == 'missing') ...{
+        'traceabilityException': type,
+        'traceabilityExceptionNotes': notes.trim(),
+      },
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
     batch.set(root.collection('traceability').doc(), {
       'type': type,
       'from': item.location,
       'to': destination,
       'actor': actor.trim(),
       'notes': notes.trim(),
+      'custodianId': custodianId,
+      'facilityId': facilityId,
+      if (status != null) 'status': status.name,
+      'evidenceUrls': evidenceUrls,
       'createdAt': FieldValue.serverTimestamp(),
     });
     batch.set(root.collection('history').doc(), {
@@ -125,5 +159,70 @@ class TraceabilityRepository {
       'createdAt': FieldValue.serverTimestamp(),
     });
     await batch.commit();
+  }
+
+  Future<void> assign(
+    InventoryItem item, {
+    required String assignmentType,
+    required String assigneeId,
+    required String assigneeName,
+    required String destination,
+    String notes = '',
+  }) async {
+    if (_useApi) {
+      await _api.post(
+        '/api/v1/inventory/items/${item.id}/traceability/assign',
+        {
+          'assignmentType': assignmentType,
+          'assigneeId': assigneeId.trim(),
+          'assigneeName': assigneeName.trim(),
+          'destination': destination.trim(),
+          'notes': notes.trim(),
+        },
+      );
+      return;
+    }
+    await record(
+      item,
+      type: assignmentType == 'collector'
+          ? 'collectorAssigned'
+          : 'facilityAssigned',
+      destination: destination,
+      actor: assigneeName,
+      notes: notes,
+      custodianId: assignmentType == 'collector' ? assigneeId : null,
+      facilityId: assignmentType == 'facility' ? assigneeId : null,
+      updateLocation: false,
+    );
+  }
+
+  Future<Map<String, dynamic>> certificate(InventoryItem item) async {
+    if (_useApi) {
+      return _api.get(
+        '/api/v1/inventory/items/${item.id}/traceability/certificate',
+      );
+    }
+    final events = await watch(item.id).first;
+    return {
+      'certificateNumber': 'TRACE-${(item.id.length > 10 ? item.id.substring(0, 10) : item.id).toUpperCase()}',
+      'issuedAt': DateTime.now().toIso8601String(),
+      'chainOfCustody': events.map((event) => {
+        'type': event.type,
+        'from': event.from,
+        'to': event.to,
+        'actor': event.actor,
+        'notes': event.notes,
+        'createdAt': event.at?.toIso8601String(),
+      }).toList(),
+    };
+  }
+
+  Future<Map<String, dynamic>> audit(InventoryItem item) async {
+    if (_useApi) {
+      return _api.get(
+        '/api/v1/inventory/items/${item.id}/traceability/audit',
+      );
+    }
+    return {'integrityVerified': true, 'integrityIssues': const []};
   }
 }

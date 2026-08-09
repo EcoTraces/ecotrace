@@ -1568,6 +1568,18 @@ class _ProfileScreenState extends State<_ProfileScreen> {
           icon: const Icon(Icons.edit_outlined),
           label: const Text('Edit display name'),
         ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => _AccountSecurityScreen(
+                repository: widget.repository,
+              ),
+            ),
+          ),
+          icon: const Icon(Icons.security_outlined),
+          label: const Text('Security, sessions and account deletion'),
+        ),
         if (widget.profile.profilePictureUrl != null) ...[
           const SizedBox(height: 8),
           OutlinedButton.icon(
@@ -1726,6 +1738,115 @@ class _ProfileScreenState extends State<_ProfileScreen> {
     );
     if (save == true) {
       await widget.repository.updateDisplayName(controller.text);
+    }
+    controller.dispose();
+  }
+}
+
+class _AccountSecurityScreen extends StatefulWidget {
+  const _AccountSecurityScreen({required this.repository});
+  final AuthRepository repository;
+  @override
+  State<_AccountSecurityScreen> createState() => _AccountSecurityScreenState();
+}
+
+class _AccountSecurityScreenState extends State<_AccountSecurityScreen> {
+  late Future<List<Object>> _data;
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() => _data = Future.wait<Object>([
+    widget.repository.securityOverview(),
+    widget.repository.sessions(),
+    widget.repository.loginHistory(),
+  ]);
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Account security')),
+    body: FutureBuilder<List<Object>>(
+      future: _data,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(child: Text('Unable to load security details: ${snapshot.error}'));
+        }
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final overview = snapshot.data![0] as Map<String, dynamic>;
+        final sessions = snapshot.data![1] as List<Map<String, dynamic>>;
+        final history = snapshot.data![2] as List<Map<String, dynamic>>;
+        final mfa = Map<String, dynamic>.from(overview['mfa'] as Map? ?? const {});
+        final permissions = Map<String, dynamic>.from(overview['permissions'] as Map? ?? const {});
+        final deletion = overview['deletion'];
+        return RefreshIndicator(
+          onRefresh: () async => setState(_reload),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Card(child: ListTile(
+                leading: const Icon(Icons.verified_user_outlined),
+                title: Text('Multi-factor authentication: ${mfa['enabled'] == true ? 'Enabled' : 'Not enrolled'}'),
+                subtitle: const Text('Enrollment is completed through Firebase authentication; enrolled factors can be revoked here.'),
+                trailing: mfa['enabled'] == true ? TextButton(onPressed: () => _run(widget.repository.removeMfa), child: const Text('Remove')) : null,
+              )),
+              Card(child: ListTile(
+                leading: const Icon(Icons.admin_panel_settings_outlined),
+                title: Text('Role: ${permissions['role'] ?? 'unknown'}'),
+                subtitle: Text('${(permissions['permissions'] as List? ?? const []).length} configured permissions'),
+              )),
+              const Padding(padding: EdgeInsets.only(top: 16, bottom: 8), child: Text('Active devices and sessions', style: TextStyle(fontWeight: FontWeight.bold))),
+              if (sessions.isEmpty) const ListTile(title: Text('No API sessions recorded')),
+              ...sessions.map((session) => Card(child: ListTile(
+                leading: const Icon(Icons.devices_outlined),
+                title: Text(session['deviceName']?.toString() ?? session['id']?.toString() ?? 'Device'),
+                subtitle: Text('${session['platform'] ?? 'unknown'} • ${session['active'] == false ? 'revoked' : 'active'}'),
+                trailing: session['active'] == false ? null : IconButton(
+                  tooltip: 'Revoke session', icon: const Icon(Icons.logout),
+                  onPressed: () => _run(() => widget.repository.revokeSession(session['id'].toString())),
+                ),
+              ))),
+              OutlinedButton.icon(onPressed: () => _run(widget.repository.revokeAllSessions), icon: const Icon(Icons.phonelink_erase), label: const Text('Revoke all sessions')),
+              const Padding(padding: EdgeInsets.only(top: 16, bottom: 8), child: Text('Recent login history', style: TextStyle(fontWeight: FontWeight.bold))),
+              if (history.isEmpty) const ListTile(title: Text('No login history recorded')),
+              ...history.take(10).map((entry) => ListTile(
+                leading: const Icon(Icons.history),
+                title: Text(entry['deviceInformation']?.toString().isNotEmpty == true ? entry['deviceInformation'].toString() : 'Authentication session'),
+                subtitle: Text(entry['occurredAt']?.toString() ?? ''),
+              )),
+              const Divider(height: 32),
+              if (deletion is Map && deletion['status'] == 'pending')
+                FilledButton.tonal(onPressed: () => _run(widget.repository.cancelAccountDeletion), child: const Text('Cancel account deletion request'))
+              else
+                OutlinedButton.icon(onPressed: _requestDeletion, icon: const Icon(Icons.delete_forever_outlined), label: const Text('Request account deletion')),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+
+  Future<void> _run(Future<void> Function() action) async {
+    try {
+      await action();
+      if (!mounted) return;
+      setState(_reload);
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Future<void> _requestDeletion() async {
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
+      title: const Text('Request account deletion'),
+      content: TextField(controller: controller, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Reason')),
+      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Submit request'))],
+    ));
+    if (confirmed == true && controller.text.trim().length >= 2) {
+      await _run(() => widget.repository.requestAccountDeletion(controller.text));
     }
     controller.dispose();
   }

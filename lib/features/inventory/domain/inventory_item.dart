@@ -41,6 +41,8 @@ class InventoryItem {
     required this.status,
     required this.batchId,
     required this.imageUrls,
+    required this.barcodeValue,
+    required this.qrPayload,
   });
   final String id,
       itemCode,
@@ -50,6 +52,7 @@ class InventoryItem {
       serialNumber,
       source,
       location;
+  final String barcodeValue, qrPayload;
   final ItemCondition condition;
   final double weight;
   final ProcessingStatus status;
@@ -71,6 +74,10 @@ class InventoryItem {
       status: ProcessingStatus.values.byName(d['processingStatus']),
       batchId: d['batchId'],
       imageUrls: List<String>.from(d['imageUrls'] ?? const []),
+      barcodeValue: d['barcodeValue']?.toString() ?? d['itemCode']?.toString() ?? doc.id,
+      qrPayload:
+          d['qrPayload']?.toString() ??
+          'ecotrace://inventory/${d['itemCode'] ?? doc.id}',
     );
   }
   factory InventoryItem.fromJson(Map<String, dynamic> d) => InventoryItem(
@@ -91,6 +98,10 @@ class InventoryItem {
     ),
     batchId: d['batchId']?.toString(),
     imageUrls: List<String>.from(d['imageUrls'] ?? const []),
+    barcodeValue: d['barcodeValue']?.toString() ?? d['itemCode']?.toString() ?? '',
+    qrPayload:
+        d['qrPayload']?.toString() ??
+        'ecotrace://inventory/${d['itemCode'] ?? d['id'] ?? ''}',
   );
 }
 

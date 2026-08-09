@@ -43,4 +43,20 @@ class UserProfile {
       profilePictureUrl: data['profilePictureUrl'] as String?,
     );
   }
+
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
+    final nested = json['profile'];
+    final data = nested is Map
+        ? <String, dynamic>{...Map<String, dynamic>.from(nested), ...json}
+        : json;
+    return UserProfile(
+      uid: data['uid']?.toString() ?? data['id']?.toString() ?? '',
+      email: data['email']?.toString() ?? '',
+      displayName: data['displayName']?.toString() ?? '',
+      role: AppRole.fromValue(data['role']?.toString()),
+      accountStatus: AccountStatus.fromValue(data['accountStatus']?.toString()),
+      profilePictureUrl:
+          data['profilePictureUrl']?.toString() ?? data['photoUrl']?.toString(),
+    );
+  }
 }

@@ -167,6 +167,31 @@ class ApiClient {
     return Map<String, dynamic>.from(body['data'] as Map? ?? const {});
   }
 
+  Future<Map<String, dynamic>> put(
+    String path,
+    Map<String, dynamic> payload,
+  ) async {
+    var response = await _networkRetry(
+      () async => _http.put(
+        _uri(path),
+        headers: await _headers(authenticated: true),
+        body: jsonEncode(payload),
+      ),
+    );
+    if (response.statusCode == 401) {
+      response = await _networkRetry(
+        () async => _http.put(
+          _uri(path),
+          headers: await _headers(authenticated: true, forceRefresh: true),
+          body: jsonEncode(payload),
+        ),
+      );
+    }
+    await _invalidateExpiredSession(response);
+    final body = _decode(response);
+    return Map<String, dynamic>.from(body['data'] as Map? ?? const {});
+  }
+
   Future<void> delete(String path, {Map<String, dynamic>? payload}) async {
     var response = await _deleteRequest(path, payload: payload);
     if (response.statusCode == 401) {

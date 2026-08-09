@@ -45,6 +45,25 @@ class RouteDashboardScreen extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.all(12),
           children: [
+            if (canOptimize)
+              FutureBuilder<RoutePerformance>(
+                future: repository.performance(
+                  from: DateTime.now().subtract(const Duration(days: 30)),
+                  to: DateTime.now().add(const Duration(days: 1)),
+                ),
+                builder: (context, report) {
+                  final value = report.data;
+                  if (value == null) return const SizedBox.shrink();
+                  return Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.query_stats),
+                      title: const Text('30-day route performance'),
+                      subtitle: Text('${value.completed}/${value.routes} completed • ${value.actualDistanceKm.toStringAsFixed(1)} actual km • ${value.deviations} deviations'),
+                      trailing: Text('${value.averageCompletionRate.toStringAsFixed(0)}%'),
+                    ),
+                  );
+                },
+              ),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -391,6 +410,14 @@ class _DriverRouteState extends State<DriverRouteScreen> {
               'GPS: ${route.currentLatitude?.toStringAsFixed(5) ?? '—'}, ${route.currentLongitude?.toStringAsFixed(5) ?? '—'}',
             ),
             Text('Deviation alerts: ${route.deviationCount}'),
+            Text(
+              route.trafficFactor > 1
+                  ? 'Traffic-adjusted ETA: +${((route.trafficFactor - 1) * 100).round()}%'
+                  : 'Traffic conditions: normal',
+            ),
+            Text('Arrival geofence: ${route.arrivalRadiusMetres} metres'),
+            if (route.offlineReady)
+              const Text('Offline route and stop plan available'),
             if (tracking)
               Card(
                 child: ListTile(
@@ -439,6 +466,14 @@ class _DriverRouteState extends State<DriverRouteScreen> {
                 child: const Text('Complete route'),
               ),
             const Divider(),
+            FutureBuilder<List<RouteLocation>>(
+              future: widget.repository.locationHistory(route.id),
+              builder: (context, history) => ListTile(
+                leading: const Icon(Icons.location_history),
+                title: const Text('Location history'),
+                subtitle: Text('${history.data?.length ?? 0} GPS point(s) recorded'),
+              ),
+            ),
             Text(
               'Offline stop plan',
               style: Theme.of(context).textTheme.titleMedium,

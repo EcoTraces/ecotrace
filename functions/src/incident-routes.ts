@@ -122,6 +122,8 @@ router.post(
           ])
           .default("risk"),
         location: z.string().trim().min(2).max(400).default(""),
+        latitude: z.number().min(-90).max(90).nullable().default(null),
+        longitude: z.number().min(-180).max(180).nullable().default(null),
         reportedBy: z.string().trim().min(1).max(200).default(""),
         staffInvolved: z.array(z.string().trim().min(1)).default([]),
         injuryDetails: z.string().trim().max(2000).default(""),
@@ -149,6 +151,30 @@ router.post(
     });
 
     response.status(201).json({ data: { id: ref.id } });
+  },
+);
+
+router.get(
+  "/safety/emergency-contacts",
+  authenticate,
+  requireRoles(...users),
+  async (_request, response) => {
+    const snapshot = await db.collection("emergencyContacts").limit(500).get();
+    response.json({data: snapshot.docs.map((doc) => documentJson(doc.id, doc.data()))});
+  },
+);
+
+router.post(
+  "/safety/emergency-contacts",
+  authenticate,
+  requireRoles(...managers),
+  async (request, response) => {
+    const input = z.object({name: z.string().trim().min(2).max(200), role: z.string().trim().min(2).max(200),
+      phone: z.string().trim().min(3).max(40), email: z.string().trim().email().or(z.literal("")),
+      region: z.string().trim().min(2).max(200), active: z.boolean().default(true)}).parse(request.body);
+    const ref = await db.collection("emergencyContacts").add({...input, createdBy: request.user!.uid,
+      createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()});
+    response.status(201).json({data: {id: ref.id}});
   },
 );
 
@@ -332,6 +358,41 @@ router.get(
         .length,
     };
     response.json({ data: summary });
+  },
+);
+
+router.get(
+  "/incidents/emergency-contacts",
+  authenticate,
+  requireRoles(...users),
+  async (_request, response) => {
+    const snapshot = await db.collection("emergencyContacts").limit(500).get();
+    response.json({
+      data: snapshot.docs.map((doc) => documentJson(doc.id, doc.data())),
+    });
+  },
+);
+
+router.post(
+  "/incidents/emergency-contacts",
+  authenticate,
+  requireRoles(...managers),
+  async (request, response) => {
+    const input = z.object({
+      name: z.string().trim().min(2).max(200),
+      role: z.string().trim().min(2).max(200),
+      phone: z.string().trim().min(3).max(40),
+      email: z.string().trim().email().or(z.literal("")),
+      region: z.string().trim().min(2).max(200),
+      active: z.boolean().default(true),
+    }).parse(request.body);
+    const ref = await db.collection("emergencyContacts").add({
+      ...input,
+      createdBy: request.user!.uid,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    response.status(201).json({ data: { id: ref.id } });
   },
 );
 

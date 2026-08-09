@@ -89,6 +89,11 @@ class FleetEvent {
       at: (x['createdAt'] as Timestamp?)?.toDate(),
     );
   }
+  factory FleetEvent.fromJson(Map<String, dynamic> data) => FleetEvent(
+    type: data['type']?.toString() ?? '',
+    details: data['details']?.toString() ?? '',
+    at: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+  );
 }
 
 class FleetTrip {
@@ -108,4 +113,54 @@ class FleetTrip {
       completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
     );
   }
+  factory FleetTrip.fromJson(Map<String, dynamic> data) => FleetTrip(
+    scheduleId: data['scheduleId']?.toString() ?? '',
+    pickupCount: (data['pickupCount'] as num? ?? 0).toInt(),
+    completedAt: DateTime.tryParse(data['completedAt']?.toString() ?? ''),
+  );
+}
+
+class FleetAlert {
+  const FleetAlert({
+    required this.vehicleId,
+    required this.registrationNumber,
+    required this.type,
+    required this.title,
+    required this.dueAt,
+    required this.critical,
+  });
+  final String vehicleId, registrationNumber, type, title;
+  final DateTime? dueAt;
+  final bool critical;
+  factory FleetAlert.fromJson(Map<String, dynamic> data) => FleetAlert(
+    vehicleId: data['vehicleId']?.toString() ?? '',
+    registrationNumber: data['registrationNumber']?.toString() ?? '',
+    type: data['type']?.toString() ?? '',
+    title: data['title']?.toString() ?? '',
+    dueAt: DateTime.tryParse(data['dueAt']?.toString() ?? ''),
+    critical: data['critical'] == true,
+  );
+}
+
+class VehicleUtilization {
+  const VehicleUtilization({
+    required this.vehicleId,
+    required this.registrationNumber,
+    required this.trips,
+    required this.pickupCount,
+    required this.distanceKm,
+    required this.utilizationScore,
+  });
+  final String vehicleId, registrationNumber;
+  final int trips, pickupCount;
+  final double distanceKm, utilizationScore;
+  factory VehicleUtilization.fromJson(Map<String, dynamic> data) =>
+      VehicleUtilization(
+        vehicleId: data['vehicleId']?.toString() ?? '',
+        registrationNumber: data['registrationNumber']?.toString() ?? '',
+        trips: (data['trips'] as num? ?? 0).toInt(),
+        pickupCount: (data['pickupCount'] as num? ?? 0).toInt(),
+        distanceKm: (data['distanceKm'] as num? ?? 0).toDouble(),
+        utilizationScore: (data['utilizationScore'] as num? ?? 0).toDouble(),
+      );
 }

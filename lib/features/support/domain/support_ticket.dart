@@ -134,6 +134,28 @@ class SupportTicket {
       resolvedAt: (data['resolvedAt'] as Timestamp?)?.toDate(),
     );
   }
+  factory SupportTicket.fromJson(Map<String, dynamic> data) => SupportTicket(
+    id: data['id']?.toString() ?? '',
+    ticketNumber: data['ticketNumber']?.toString() ?? '',
+    userId: data['userId']?.toString() ?? '',
+    userName: data['userName']?.toString() ?? '',
+    category: ComplaintCategory.values.where((value) => value.name == data['category']).firstOrNull ?? ComplaintCategory.other,
+    subject: data['subject']?.toString() ?? '',
+    description: data['description']?.toString() ?? '',
+    priority: TicketPriority.values.where((value) => value.name == data['priority']).firstOrNull ?? TicketPriority.normal,
+    status: TicketStatus.values.where((value) => value.name == data['status']).firstOrNull ?? TicketStatus.submitted,
+    agentId: data['agentId']?.toString() ?? data['assignedAgentId']?.toString() ?? '',
+    agentName: data['agentName']?.toString() ?? '',
+    evidenceUrls: List<String>.from(data['evidenceUrls'] as List? ?? const []),
+    escalationLevel: (data['escalationLevel'] as num? ?? 0).toInt(),
+    escalationReason: data['escalationReason']?.toString() ?? '',
+    resolution: data['resolution']?.toString() ?? '',
+    satisfactionRating: (data['satisfactionRating'] as num? ?? 0).toInt(),
+    satisfactionComment: data['satisfactionComment']?.toString() ?? data['satisfactionComments']?.toString() ?? '',
+    createdAt: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+    updatedAt: DateTime.tryParse(data['updatedAt']?.toString() ?? ''),
+    resolvedAt: DateTime.tryParse(data['resolvedAt']?.toString() ?? ''),
+  );
 }
 
 class TicketMessage {
@@ -164,6 +186,15 @@ class TicketMessage {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
+  factory TicketMessage.fromJson(Map<String, dynamic> data) => TicketMessage(
+    id: data['id']?.toString() ?? '',
+    senderId: data['senderId']?.toString() ?? data['authorId']?.toString() ?? '',
+    senderName: data['senderName']?.toString() ?? (data['internal'] == true ? 'Internal note' : ''),
+    body: data['body']?.toString() ?? data['note']?.toString() ?? '',
+    internal: data['internal'] == true || data.containsKey('note'),
+    attachmentUrls: List<String>.from(data['attachmentUrls'] as List? ?? const []),
+    createdAt: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+  );
 }
 
 enum KnowledgeArticleType { faq, guide, policy }
@@ -202,6 +233,17 @@ class KnowledgeArticle {
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
   }
+  factory KnowledgeArticle.fromJson(Map<String, dynamic> data) => KnowledgeArticle(
+    id: data['id']?.toString() ?? '',
+    type: KnowledgeArticleType.values.where((value) => value.name == data['type']).firstOrNull ?? KnowledgeArticleType.faq,
+    category: data['category']?.toString() ?? 'General',
+    title: data['title']?.toString() ?? '',
+    content: data['content']?.toString() ?? '',
+    tags: List<String>.from(data['tags'] as List? ?? data['keywords'] as List? ?? const []),
+    published: data['published'] == true,
+    viewCount: (data['viewCount'] as num? ?? 0).toInt(),
+    updatedAt: DateTime.tryParse(data['updatedAt']?.toString() ?? ''),
+  );
 }
 
 class SupportAnalytics {

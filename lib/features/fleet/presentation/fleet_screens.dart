@@ -15,12 +15,50 @@ class FleetScreen extends StatelessWidget {
         if (s.data!.isEmpty) {
           return const Center(child: Text('No vehicles registered.'));
         }
-        return ListView.builder(
+        final vehicles = s.data!;
+        return ListView(
           padding: const EdgeInsets.all(12),
-          itemCount: s.data!.length,
-          itemBuilder: (c, i) {
-            final v = s.data![i];
-            return Card(
+          children: [
+            FutureBuilder<List<FleetAlert>>(
+              future: repository.getAlerts(),
+              builder: (context, snapshot) {
+                final alerts = snapshot.data ?? const <FleetAlert>[];
+                if (alerts.isEmpty) return const SizedBox.shrink();
+                return Card(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  child: ExpansionTile(
+                    leading: const Icon(Icons.warning_amber),
+                    title: Text('${alerts.length} fleet alert(s)'),
+                    children: alerts.map((alert) => ListTile(
+                      title: Text('${alert.registrationNumber}: ${alert.title}'),
+                      subtitle: alert.dueAt == null ? null : Text('${alert.dueAt}'),
+                    )).toList(),
+                  ),
+                );
+              },
+            ),
+            FutureBuilder<List<VehicleUtilization>>(
+              future: repository.getUtilization(
+                from: DateTime.now().subtract(const Duration(days: 30)),
+                to: DateTime.now().add(const Duration(days: 1)),
+              ),
+              builder: (context, snapshot) {
+                final rows = snapshot.data ?? const <VehicleUtilization>[];
+                if (rows.isEmpty) return const SizedBox.shrink();
+                return Card(
+                  child: ExpansionTile(
+                    leading: const Icon(Icons.analytics_outlined),
+                    title: const Text('30-day vehicle utilization'),
+                    children: rows.map((row) => ListTile(
+                      title: Text(row.registrationNumber),
+                      subtitle: Text('${row.trips} trips • ${row.pickupCount} pickups • ${row.distanceKm.toStringAsFixed(1)} km'),
+                      trailing: Text('${row.utilizationScore.toStringAsFixed(0)}%'),
+                    )).toList(),
+                  ),
+                );
+              },
+            ),
+            ...vehicles.map((v) => Card(
               child: ListTile(
                 leading: Icon(
                   v.expiresWithin(const Duration(days: 30))
@@ -40,8 +78,8 @@ class FleetScreen extends StatelessWidget {
                   ),
                 ),
               ),
-            );
-          },
+            )),
+          ],
         );
       },
     ),
@@ -236,6 +274,10 @@ class VehicleDetailScreen extends StatelessWidget {
           spacing: 8,
           children: [
             FilledButton.tonal(
+              onPressed: () => _assignDriver(c),
+              child: const Text('Assign driver'),
+            ),
+            FilledButton.tonal(
               onPressed: () => _event(c, 'inspection'),
               child: const Text('Inspection'),
             ),
@@ -312,6 +354,49 @@ class VehicleDetailScreen extends StatelessWidget {
       ],
     ),
   );
+  Future<void> _assignDriver(BuildContext context) async {
+    final controller = TextEditingController(text: vehicle.driverId);
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Assign driver'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Driver user ID',
+            helperText: 'Leave blank to unassign the current driver.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (accepted == true) {
+      try {
+        await repository.assignDriver(vehicle.id, controller.text);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Driver assignment updated.')),
+          );
+        }
+      } catch (error) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Unable to assign driver: $error')),
+          );
+        }
+      }
+    }
+    controller.dispose();
+  }
   Future<void> _event(BuildContext c, String type) async {
     final details = TextEditingController(),
         value1 = TextEditingController(),

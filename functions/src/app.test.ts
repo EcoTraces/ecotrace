@@ -33,18 +33,68 @@ describe("EcoTrace API", () => {
     expect(response.status).toBe(200);
     expect(response.body.openapi).toBe("3.1.0");
     expect(response.body.paths["/pickup-requests"]).toBeDefined();
+    expect(response.body.paths["/pickup-requests/estimate-fee"]).toBeDefined();
+    expect(response.body.paths["/pickup-requests/{id}"]).toBeDefined();
+    expect(response.body.paths["/pickup-requests/{id}/confirm"]).toBeDefined();
+    expect(response.body.paths["/pickup-requests/{id}/history"]).toBeDefined();
+    expect(response.body.paths["/pickup-requests/{id}/approve"]).toBeDefined();
+    expect(response.body.paths["/pickup-requests/{id}/status"]).toBeDefined();
     expect(response.body.paths["/dispatch/schedules"]).toBeDefined();
+    expect(response.body.paths["/dispatch/dashboard"]).toBeDefined();
+    expect(response.body.paths["/dispatch/availability"]).toBeDefined();
+    expect(response.body.paths["/dispatch/nearby-groups"]).toBeDefined();
+    expect(response.body.paths["/dispatch/schedules/{id}"]).toBeDefined();
+    expect(response.body.paths["/dispatch/schedules/{id}/cancel"]).toBeDefined();
     expect(response.body.paths["/routes/optimize"]).toBeDefined();
+    expect(response.body.paths["/routes/{id}/location-history"]).toBeDefined();
+    expect(response.body.paths["/routes/{id}/performance"]).toBeDefined();
+    expect(response.body.paths["/routing/reports/performance"]).toBeDefined();
+    expect(response.body.paths["/routing/service-coverage"]).toBeDefined();
+    expect(response.body.paths["/reports/definitions/{id}"]).toBeDefined();
+    expect(response.body.paths["/communication/notifications/read-all"]).toBeDefined();
+    expect(response.body.paths["/communication/outbox/{id}/retry"]).toBeDefined();
+    expect(response.body.paths["/support/tickets/{id}/reopen"]).toBeDefined();
+    expect(response.body.paths["/support/agents"]).toBeDefined();
+    expect(response.body.paths["/vehicles/{id}/inspections"]).toBeDefined();
+    expect(response.body.paths["/vehicles/{id}/fuel-records"]).toBeDefined();
+    expect(response.body.paths["/vehicles/{id}/maintenance"]).toBeDefined();
+    expect(response.body.paths["/vehicles/{id}/breakdowns"]).toBeDefined();
+    expect(response.body.paths["/fleet/alerts"]).toBeDefined();
+    expect(response.body.paths["/fleet/utilization"]).toBeDefined();
     expect(
       response.body.paths["/collection-centres/{id}/check-ins"],
     ).toBeDefined();
     expect(response.body.paths["/admin/demo-data"]).toBeDefined();
     expect(response.body.paths["/inventory/items"]).toBeDefined();
+    expect(response.body.paths["/inventory/summary"]).toBeDefined();
+    expect(response.body.paths["/inventory/export"]).toBeDefined();
+    expect(response.body.paths["/inventory/items/{id}"]).toBeDefined();
+    expect(response.body.paths["/inventory/items/{id}/images"]).toBeDefined();
+    expect(response.body.paths["/inventory/items/{id}/code"]).toBeDefined();
+    expect(response.body.paths["/inventory/batches/{id}"]).toBeDefined();
+    expect(response.body.paths["/inventory/batches/{id}/items"]).toBeDefined();
     expect(
       response.body.paths["/inventory/items/{id}/assessments"],
     ).toBeDefined();
     expect(
+      response.body.paths["/inventory/items/{id}/classification-assist"],
+    ).toBeDefined();
+    expect(
+      response.body.paths["/inventory/items/{id}/assessments/{assessmentId}"],
+    ).toBeDefined();
+    expect(response.body.paths["/classification/review-queue"]).toBeDefined();
+    expect(response.body.paths["/classification/summary"]).toBeDefined();
+    expect(
       response.body.paths["/inventory/items/{id}/traceability"],
+    ).toBeDefined();
+    expect(
+      response.body.paths["/inventory/items/{id}/traceability/assign"],
+    ).toBeDefined();
+    expect(
+      response.body.paths["/inventory/items/{id}/traceability/audit"],
+    ).toBeDefined();
+    expect(
+      response.body.paths["/inventory/items/{id}/traceability/certificate"],
     ).toBeDefined();
     expect(response.body.paths["/media/upload-signature"]).toBeDefined();
     expect(response.body.paths["/repairs/{id}/quality-control"]).toBeDefined();
@@ -131,6 +181,22 @@ describe("EcoTrace API", () => {
     expect(response.body.error.code).toBe("unauthenticated");
   });
 
+  it("protects pickup fee estimates with Firebase authentication", async () => {
+    const response = await request(app)
+      .post("/api/v1/pickup-requests/estimate-fee")
+      .send({quantity: 1, estimatedWeight: 5, urgent: false});
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects pickup tracking history with Firebase authentication", async () => {
+    const response = await request(app).get(
+      "/api/v1/pickup-requests/pickup-1/history",
+    );
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
   it("protects compliance workflows with Firebase authentication", async () => {
     const response = await request(app).get(
       "/api/v1/compliance/regulatory-bodies",
@@ -143,6 +209,12 @@ describe("EcoTrace API", () => {
     const response = await request(app)
       .get("/api/v1/dispatch/schedules")
       .query({ from: "2026-07-28T00:00:00Z", to: "2026-07-29T00:00:00Z" });
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects dispatch availability with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/dispatch/availability");
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("unauthenticated");
   });
@@ -163,6 +235,42 @@ describe("EcoTrace API", () => {
 
   it("protects inventory and traceability data with Firebase authentication", async () => {
     const response = await request(app).get("/api/v1/inventory/items");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects traceability certificates with Firebase authentication", async () => {
+    const response = await request(app).get(
+      "/api/v1/inventory/items/item-1/traceability/certificate",
+    );
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects inventory exports with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/inventory/export");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects inventory QR metadata with Firebase authentication", async () => {
+    const response = await request(app).get(
+      "/api/v1/inventory/items/item-1/code",
+    );
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects assisted classification with Firebase authentication", async () => {
+    const response = await request(app)
+      .post("/api/v1/inventory/items/item-1/classification-assist")
+      .send({});
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects the classification review queue with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/classification/review-queue");
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("unauthenticated");
   });
@@ -261,6 +369,24 @@ describe("EcoTrace API", () => {
 
   it("protects document workflows with Firebase authentication", async () => {
     const response = await request(app).get("/api/v1/documents");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects compliance workflows with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/compliance/documents");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects emergency contacts with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/safety/emergency-contacts");
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects fleet management workflows with Firebase authentication", async () => {
+    const response = await request(app).get("/api/v1/fleet/alerts");
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("unauthenticated");
   });

@@ -126,6 +126,38 @@ export const openApiDocument = {
         responses: { "201": { description: "Vehicle created" } },
       },
     },
+    "/vehicles/{id}": {
+      get: {security: [{firebaseAuth: []}], summary: "Get a vehicle and operational totals", responses: {"200": {description: "Vehicle"}}},
+      patch: {security: [{firebaseAuth: []}], summary: "Update vehicle registration, type, capacity, availability, driver, insurance, or licence", responses: {"200": {description: "Vehicle updated"}}},
+    },
+    "/vehicles/{id}/driver": {patch: {security: [{firebaseAuth: []}], summary: "Assign or unassign an active driver", responses: {"200": {description: "Driver assignment updated"}}}},
+    "/vehicles/{id}/events": {get: {security: [{firebaseAuth: []}], summary: "List vehicle activity history", responses: {"200": {description: "Vehicle events"}}}},
+    "/vehicles/{id}/inspections": {
+      get: {security: [{firebaseAuth: []}], summary: "List vehicle inspections", responses: {"200": {description: "Inspection records"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Record a checklist-based vehicle inspection", responses: {"201": {description: "Inspection recorded"}}},
+    },
+    "/vehicles/{id}/fuel-records": {
+      get: {security: [{firebaseAuth: []}], summary: "List fuel records", responses: {"200": {description: "Fuel records"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Record fuel quantity, cost, station, receipt, and odometer", responses: {"201": {description: "Fuel recorded"}}},
+    },
+    "/vehicles/{id}/mileage-records": {
+      get: {security: [{firebaseAuth: []}], summary: "List mileage records", responses: {"200": {description: "Mileage records"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Record a validated odometer reading", responses: {"201": {description: "Mileage recorded"}}},
+    },
+    "/vehicles/{id}/maintenance": {
+      get: {security: [{firebaseAuth: []}], summary: "List maintenance schedules", responses: {"200": {description: "Maintenance records"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Schedule preventive or corrective maintenance", responses: {"201": {description: "Maintenance scheduled"}}},
+    },
+    "/vehicles/{id}/maintenance/{recordId}/complete": {patch: {security: [{firebaseAuth: []}], summary: "Complete maintenance with cost, work, evidence, and next service date", responses: {"200": {description: "Maintenance completed"}}}},
+    "/vehicles/{id}/breakdowns": {
+      get: {security: [{firebaseAuth: []}], summary: "List breakdown reports", responses: {"200": {description: "Breakdowns"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Report a vehicle breakdown", responses: {"201": {description: "Breakdown reported"}}},
+    },
+    "/vehicles/{id}/breakdowns/{recordId}/resolve": {patch: {security: [{firebaseAuth: []}], summary: "Resolve a breakdown and record repair cost", responses: {"200": {description: "Breakdown resolved"}}}},
+    "/vehicles/{id}/location": {post: {security: [{firebaseAuth: []}], summary: "Update the latest vehicle GPS location", responses: {"200": {description: "Location updated"}}}},
+    "/vehicles/{id}/trips": {get: {security: [{firebaseAuth: []}], summary: "List vehicle trip history", responses: {"200": {description: "Trips"}}}},
+    "/fleet/alerts": {get: {security: [{firebaseAuth: []}], summary: "List insurance, licence, maintenance, and breakdown alerts", responses: {"200": {description: "Fleet alerts"}}}},
+    "/fleet/utilization": {get: {security: [{firebaseAuth: []}], summary: "Report trips, pickups, distance, and utilization by vehicle", responses: {"200": {description: "Fleet utilization"}}}},
     "/pickup-requests": {
       get: {
         security: [{ firebaseAuth: [] }],
@@ -136,6 +168,39 @@ export const openApiDocument = {
         security: [{ firebaseAuth: [] }],
         summary: "Submit a pickup request",
         responses: { "201": { description: "Pickup created" } },
+      },
+    },
+    "/pickup-requests/estimate-fee": {
+      post: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Preview the pickup fee in Sierra Leone leones",
+        responses: { "200": { description: "Fee breakdown" } },
+      },
+    },
+    "/pickup-requests/{id}": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Get an accessible pickup request and its current status",
+        responses: { "200": { description: "Pickup request" } },
+      },
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Update an owned draft pickup request",
+        responses: { "200": { description: "Draft updated" } },
+      },
+    },
+    "/pickup-requests/{id}/confirm": {
+      post: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Confirm and submit an owned draft pickup request",
+        responses: { "200": { description: "Pickup submitted" } },
+      },
+    },
+    "/pickup-requests/{id}/history": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Get the pickup status and activity timeline",
+        responses: { "200": { description: "Pickup history" } },
       },
     },
     "/pickup-requests/{id}/cancel": {
@@ -157,6 +222,20 @@ export const openApiDocument = {
         security: [{ firebaseAuth: [] }],
         summary: "Rate a completed pickup",
         responses: { "200": { description: "Rating saved" } },
+      },
+    },
+    "/pickup-requests/{id}/approve": {
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Approve a submitted pickup request",
+        responses: { "200": { description: "Pickup approved" } },
+      },
+    },
+    "/pickup-requests/{id}/status": {
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Apply a validated administrator status transition",
+        responses: { "200": { description: "Pickup status updated" } },
       },
     },
     "/dispatch/schedules": {
@@ -185,6 +264,34 @@ export const openApiDocument = {
         responses: { "200": { description: "Dispatch staff" } },
       },
     },
+    "/dispatch/dashboard": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Return supervisor dispatch totals and completion performance",
+        responses: { "200": { description: "Dispatch dashboard summary" } },
+      },
+    },
+    "/dispatch/availability": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Return driver, collector, and vehicle availability for a time",
+        responses: { "200": { description: "Dispatch resource availability" } },
+      },
+    },
+    "/dispatch/nearby-groups": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Group assignable pickups by GPS proximity",
+        responses: { "200": { description: "Nearby pickup groups" } },
+      },
+    },
+    "/dispatch/schedules/{id}": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Return a schedule with pickups and dispatch history",
+        responses: { "200": { description: "Collection schedule detail" } },
+      },
+    },
     "/dispatch/schedules/{id}/dispatch": {
       patch: {
         security: [{ firebaseAuth: [] }],
@@ -211,6 +318,13 @@ export const openApiDocument = {
         security: [{ firebaseAuth: [] }],
         summary: "Reschedule a missed collection",
         responses: { "200": { description: "Collection rescheduled" } },
+      },
+    },
+    "/dispatch/schedules/{id}/cancel": {
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Cancel a schedule and release its pickups and vehicle",
+        responses: { "200": { description: "Schedule cancelled" } },
       },
     },
     "/routes": {
@@ -261,6 +375,21 @@ export const openApiDocument = {
         summary: "Complete an assigned route",
         responses: { "200": { description: "Route completed" } },
       },
+    },
+    "/routes/{id}/location-history": {
+      get: {security: [{firebaseAuth: []}], summary: "List timestamped GPS positions for a route", responses: {"200": {description: "Location history"}}},
+    },
+    "/routes/{id}/alerts": {
+      get: {security: [{firebaseAuth: []}], summary: "List route deviation and geofence alerts", responses: {"200": {description: "Route alerts"}}},
+    },
+    "/routes/{id}/performance": {
+      get: {security: [{firebaseAuth: []}], summary: "Get planned-versus-actual route performance", responses: {"200": {description: "Route performance"}}},
+    },
+    "/routing/reports/performance": {
+      get: {security: [{firebaseAuth: []}], summary: "Generate an aggregate route performance report", responses: {"200": {description: "Performance report"}}},
+    },
+    "/routing/service-coverage": {
+      get: {security: [{firebaseAuth: []}], summary: "List pickup and collection-centre coordinates for the service coverage map", responses: {"200": {description: "Coverage points"}}},
     },
     "/collection-centres/{id}": {
       get: {
@@ -358,11 +487,51 @@ export const openApiDocument = {
         responses: { "201": { description: "Item registered" } },
       },
     },
+    "/inventory/summary": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Return inventory totals grouped by condition and processing status",
+        responses: { "200": { description: "Inventory summary" } },
+      },
+    },
+    "/inventory/export": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Export inventory records as CSV or JSON",
+        responses: { "200": { description: "Inventory export" } },
+      },
+    },
     "/inventory/items/by-code/{code}": {
       get: {
         security: [{ firebaseAuth: [] }],
         summary: "Find an item by its EcoTrace code",
         responses: { "200": { description: "Inventory item" } },
+      },
+    },
+    "/inventory/items/{id}": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Return one tracked inventory item",
+        responses: { "200": { description: "Inventory item" } },
+      },
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Update inventory item details",
+        responses: { "200": { description: "Inventory item updated" } },
+      },
+    },
+    "/inventory/items/{id}/images": {
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Replace Cloudinary image references for an inventory item",
+        responses: { "200": { description: "Images updated" } },
+      },
+    },
+    "/inventory/items/{id}/code": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Return QR and barcode payloads for an inventory item",
+        responses: { "200": { description: "Traceability code" } },
       },
     },
     "/inventory/items/{id}/history": {
@@ -391,6 +560,25 @@ export const openApiDocument = {
         responses: { "201": { description: "Batch created" } },
       },
     },
+    "/inventory/batches/{id}": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Return an inventory batch and its items",
+        responses: { "200": { description: "Inventory batch" } },
+      },
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Update or close an inventory batch",
+        responses: { "200": { description: "Inventory batch updated" } },
+      },
+    },
+    "/inventory/batches/{id}/items": {
+      post: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Assign multiple inventory items to a batch",
+        responses: { "200": { description: "Items assigned" } },
+      },
+    },
     "/inventory/items/{id}/batch": {
       patch: {
         security: [{ firebaseAuth: [] }],
@@ -410,11 +598,44 @@ export const openApiDocument = {
         responses: { "201": { description: "Assessment submitted" } },
       },
     },
+    "/inventory/items/{id}/classification-assist": {
+      post: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Generate an AI-assisted or heuristic e-waste classification",
+        responses: { "200": { description: "Classification suggestion requiring human verification" } },
+      },
+    },
+    "/inventory/items/{id}/assessments/{assessmentId}": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Return one classification assessment",
+        responses: { "200": { description: "Classification assessment" } },
+      },
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Update a pending classification assessment",
+        responses: { "200": { description: "Assessment updated" } },
+      },
+    },
     "/inventory/items/{id}/assessments/{assessmentId}/review": {
       patch: {
         security: [{ firebaseAuth: [] }],
         summary: "Approve or reject a classification assessment",
         responses: { "200": { description: "Assessment reviewed" } },
+      },
+    },
+    "/classification/review-queue": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List assessments awaiting supervisor approval",
+        responses: { "200": { description: "Pending assessment review queue" } },
+      },
+    },
+    "/classification/summary": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Return classification performance and outcome totals",
+        responses: { "200": { description: "Classification summary" } },
       },
     },
     "/inventory/items/{id}/traceability": {
@@ -427,6 +648,27 @@ export const openApiDocument = {
         security: [{ firebaseAuth: [] }],
         summary: "Record a chain-of-custody event",
         responses: { "201": { description: "Traceability event recorded" } },
+      },
+    },
+    "/inventory/items/{id}/traceability/assign": {
+      post: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Assign an inventory item to a collector or facility",
+        responses: { "201": { description: "Custody assignment recorded" } },
+      },
+    },
+    "/inventory/items/{id}/traceability/audit": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Audit the full item history and verify custody-chain integrity",
+        responses: { "200": { description: "Traceability integrity audit" } },
+      },
+    },
+    "/inventory/items/{id}/traceability/certificate": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Generate traceability certificate data for an inventory item",
+        responses: { "200": { description: "Traceability certificate" } },
       },
     },
     "/repairs": {
@@ -1594,6 +1836,11 @@ export const openApiDocument = {
         responses: { "201": { description: "Report definition created" } },
       },
     },
+    "/reports/definitions/{id}": {
+      get: {security: [{firebaseAuth: []}], summary: "Get a report definition", responses: {"200": {description: "Report definition"}}},
+      patch: {security: [{firebaseAuth: []}], summary: "Update a report definition", responses: {"200": {description: "Definition updated"}}},
+      delete: {security: [{firebaseAuth: []}], summary: "Archive a report definition", responses: {"200": {description: "Definition archived"}}},
+    },
     "/reports/generate": {
       post: {
         security: [{ firebaseAuth: [] }],
@@ -1619,6 +1866,7 @@ export const openApiDocument = {
         summary: "Update a report schedule",
         responses: { "200": { description: "Schedule updated" } },
       },
+      delete: {security: [{firebaseAuth: []}], summary: "Archive a report schedule", responses: {"200": {description: "Schedule archived"}}},
     },
     "/reports/generated": {
       get: {
@@ -1688,6 +1936,10 @@ export const openApiDocument = {
         responses: { "200": { description: "Notification marked read" } },
       },
     },
+    "/communication/notifications/read-all": {patch: {security: [{firebaseAuth: []}], summary: "Mark all notifications as read", responses: {"200": {description: "Notifications updated"}}}},
+    "/communication/notifications/{id}": {delete: {security: [{firebaseAuth: []}], summary: "Delete a notification", responses: {"200": {description: "Notification deleted"}}}},
+    "/communication/outbox/{id}/status": {patch: {security: [{firebaseAuth: []}], summary: "Record SMS, email, or push delivery status", responses: {"200": {description: "Delivery status updated"}}}},
+    "/communication/outbox/{id}/retry": {post: {security: [{firebaseAuth: []}], summary: "Retry a failed outbound notification", responses: {"202": {description: "Notification requeued"}}}},
     "/communication/conversations": {
       get: {
         security: [{ firebaseAuth: [] }],
@@ -1765,6 +2017,7 @@ export const openApiDocument = {
       },
     },
     "/support/tickets/{id}/internal-notes": {
+      get: {security: [{firebaseAuth: []}], summary: "List internal support notes", responses: {"200": {description: "Internal notes"}}},
       post: {
         security: [{ firebaseAuth: [] }],
         summary: "Add an internal support note",
@@ -1792,6 +2045,7 @@ export const openApiDocument = {
         responses: { "200": { description: "Rating saved" } },
       },
     },
+    "/support/tickets/{id}/reopen": {patch: {security: [{firebaseAuth: []}], summary: "Reopen an unresolved complaint", responses: {"200": {description: "Ticket reopened"}}}},
     "/support/knowledge-base": {
       get: {
         summary: "List published knowledge-base articles",
@@ -1805,6 +2059,8 @@ export const openApiDocument = {
         responses: { "200": { description: "Knowledge-base article saved" } },
       },
     },
+    "/support/knowledge-base/{id}/view": {post: {summary: "Record a knowledge-base article view", responses: {"200": {description: "View recorded"}}}},
+    "/support/agents": {get: {security: [{firebaseAuth: []}], summary: "List available support agents", responses: {"200": {description: "Support agents"}}}},
     "/support/reports/summary": {
       get: {
         security: [{ firebaseAuth: [] }],
@@ -2129,6 +2385,33 @@ export const openApiDocument = {
         summary: "Generate an audit-ready compliance report",
         responses: { "200": { description: "Audit-ready report" } },
       },
+    },
+    "/compliance/documents": {
+      get: {security: [{firebaseAuth: []}], summary: "List compliance licences, certificates, permits, and submissions", responses: {"200": {description: "Compliance documents"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Register an uploaded compliance document", responses: {"201": {description: "Compliance document created"}}},
+    },
+    "/compliance/documents/{id}/status": {
+      patch: {security: [{firebaseAuth: []}], summary: "Submit, approve, suspend, revoke, or reject a compliance document", responses: {"200": {description: "Document status updated"}}},
+    },
+    "/compliance/requirements": {
+      get: {security: [{firebaseAuth: []}], summary: "List active compliance checklist requirements", responses: {"200": {description: "Requirements"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Create a compliance checklist requirement", responses: {"201": {description: "Requirement created"}}},
+    },
+    "/compliance/inspections/{id}/report": {
+      patch: {security: [{firebaseAuth: []}], summary: "Complete an inspection with checklist, score, findings, recommendations, and evidence", responses: {"200": {description: "Inspection report recorded"}}},
+    },
+    "/compliance/violations/{id}/corrective-action": {
+      patch: {security: [{firebaseAuth: []}], summary: "Assign a corrective action plan", responses: {"200": {description: "Corrective action assigned"}}},
+    },
+    "/compliance/violations/{id}/resolve": {
+      patch: {security: [{firebaseAuth: []}], summary: "Resolve a violation with evidence", responses: {"200": {description: "Violation resolved"}}},
+    },
+    "/compliance/expiry-alerts/scan": {
+      post: {security: [{firebaseAuth: []}], summary: "Calculate licence and certificate expiry alerts for the next 90 days", responses: {"200": {description: "Expiry alerts"}}},
+    },
+    "/safety/emergency-contacts": {
+      get: {security: [{firebaseAuth: []}], summary: "List emergency contacts", responses: {"200": {description: "Emergency contacts"}}},
+      post: {security: [{firebaseAuth: []}], summary: "Create an emergency contact", responses: {"201": {description: "Emergency contact created"}}},
     },
   },
 };

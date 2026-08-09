@@ -45,20 +45,37 @@ class FleetRepository {
       );
     }
   }
-  Stream<List<FleetEvent>> watchEvents(String vehicleId) => _db
+  Stream<List<FleetEvent>> watchEvents(String vehicleId) => _useApi
+      ? _pollList('/api/v1/vehicles/$vehicleId/events', FleetEvent.fromJson)
+      : _db
       .collection('vehicles')
       .doc(vehicleId)
       .collection('events')
       .orderBy('createdAt', descending: true)
       .snapshots()
       .map((s) => s.docs.map(FleetEvent.fromDoc).toList());
-  Stream<List<FleetTrip>> watchTrips(String vehicleId) => _db
+  Stream<List<FleetTrip>> watchTrips(String vehicleId) => _useApi
+      ? _pollList('/api/v1/vehicles/$vehicleId/trips', FleetTrip.fromJson)
+      : _db
       .collection('vehicles')
       .doc(vehicleId)
       .collection('trips')
       .orderBy('createdAt', descending: true)
       .snapshots()
       .map((s) => s.docs.map(FleetTrip.fromDoc).toList());
+
+  Stream<List<T>> _pollList<T>(
+    String path,
+    T Function(Map<String, dynamic>) decode,
+  ) async* {
+    while (true) {
+      final data = await _api.getList(path);
+      yield data.map(decode).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
   Future<void> register({
     required String registrationNumber,
     required VehicleType type,
@@ -114,6 +131,60 @@ class FleetRepository {
     double? longitude,
     DateTime? nextMaintenanceAt,
   }) async {
+    if (_useApi) {
+      switch (type) {
+        case 'inspection':
+          await _api.post('/api/v1/vehicles/${vehicle.id}/inspections', {
+            'result': 'passedWithIssues',
+            'odometerKm': mileage ?? vehicle.mileageKm,
+            'checklist': {'generalCondition': true},
+            'defects': details.trim().isEmpty ? <String>[] : [details.trim()],
+            'evidenceUrls': <String>[],
+            'nextInspectionAt': (nextMaintenanceAt ?? DateTime.now().add(const Duration(days: 90))).toUtc().toIso8601String(),
+            'notes': details.trim(),
+          });
+          return;
+        case 'fuel':
+          await _api.post('/api/v1/vehicles/${vehicle.id}/fuel-records', {
+            'litres': fuel,
+            'costSLE': 0,
+            'odometerKm': mileage ?? vehicle.mileageKm,
+            'station': details.trim().isEmpty ? 'Not recorded' : details.trim(),
+            'receiptUrl': null,
+          });
+          return;
+        case 'mileage':
+          await _api.post('/api/v1/vehicles/${vehicle.id}/mileage-records', {
+            'odometerKm': mileage,
+            'purpose': details.trim().isEmpty ? 'Odometer update' : details.trim(),
+          });
+          return;
+        case 'location':
+          await _api.post('/api/v1/vehicles/${vehicle.id}/location', {
+            'latitude': latitude,
+            'longitude': longitude,
+            'accuracyMetres': null,
+          });
+          return;
+        case 'maintenance':
+          await _api.post('/api/v1/vehicles/${vehicle.id}/maintenance', {
+            'type': 'preventive',
+            'description': details.trim().isEmpty ? 'Scheduled vehicle maintenance' : details.trim(),
+            'scheduledAt': (nextMaintenanceAt ?? DateTime.now().add(const Duration(days: 7))).toUtc().toIso8601String(),
+            'estimatedCostSLE': 0,
+            'provider': '',
+          });
+          return;
+        case 'breakdown':
+          await _api.post('/api/v1/vehicles/${vehicle.id}/breakdowns', {
+            'location': '${vehicle.latitude ?? 0}, ${vehicle.longitude ?? 0}',
+            'description': details.trim().isEmpty ? 'Vehicle breakdown reported' : details.trim(),
+            'severity': 'medium',
+            'evidenceUrls': <String>[],
+          });
+          return;
+      }
+    }
     final ref = _db.collection('vehicles').doc(vehicle.id);
     final update = <String, dynamic>{'updatedAt': FieldValue.serverTimestamp()};
     if (availability != null) update['availability'] = availability.name;
@@ -134,9 +205,39 @@ class FleetRepository {
     await batch.commit();
   }
 
-  Future<void> assignDriver(String vehicleId, String driverId) =>
-      _db.collection('vehicles').doc(vehicleId).update({
+  Future<void> assignDriver(String vehicleId, String driverId) {
+    if (_useApi) {
+      return _api.patch('/api/v1/vehicles/$vehicleId/driver', {
+        'driverId': driverId.trim(),
+      }).then((_) {});
+    }
+    return _db.collection('vehicles').doc(vehicleId).update({
         'driverId': driverId.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+  }
+
+  Future<List<FleetAlert>> getAlerts({int days = 30}) async {
+    if (!_useApi) return const [];
+    final data = await _api.getList(
+      '/api/v1/fleet/alerts',
+      query: {'days': '$days'},
+    );
+    return data.map(FleetAlert.fromJson).toList();
+  }
+
+  Future<List<VehicleUtilization>> getUtilization({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    if (!_useApi) return const [];
+    final data = await _api.getList(
+      '/api/v1/fleet/utilization',
+      query: {
+        'from': from.toUtc().toIso8601String(),
+        'to': to.toUtc().toIso8601String(),
+      },
+    );
+    return data.map(VehicleUtilization.fromJson).toList();
+  }
 }

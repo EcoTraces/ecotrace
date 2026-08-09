@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_config.dart';
 import '../../../core/media/cloudinary_upload_service.dart';
@@ -9,16 +8,13 @@ import '../domain/safety_incident.dart';
 class IncidentRepository {
   IncidentRepository({
     FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
     ApiClient? apiClient,
   }) : _db = firestore ?? FirebaseFirestore.instance,
-       _auth = auth ?? FirebaseAuth.instance,
        _api = apiClient ?? ApiClient.instance,
        _useApi =
            apiClient != null ||
-           (firestore == null && auth == null && ApiConfig.enabled);
+           (firestore == null && ApiConfig.enabled);
   final FirebaseFirestore _db;
-  final FirebaseAuth _auth;
   final ApiClient _api;
   final bool _useApi;
   CollectionReference<Map<String, dynamic>> get _incidents =>
@@ -78,10 +74,21 @@ class IncidentRepository {
     }
   }
 
-  Stream<List<EmergencyContact>> watchContacts() => _db
+  Stream<List<EmergencyContact>> watchContacts() => _useApi
+      ? _pollContacts()
+      : _db
       .collection('emergencyContacts')
       .snapshots()
       .map((s) => s.docs.map(EmergencyContact.fromDoc).toList());
+  Stream<List<EmergencyContact>> _pollContacts() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/safety/emergency-contacts');
+      yield data.map(EmergencyContact.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
   Future<void> report({
     required SafetyIncidentType type,
     required SafetyIncidentSeverity severity,
@@ -112,6 +119,8 @@ class IncidentRepository {
         'description': description.trim(),
         'incidentType': type.name,
         'location': location.trim(),
+        'latitude': latitude,
+        'longitude': longitude,
         'reportedBy': actorId,
         'staffInvolved': staff,
         'injuryDetails': injuryDetails.trim(),
@@ -228,7 +237,16 @@ class IncidentRepository {
     required String phone,
     required String email,
     required String region,
-  }) => _db.collection('emergencyContacts').add({
+  }) => _useApi
+      ? _api.post('/api/v1/safety/emergency-contacts', {
+          'name': name.trim(),
+          'role': role.trim(),
+          'phone': phone.trim(),
+          'email': email.trim(),
+          'region': region.trim(),
+          'active': true,
+        }).then((_) {})
+      : _db.collection('emergencyContacts').add({
     'name': name,
     'role': role,
     'phone': phone,

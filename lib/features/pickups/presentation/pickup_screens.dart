@@ -213,7 +213,7 @@ class _CreatePickupState extends State<CreatePickupScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Estimated fee: \$${fee.toStringAsFixed(2)}',
+            'Estimated fee: SLE ${fee.toStringAsFixed(2)}',
             style: Theme.of(c).textTheme.titleMedium,
           ),
           const SizedBox(height: 16),
@@ -312,7 +312,7 @@ class PickupDetailScreen extends StatelessWidget {
           ),
           Text(pickup.location),
           Text('Scheduled: ${pickup.scheduledAt.toLocal()}'),
-          Text('Estimated fee: \$${pickup.fee.toStringAsFixed(2)}'),
+          Text('Estimated fee: SLE ${pickup.fee.toStringAsFixed(2)}'),
           const Spacer(),
           if ([
             PickupStatus.submitted,

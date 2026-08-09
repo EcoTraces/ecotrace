@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
+import '../../../core/media/cloudinary_upload_service.dart';
 import '../../audit/data/audit_repository.dart';
 import '../../audit/domain/audit_event.dart';
 import '../../pickups/data/notification_service.dart';
@@ -16,20 +19,27 @@ class AuthRepository {
     FirebaseAuth? auth,
     FirebaseFirestore? firestore,
     AuditRepository? auditRepository,
+    ApiClient? apiClient,
   }) : _auth = auth ?? FirebaseAuth.instance,
-       _firestore = firestore ?? FirebaseFirestore.instance {
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _api = apiClient ?? ApiClient.instance,
+       _useApi = apiClient != null ||
+           (auth == null && firestore == null && ApiConfig.enabled) {
     _audit =
         auditRepository ?? AuditRepository(firestore: _firestore, auth: _auth);
   }
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+  final ApiClient _api;
+  final bool _useApi;
   late final AuditRepository _audit;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   Stream<User?> get authStateChanges => _auth.userChanges();
 
-  Stream<UserProfile?> watchProfile(String uid) => _firestore
+  Stream<UserProfile?> watchProfile(String uid) => _useApi
+      ? _pollProfile()
+      : _firestore
       .collection('users')
       .doc(uid)
       .snapshots()
@@ -37,6 +47,16 @@ class AuthRepository {
         (snapshot) =>
             snapshot.exists ? UserProfile.fromSnapshot(snapshot) : null,
       );
+
+  Stream<UserProfile?> _pollProfile() async* {
+    while (_auth.currentUser != null) {
+      final data = await _api.get('/api/v1/identity/profile');
+      yield UserProfile.fromJson(data);
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
 
   Future<void> register({
     required String displayName,
@@ -60,7 +80,17 @@ class AuthRepository {
 
     try {
       await user.updateDisplayName(displayName.trim());
-      await _firestore.collection('users').doc(user.uid).set({
+      if (_useApi) {
+        await _api.post('/api/v1/identity/bootstrap', {
+          'displayName': displayName.trim(),
+          'role': role.value,
+          'termsVersion': '2026-01',
+          'privacyVersion': '2026-01',
+          'acceptedTerms': true,
+          'acceptedPrivacy': true,
+        });
+      } else {
+        await _firestore.collection('users').doc(user.uid).set({
         'email': email.trim().toLowerCase(),
         'displayName': displayName.trim(),
         'role': role.value,
@@ -72,7 +102,8 @@ class AuthRepository {
         'lastLoginAt': FieldValue.serverTimestamp(),
         'termsAcceptedAt': FieldValue.serverTimestamp(),
         'privacyAcceptedAt': FieldValue.serverTimestamp(),
-      });
+        });
+      }
       await user.sendEmailVerification();
       try {
         await _audit.record(
@@ -97,9 +128,14 @@ class AuthRepository {
       email: email.trim(),
       password: password,
     );
-    await _firestore.collection('users').doc(credential.user!.uid).update({
-      'lastLoginAt': FieldValue.serverTimestamp(),
-    });
+    if (_useApi) {
+      await _registerSession();
+      await _api.post('/api/v1/identity/verification/sync', {});
+    } else {
+      await _firestore.collection('users').doc(credential.user!.uid).update({
+        'lastLoginAt': FieldValue.serverTimestamp(),
+      });
+    }
     try {
       await _audit.record(
         action: AuditAction.login,
@@ -124,6 +160,48 @@ class AuthRepository {
 
   Future<void> refreshUser() => _auth.currentUser!.reload();
 
+  Future<Map<String, dynamic>> securityOverview() async {
+    if (!_useApi) return const {};
+    final results = await Future.wait([
+      _api.get('/api/v1/identity/mfa'),
+      _api.get('/api/v1/identity/permissions'),
+      _api.get('/api/v1/identity/deletion-request'),
+    ]);
+    return {'mfa': results[0], 'permissions': results[1], 'deletion': results[2]};
+  }
+
+  Future<List<Map<String, dynamic>>> sessions() => _useApi
+      ? _api.getList('/api/v1/identity/sessions')
+      : Future.value(const []);
+
+  Future<List<Map<String, dynamic>>> loginHistory() => _useApi
+      ? _api.getList('/api/v1/identity/login-history')
+      : Future.value(const []);
+
+  Future<void> revokeSession(String id) async {
+    if (_useApi) await _api.delete('/api/v1/identity/sessions/$id');
+  }
+
+  Future<void> revokeAllSessions() async {
+    if (_useApi) await _api.post('/api/v1/identity/sessions/revoke-all', {});
+  }
+
+  Future<void> removeMfa() async {
+    if (_useApi) await _api.delete('/api/v1/identity/mfa');
+  }
+
+  Future<void> requestAccountDeletion(String reason) async {
+    if (!_useApi) throw StateError('The identity API is required.');
+    await _api.post('/api/v1/identity/deletion-request', {
+      'reason': reason.trim(),
+      'confirmation': 'DELETE MY ACCOUNT',
+    });
+  }
+
+  Future<void> cancelAccountDeletion() async {
+    if (_useApi) await _api.delete('/api/v1/identity/deletion-request');
+  }
+
   Future<void> updateDisplayName(String displayName) async {
     final user = _auth.currentUser;
     final value = displayName.trim();
@@ -131,10 +209,14 @@ class AuthRepository {
       throw StateError('Enter a display name while signed in.');
     }
     await user.updateDisplayName(value);
-    await _firestore.collection('users').doc(user.uid).update({
-      'displayName': value,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    if (_useApi) {
+      await _api.patch('/api/v1/identity/profile', {'displayName': value});
+    } else {
+      await _firestore.collection('users').doc(user.uid).update({
+        'displayName': value,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
     await _audit.record(
       action: AuditAction.update,
       entityType: 'userProfile',
@@ -170,24 +252,20 @@ class AuthRepository {
       throw StateError('Invalid file type. Only images are allowed.');
     }
 
-    final contentType = _contentType(fileExtension);
-
     try {
-      final storageRef = _storage
-          .ref()
-          .child('profile-pictures/${user.uid}/profile.$fileExtension');
-
-      final uploadTask = await storageRef.putData(
-        bytes,
-        SettableMetadata(contentType: contentType),
+      final downloadUrl = await CloudinaryUploadService.instance.uploadImage(
+        Uint8List.fromList(bytes),
+        scope: 'profiles',
+        fileName: 'profile.$fileExtension',
       );
-      final downloadUrl = await uploadTask.ref.getDownloadURL();
-
-      // Update Firestore with the profile picture URL
-      await _firestore.collection('users').doc(user.uid).update({
-        'profilePictureUrl': downloadUrl,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      if (_useApi) {
+        await _api.patch('/api/v1/identity/profile', {'photoUrl': downloadUrl});
+      } else {
+        await _firestore.collection('users').doc(user.uid).update({
+          'profilePictureUrl': downloadUrl,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
 
       // Record audit log
       await _audit.record(
@@ -221,22 +299,6 @@ class AuthRepository {
     return '';
   }
 
-  static String _contentType(String extension) {
-    switch (extension.toLowerCase()) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'webp':
-        return 'image/webp';
-      default:
-        return 'application/octet-stream';
-    }
-  }
-
   Future<void> deleteProfilePicture() async {
     final user = _auth.currentUser;
     if (user == null) {
@@ -244,21 +306,14 @@ class AuthRepository {
     }
 
     try {
-      // Delete all profile pictures for this user from Storage
-      final listResult = await _storage
-          .ref()
-          .child('profile-pictures/${user.uid}')
-          .listAll();
-      
-      for (final item in listResult.items) {
-        await item.delete();
+      if (_useApi) {
+        await _api.patch('/api/v1/identity/profile', {'photoUrl': ''});
+      } else {
+        await _firestore.collection('users').doc(user.uid).update({
+          'profilePictureUrl': FieldValue.delete(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       }
-
-      // Update Firestore to remove the profile picture URL
-      await _firestore.collection('users').doc(user.uid).update({
-        'profilePictureUrl': FieldValue.delete(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
 
       // Record audit log
       await _audit.record(
@@ -275,9 +330,44 @@ class AuthRepository {
   Future<void> signOut() async {
     final user = _auth.currentUser;
     if (user == null) return;
+    if (_useApi) {
+      try {
+        await _api.delete('/api/v1/identity/sessions/${_deviceId(user.uid)}');
+      } catch (_) {
+        // Signing out locally must remain available while the API is offline.
+      }
+    }
     unawaited(_recordLogoutBestEffort(user.uid));
     unawaited(NotificationService.removeCurrentDevice().catchError((_) {}));
     await _auth.signOut();
+  }
+
+  Future<void> _registerSession() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    final platform = _platformName;
+    await _api.post('/api/v1/identity/sessions', {
+      'deviceId': _deviceId(user.uid),
+      'deviceName': kIsWeb ? 'Web browser' : '${defaultTargetPlatform.name} device',
+      'platform': platform,
+      'appVersion': '',
+      'pushTokenId': '',
+    });
+  }
+
+  String _deviceId(String uid) =>
+      'ecotrace-$_platformName-${uid.hashCode.abs()}';
+
+  String get _platformName {
+    if (kIsWeb) return 'web';
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android => 'android',
+      TargetPlatform.iOS => 'ios',
+      TargetPlatform.windows => 'windows',
+      TargetPlatform.macOS => 'macos',
+      TargetPlatform.linux => 'linux',
+      _ => 'unknown',
+    };
   }
 
   Future<void> _recordLogoutBestEffort(String uid) async {

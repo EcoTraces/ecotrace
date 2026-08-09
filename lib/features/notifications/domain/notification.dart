@@ -58,6 +58,14 @@ class AppNotification {
       createdAt: (x['createdAt'] as Timestamp?)?.toDate(),
     );
   }
+  factory AppNotification.fromJson(Map<String, dynamic> data) => AppNotification(
+    id: data['id']?.toString() ?? '',
+    type: _type(data['type']),
+    title: data['title']?.toString() ?? '',
+    body: data['body']?.toString() ?? '',
+    read: data['read'] == true,
+    createdAt: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+  );
 }
 
 class NotificationPreferences {
@@ -78,4 +86,9 @@ class NotificationPreferences {
       quietHours: x['quietHours'] ?? '',
     );
   }
+  factory NotificationPreferences.fromJson(Map<String, dynamic> data) => NotificationPreferences(
+    channels: Map<String, bool>.from(data['channels'] as Map? ?? const {}),
+    types: Map<String, bool>.from(data['categories'] as Map? ?? data['types'] as Map? ?? const {}),
+    quietHours: data['quietHours'] is Map ? '${(data['quietHours'] as Map)['start'] ?? ''}-${(data['quietHours'] as Map)['end'] ?? ''}' : data['quietHours']?.toString() ?? '',
+  );
 }

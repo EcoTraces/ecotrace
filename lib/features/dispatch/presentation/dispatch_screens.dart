@@ -106,22 +106,33 @@ class _DispatchDashboardState extends State<DispatchDashboardScreen> {
                             ],
                           ),
                         ),
-                      const PopupMenuItem(
-                        value: 'dispatch',
-                        child: Text('Dispatch team'),
-                      ),
-                      const PopupMenuItem(
-                        value: 'start',
-                        child: Text('Start collection'),
-                      ),
-                      const PopupMenuItem(
-                        value: 'complete',
-                        child: Text('Complete with evidence'),
-                      ),
-                      const PopupMenuItem(
-                        value: 'missed',
-                        child: Text('Reschedule missed job'),
-                      ),
+                      if (job.status == DispatchStatus.planned)
+                        const PopupMenuItem(
+                          value: 'dispatch',
+                          child: Text('Dispatch team'),
+                        ),
+                      if (job.status == DispatchStatus.dispatched)
+                        const PopupMenuItem(
+                          value: 'start',
+                          child: Text('Start collection'),
+                        ),
+                      if (job.status == DispatchStatus.inProgress)
+                        const PopupMenuItem(
+                          value: 'complete',
+                          child: Text('Complete with evidence'),
+                        ),
+                      if (job.status != DispatchStatus.completed &&
+                          job.status != DispatchStatus.cancelled)
+                        const PopupMenuItem(
+                          value: 'missed',
+                          child: Text('Reschedule missed job'),
+                        ),
+                      if (job.status != DispatchStatus.completed &&
+                          job.status != DispatchStatus.cancelled)
+                        const PopupMenuItem(
+                          value: 'cancel',
+                          child: Text('Cancel schedule'),
+                        ),
                     ],
                   ),
                 ),
@@ -169,6 +180,7 @@ class _DispatchDashboardState extends State<DispatchDashboardScreen> {
       if (action == 'start') await widget.repository.start(job);
       if (action == 'complete') {
         final files = await ImagePicker().pickMultiImage(imageQuality: 70);
+        if (files.isEmpty) throw StateError('Select at least one evidence image.');
         await widget.repository.complete(
           job,
           await Future.wait(files.map((x) => x.readAsBytes())),
@@ -183,10 +195,21 @@ class _DispatchDashboardState extends State<DispatchDashboardScreen> {
           lastDate: DateTime.now().add(const Duration(days: 365)),
         );
         if (date != null) {
+          if (!context.mounted) return;
+          final reason = await _reasonDialog(context, 'Reason for rescheduling');
+          if (reason == null) return;
           await widget.repository.markMissedAndReschedule(
             job,
             DateTime(date.year, date.month, date.day, 9),
+            reason: reason,
           );
+        }
+      }
+      if (action == 'cancel') {
+        if (!context.mounted) return;
+        final reason = await _reasonDialog(context, 'Reason for cancellation');
+        if (reason != null) {
+          await widget.repository.cancel(job, reason);
         }
       }
     } catch (error) {
@@ -204,6 +227,35 @@ class _DispatchDashboardState extends State<DispatchDashboardScreen> {
       }
     }
   }
+
+  Future<String?> _reasonDialog(BuildContext context, String title) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Required reason'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Back')),
+          FilledButton(
+            onPressed: () {
+              final value = controller.text.trim();
+              if (value.length >= 2) {
+                Navigator.pop(dialogContext, value);
+              }
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    return result;
+  }
 }
 
 class CreateScheduleScreen extends StatefulWidget {
@@ -217,6 +269,7 @@ class _CreateScheduleState extends State<CreateScheduleScreen> {
   List<PickupRequest> pickups = [];
   List<DispatchStaff> staff = [];
   List<Vehicle> vehicles = [];
+  List<NearbyPickupGroup> nearbyGroups = [];
   final selectedPickups = <String>{};
   final selectedCollectors = <String>{};
   final area = TextEditingController();
@@ -240,10 +293,26 @@ class _CreateScheduleState extends State<CreateScheduleScreen> {
   }
 
   Future<void> _load() async {
-    pickups = await widget.repository.watchAssignablePickups().first;
-    staff = await widget.repository.watchStaff().first;
-    vehicles = await widget.repository.watchAvailableVehicles().first;
-    if (mounted) setState(() => loading = false);
+    try {
+      final values = await Future.wait([
+        widget.repository.watchAssignablePickups().first,
+        widget.repository.watchStaff().first,
+        widget.repository.watchAvailableVehicles().first,
+        widget.repository.nearbyGroups(),
+      ]);
+      pickups = values[0] as List<PickupRequest>;
+      staff = values[1] as List<DispatchStaff>;
+      vehicles = values[2] as List<Vehicle>;
+      nearbyGroups = values[3] as List<NearbyPickupGroup>;
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Unable to load dispatch resources: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
   }
 
   @override
@@ -338,6 +407,25 @@ class _CreateScheduleState extends State<CreateScheduleScreen> {
             'Nearby pickups',
             style: Theme.of(context).textTheme.titleMedium,
           ),
+          if (nearbyGroups.isNotEmpty)
+            ...nearbyGroups.map(
+              (group) => Card(
+                child: ListTile(
+                  leading: const Icon(Icons.hub_outlined),
+                  title: Text('${group.serviceArea} • ${group.pickupIds.length} stops'),
+                  subtitle: Text('${group.totalWeightKg.toStringAsFixed(1)} kg within nearby route group'),
+                  trailing: TextButton(
+                    onPressed: () => setState(() {
+                      selectedPickups
+                        ..clear()
+                        ..addAll(group.pickupIds);
+                      area.text = group.serviceArea;
+                    }),
+                    child: const Text('Select group'),
+                  ),
+                ),
+              ),
+            ),
           ...pickups.map(
             (x) => CheckboxListTile(
               value: selectedPickups.contains(x.id),

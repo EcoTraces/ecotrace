@@ -97,6 +97,7 @@ router.post(
     const input = z
       .object({
         entityId: z.string().trim().min(1),
+        entityName: z.string().trim().default(""),
         entityType: z.enum(["partner", "centre", "organization", "person"]),
         licenseNumber: z.string().trim().min(2).max(100),
         category: z.string().trim().min(2).max(200),
@@ -240,6 +241,9 @@ router.post(
         scheduledAt: z.coerce.date(),
         inspectorName: z.string().trim().min(2).max(200),
         findings: z.string().trim().max(4000).default(""),
+        recommendations: z.string().trim().max(4000).default(""),
+        checklist: z.record(z.string(), z.boolean()).default({}),
+        reportUrls: z.array(z.string().url()).max(10).default([]),
         score: z.number().min(0).max(100).default(100),
         status: z
           .enum(["scheduled", "completed", "overdue", "cancelled"])
@@ -280,14 +284,18 @@ router.post(
     const input = z
       .object({
         entityId: z.string().trim().min(1),
+        entityName: z.string().trim().default(""),
         entityType: z.enum(["partner", "centre", "organization"]),
         violationType: z.string().trim().min(2).max(200),
+        requirement: z.string().trim().default(""),
+        referenceNumber: z.string().trim().default(""),
         description: z.string().trim().min(5).max(4000),
         severity: z
           .enum(["low", "medium", "high", "critical"])
           .default("medium"),
         detectedAt: z.coerce.date(),
         correctiveActionDueAt: z.coerce.date().nullable().default(null),
+        status: z.string().trim().default("open"),
       })
       .parse(request.body);
     const ref = await db.collection("complianceViolations").add({
@@ -367,11 +375,15 @@ router.post(
     const input = z
       .object({
         entityId: z.string().trim().min(1),
+        violationId: z.string().trim().default(""),
         entityType: z.enum(["partner", "centre", "organization"]),
         penaltyType: z.string().trim().min(2).max(200),
+        referenceNumber: z.string().trim().default(""),
         amount: z.number().min(0),
         currency: z.string().trim().min(3).max(10).default("USD"),
         issuedAt: z.coerce.date(),
+        dueAt: z.coerce.date().nullable().default(null),
+        notes: z.string().trim().max(4000).default(""),
         status: z
           .enum(["issued", "paid", "appealed", "waived"])
           .default("issued"),
@@ -380,6 +392,7 @@ router.post(
     const ref = await db.collection("penaltyRecords").add({
       ...input,
       issuedAt: Timestamp.fromDate(input.issuedAt),
+      dueAt: input.dueAt ? Timestamp.fromDate(input.dueAt) : null,
       createdBy: request.user!.uid,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 import { authenticate, requireRoles } from "./auth.js";
+import { ApiError } from "./errors.js";
 import { db } from "./firebase.js";
 import { documentJson } from "./firestore-json.js";
 import { seedDemoData } from "./demo-data.js";
@@ -25,12 +26,16 @@ import reportRoutes from "./report-routes.js";
 import communicationRoutes from "./communication-routes.js";
 import supportRoutes from "./support-routes.js";
 import complianceRoutes from "./compliance-routes.js";
+import complianceWorkflowRoutes from "./compliance-workflow-routes.js";
 import incidentRoutes from "./incident-routes.js";
 import documentRoutes from "./document-routes.js";
 import auditRoutes, {auditMutations} from "./audit-routes.js";
 import administrationRoutes from "./administration-routes.js";
 import identityRoutes from "./identity-routes.js";
 import organizationRoutes from "./organization-routes.js";
+import pickupRoutes from "./pickup-routes.js";
+import classificationRoutes from "./classification-routes.js";
+import fleetRoutes from "./fleet-routes.js";
 import { publishNotificationEvent } from "./push-events.js";
 
 const router = Router();
@@ -55,12 +60,16 @@ router.use(reportRoutes);
 router.use(communicationRoutes);
 router.use(supportRoutes);
 router.use(complianceRoutes);
+router.use(complianceWorkflowRoutes);
 router.use(incidentRoutes);
 router.use(documentRoutes);
 router.use(auditRoutes);
 router.use(administrationRoutes);
 router.use(identityRoutes);
 router.use(organizationRoutes);
+router.use(pickupRoutes);
+router.use(classificationRoutes);
+router.use(fleetRoutes);
 const administrators = ["administrator", "superAdministrator"] as const;
 
 const centreSchema = z.object({
@@ -87,43 +96,6 @@ const centreSchema = z.object({
     .default([]),
   capacityKg: z.number().positive(),
   capacityAlertPercent: z.number().min(1).max(100).default(80),
-});
-
-const vehicleSchema = z.object({
-  registrationNumber: z.string().trim().min(2).max(30),
-  type: z.enum([
-    "van",
-    "truck",
-    "pickupTruck",
-    "motorcycle",
-    "specializedHazardous",
-  ]),
-  capacityKg: z.number().positive(),
-  driverId: z.string().trim().default(""),
-  insuranceExpiry: z.coerce.date(),
-  licenceExpiry: z.coerce.date(),
-});
-
-const pickupSchema = z.object({
-  category: z.enum([
-    "computers",
-    "phones",
-    "televisions",
-    "appliances",
-    "batteries",
-    "accessories",
-    "other",
-  ]),
-  quantity: z.number().int().positive(),
-  estimatedWeight: z.number().positive(),
-  condition: z.string().trim().min(1).max(100),
-  location: z.string().trim().min(2).max(300),
-  scheduledAt: z.coerce.date(),
-  urgent: z.boolean().default(false),
-  instructions: z.string().trim().max(1000).default(""),
-  latitude: z.number().min(-90).max(90).nullable().optional(),
-  longitude: z.number().min(-180).max(180).nullable().optional(),
-  photoUrls: z.array(z.string().url()).min(1).max(5),
 });
 
 const scheduleSchema = z.object({
@@ -215,173 +187,9 @@ router.post(
   },
 );
 
-router.get("/vehicles", authenticate, async (request, response) => {
-  let query: FirebaseFirestore.Query = db.collection("vehicles");
-  if (typeof request.query.availability === "string") {
-    query = query.where("availability", "==", request.query.availability);
-  }
-  const snapshot = await query.get();
-  const data = snapshot.docs
-    .map((document) => documentJson(document.id, document.data()))
-    .sort((a, b) =>
-      String(a.registrationNumber).localeCompare(String(b.registrationNumber)),
-    );
-  response.json({ data });
-});
-
-router.post(
-  "/vehicles",
-  authenticate,
-  requireRoles(...administrators),
-  async (request, response) => {
-    const input = vehicleSchema.parse(request.body);
-    const reference = db.collection("vehicles").doc();
-    const batch = db.batch();
-    batch.set(reference, {
-      ...input,
-      registrationNumber: input.registrationNumber.toUpperCase(),
-      insuranceExpiry: Timestamp.fromDate(input.insuranceExpiry),
-      licenceExpiry: Timestamp.fromDate(input.licenceExpiry),
-      availability: "available",
-      mileageKm: 0,
-      fuelLitres: 0,
-      latitude: null,
-      longitude: null,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      createdBy: request.user!.uid,
-    });
-    batch.set(reference.collection("events").doc(), {
-      type: "registered",
-      details: "Vehicle registered through API",
-      createdAt: FieldValue.serverTimestamp(),
-      actorId: request.user!.uid,
-    });
-    await batch.commit();
-    response.status(201).json({ data: { id: reference.id } });
-  },
-);
-
-router.get("/pickup-requests", authenticate, async (request, response) => {
-  const privileged = [
-    "administrator",
-    "superAdministrator",
-    "collector",
-    "driver",
-  ].includes(request.user!.role);
-  const query = privileged
-    ? db.collection("pickupRequests")
-    : db.collection("pickupRequests").where("userId", "==", request.user!.uid);
-  const snapshot = await query.limit(200).get();
-  response.json({
-    data: snapshot.docs.map((document) =>
-      documentJson(document.id, document.data()),
-    ),
-  });
-});
-
-router.post("/pickup-requests", authenticate, async (request, response) => {
-  const input = pickupSchema.parse(request.body);
-  const fee =
-    input.quantity * 2 + input.estimatedWeight * 0.75 + (input.urgent ? 15 : 0);
-  const reference = await db.collection("pickupRequests").add({
-    ...input,
-    userId: request.user!.uid,
-    scheduledAt: Timestamp.fromDate(input.scheduledAt),
-    estimatedFee: fee,
-    photoUrls: input.photoUrls,
-    status: "submitted",
-    createdAt: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp(),
-  });
-  void publishNotificationEvent({
-    event: "pickup_request_submitted",
-    data: { pickupId: reference.id, customerId: request.user!.uid },
-  });
-  response.status(201).json({ data: { id: reference.id, estimatedFee: fee } });
-});
-
-async function requirePickupAccess(id: string, uid: string, role: string) {
-  const reference = db.collection("pickupRequests").doc(id);
-  const snapshot = await reference.get();
-  if (!snapshot.exists) {
-    const { ApiError } = await import("./errors.js");
-    throw new ApiError(404, "Pickup request not found.", "not_found");
-  }
-  const privileged = ["administrator", "superAdministrator"].includes(role);
-  if (!privileged && snapshot.get("userId") !== uid) {
-    const { ApiError } = await import("./errors.js");
-    throw new ApiError(
-      403,
-      "You cannot modify this pickup request.",
-      "forbidden",
-    );
-  }
-  return reference;
-}
-
 function routeParameter(value: string | string[]): string {
   return Array.isArray(value) ? value[0] : value;
 }
-
-router.patch(
-  "/pickup-requests/:id/cancel",
-  authenticate,
-  async (request, response) => {
-    const reference = await requirePickupAccess(
-      routeParameter(request.params.id),
-      request.user!.uid,
-      request.user!.role,
-    );
-    await reference.update({
-      status: "cancelled",
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-    response.json({ data: { id: reference.id, status: "cancelled" } });
-  },
-);
-
-router.patch(
-  "/pickup-requests/:id/reschedule",
-  authenticate,
-  async (request, response) => {
-    const input = z
-      .object({ scheduledAt: z.coerce.date() })
-      .parse(request.body);
-    const reference = await requirePickupAccess(
-      routeParameter(request.params.id),
-      request.user!.uid,
-      request.user!.role,
-    );
-    await reference.update({
-      scheduledAt: Timestamp.fromDate(input.scheduledAt),
-      status: "submitted",
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-    response.json({ data: { id: reference.id, status: "submitted" } });
-  },
-);
-
-router.patch(
-  "/pickup-requests/:id/rating",
-  authenticate,
-  async (request, response) => {
-    const input = z
-      .object({ rating: z.number().int().min(1).max(5) })
-      .parse(request.body);
-    const reference = await requirePickupAccess(
-      routeParameter(request.params.id),
-      request.user!.uid,
-      request.user!.role,
-    );
-    await reference.update({
-      rating: input.rating,
-      ratedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-    response.json({ data: { id: reference.id, rating: input.rating } });
-  },
-);
 
 router.get(
   "/dispatch/schedules",
@@ -450,6 +258,109 @@ router.get(
   },
 );
 
+router.get(
+  "/dispatch/dashboard",
+  authenticate,
+  requireRoles(...dispatchSupervisors),
+  async (request, response) => {
+    const range = z.object({from: z.coerce.date(), to: z.coerce.date()}).parse(request.query);
+    const snapshot = await db.collection("collectionSchedules")
+      .where("scheduledAt", ">=", Timestamp.fromDate(range.from))
+      .where("scheduledAt", "<", Timestamp.fromDate(range.to)).limit(1000).get();
+    const byStatus: Record<string, number> = {};
+    const byPriority: Record<string, number> = {};
+    let pickupCount = 0;
+    let estimatedWeightKg = 0;
+    for (const schedule of snapshot.docs) {
+      const status = String(schedule.get("status") ?? "unknown");
+      const priority = String(schedule.get("priority") ?? "normal");
+      byStatus[status] = (byStatus[status] ?? 0) + 1;
+      byPriority[priority] = (byPriority[priority] ?? 0) + 1;
+      pickupCount += (schedule.get("pickupIds") ?? []).length;
+      estimatedWeightKg += Number(schedule.get("estimatedWeight") ?? 0);
+    }
+    response.json({data: {
+      totalSchedules: snapshot.size,
+      pickupCount,
+      estimatedWeightKg,
+      completionRate: snapshot.size ? (byStatus.completed ?? 0) / snapshot.size : 0,
+      byStatus,
+      byPriority,
+    }});
+  },
+);
+
+router.get(
+  "/dispatch/availability",
+  authenticate,
+  requireRoles(...dispatchSupervisors),
+  async (request, response) => {
+    const at = z.coerce.date().default(new Date()).parse(request.query.at);
+    const [staff, vehicles, schedules] = await Promise.all([
+      db.collection("users").where("role", "in", ["collector", "driver"]).limit(500).get(),
+      db.collection("vehicles").limit(500).get(),
+      db.collection("collectionSchedules")
+        .where("scheduledAt", ">=", Timestamp.fromDate(new Date(at.getTime() - 12 * 60 * 60 * 1000)))
+        .where("scheduledAt", "<", Timestamp.fromDate(new Date(at.getTime() + 12 * 60 * 60 * 1000)))
+        .limit(500).get(),
+    ]);
+    const active = schedules.docs.filter((schedule) =>
+      ["planned", "dispatched", "inProgress"].includes(String(schedule.get("status"))));
+    const busyStaff = new Set(active.flatMap((schedule) => [
+      String(schedule.get("driverId") ?? ""),
+      ...(schedule.get("collectorIds") ?? []).map(String),
+    ]));
+    const busyVehicles = new Set(active.map((schedule) => String(schedule.get("vehicleId") ?? "")));
+    response.json({data: {
+      staff: staff.docs.map((person) => ({
+        ...documentJson(person.id, person.data()),
+        available: person.get("dispatchAvailable") !== false && !busyStaff.has(person.id),
+      })),
+      vehicles: vehicles.docs.map((vehicle) => ({
+        ...documentJson(vehicle.id, vehicle.data()),
+        available: vehicle.get("availability") === "available" && !busyVehicles.has(vehicle.id),
+      })),
+    }});
+  },
+);
+
+router.get(
+  "/dispatch/nearby-groups",
+  authenticate,
+  requireRoles(...dispatchSupervisors),
+  async (request, response) => {
+    const radiusKm = z.coerce.number().min(0.5).max(100).default(10).parse(request.query.radiusKm);
+    const snapshot = await db.collection("pickupRequests")
+      .where("status", "in", ["submitted", "approved"]).limit(500).get();
+    const remaining = snapshot.docs.map((document) => documentJson(document.id, document.data()));
+    const groups: Array<{groupId: string; centre: {latitude: number | null; longitude: number | null}; pickupIds: string[]; serviceArea: string; totalWeightKg: number}> = [];
+    const radians = (degrees: number) => degrees * Math.PI / 180;
+    const distance = (left: Record<string, unknown>, right: Record<string, unknown>) => {
+      const lat1 = Number(left.latitude); const lon1 = Number(left.longitude);
+      const lat2 = Number(right.latitude); const lon2 = Number(right.longitude);
+      if (![lat1, lon1, lat2, lon2].every(Number.isFinite)) return Number.POSITIVE_INFINITY;
+      const dLat = radians(lat2 - lat1); const dLon = radians(lon2 - lon1);
+      const value = Math.sin(dLat / 2) ** 2 + Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(dLon / 2) ** 2;
+      return 6371 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+    };
+    while (remaining.length) {
+      const seed = remaining.shift()!;
+      const nearby = remaining.filter((pickup) => distance(seed, pickup) <= radiusKm ||
+        (!Number.isFinite(Number(seed.latitude)) && String(seed.location ?? "").toLowerCase() === String(pickup.location ?? "").toLowerCase()));
+      for (const pickup of nearby) remaining.splice(remaining.indexOf(pickup), 1);
+      const members = [seed, ...nearby];
+      groups.push({
+        groupId: `GROUP-${groups.length + 1}`,
+        centre: {latitude: Number.isFinite(Number(seed.latitude)) ? Number(seed.latitude) : null, longitude: Number.isFinite(Number(seed.longitude)) ? Number(seed.longitude) : null},
+        pickupIds: members.map((pickup) => String(pickup.id)),
+        serviceArea: String(seed.location ?? "Unspecified area"),
+        totalWeightKg: members.reduce((total, pickup) => total + Number(pickup.estimatedWeight ?? 0), 0),
+      });
+    }
+    response.json({data: groups});
+  },
+);
+
 router.post(
   "/dispatch/schedules",
   authenticate,
@@ -460,7 +371,17 @@ router.post(
     const pickupRefs = input.pickupIds.map((id) =>
       db.collection("pickupRequests").doc(id),
     );
-    const [vehicle, ...pickups] = await db.getAll(vehicleRef, ...pickupRefs);
+    const staffRefs = [...new Set([input.driverId, ...input.collectorIds])]
+      .map((id) => db.collection("users").doc(id));
+    const [vehicleAndPickups, staff, activeSchedules] = await Promise.all([
+      db.getAll(vehicleRef, ...pickupRefs),
+      db.getAll(...staffRefs),
+      db.collection("collectionSchedules")
+        .where("scheduledAt", ">=", Timestamp.fromDate(new Date(input.scheduledAt.getTime() - 12 * 60 * 60 * 1000)))
+        .where("scheduledAt", "<", Timestamp.fromDate(new Date(input.scheduledAt.getTime() + 12 * 60 * 60 * 1000)))
+        .limit(500).get(),
+    ]);
+    const [vehicle, ...pickups] = vehicleAndPickups;
     if (!vehicle.exists || vehicle.get("availability") !== "available") {
       throw new (await import("./errors.js")).ApiError(
         409,
@@ -481,6 +402,20 @@ router.post(
         "pickup_unavailable",
       );
     }
+    const driver = staff.find((person) => person.id === input.driverId);
+    if (!driver?.exists || driver.get("role") !== "driver" || driver.get("dispatchAvailable") === false) {
+      throw new ApiError(409, "The selected driver is not available.", "driver_unavailable");
+    }
+    const invalidCollector = input.collectorIds.some((collectorId) => {
+      const collector = staff.find((person) => person.id === collectorId);
+      return !collector?.exists || collector.get("role") !== "collector" || collector.get("dispatchAvailable") === false;
+    });
+    if (invalidCollector) throw new ApiError(409, "One or more collectors are not available.", "collector_unavailable");
+    const conflict = activeSchedules.docs.find((schedule) =>
+      ["planned", "dispatched", "inProgress"].includes(String(schedule.get("status"))) &&
+      (schedule.get("vehicleId") === input.vehicleId || schedule.get("driverId") === input.driverId),
+    );
+    if (conflict) throw new ApiError(409, "The driver or vehicle already has a nearby active assignment.", "schedule_conflict");
     const estimatedWeight = pickups.reduce(
       (total, pickup) => total + Number(pickup.get("estimatedWeight") ?? 0),
       0,
@@ -496,20 +431,52 @@ router.post(
     const batch = db.batch();
     batch.set(reference, {
       ...input,
+      scheduleCode: `SCH-${reference.id.substring(0, 8).toUpperCase()}`,
       scheduledAt: Timestamp.fromDate(input.scheduledAt),
       status: "planned",
       evidenceUrls: [],
       estimatedWeight,
+      teamSize: input.collectorIds.length + 1,
       createdBy: request.user!.uid,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
     for (const pickup of pickups) {
+      const statusEvent = {
+        from: String(pickup.get("status")),
+        to: "assigned",
+        actorId: request.user!.uid,
+        reason: "Assigned to a collection schedule",
+        changedAt: Timestamp.now(),
+      };
       batch.update(pickup.ref, {
         status: "assigned",
+        statusHistory: FieldValue.arrayUnion(statusEvent),
         updatedAt: FieldValue.serverTimestamp(),
       });
+      batch.set(pickup.ref.collection("events").doc(), {
+        type: "statusChanged",
+        ...statusEvent,
+        createdAt: FieldValue.serverTimestamp(),
+      });
     }
+    for (const staffId of [...new Set([input.driverId, ...input.collectorIds])]) {
+      batch.set(db.collection("users").doc(staffId).collection("notifications").doc(), {
+        type: "assignment",
+        title: "New collection assignment",
+        body: `${input.serviceArea} collection scheduled for ${input.scheduledAt.toISOString()}`,
+        data: {scheduleId: reference.id, pickupIds: input.pickupIds},
+        read: false,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    batch.set(reference.collection("events").doc(), {
+      type: "created",
+      status: "planned",
+      actorId: request.user!.uid,
+      details: `${input.pickupIds.length} pickup(s) assigned`,
+      createdAt: FieldValue.serverTimestamp(),
+    });
     await batch.commit();
     const customerIds = [
       ...new Set(
@@ -553,6 +520,70 @@ async function scheduleForAction(id: string, uid: string, role: string) {
   return { reference, snapshot };
 }
 
+router.get(
+  "/dispatch/schedules/:id",
+  authenticate,
+  requireRoles(...dispatchOperators),
+  async (request, response) => {
+    const {reference, snapshot} = await scheduleForAction(
+      routeParameter(request.params.id), request.user!.uid, request.user!.role,
+    );
+    const [pickups, events] = await Promise.all([
+      db.getAll(...(snapshot.get("pickupIds") ?? []).map((pickupId: string) => db.collection("pickupRequests").doc(pickupId))),
+      reference.collection("events").orderBy("createdAt", "asc").limit(500).get(),
+    ]);
+    response.json({data: {
+      ...documentJson(snapshot.id, snapshot.data()!),
+      pickups: pickups.map((pickup) => documentJson(pickup.id, pickup.data() ?? {})),
+      events: events.docs.map((event) => documentJson(event.id, event.data())),
+    }});
+  },
+);
+
+router.patch(
+  "/dispatch/schedules/:id/cancel",
+  authenticate,
+  requireRoles(...dispatchSupervisors),
+  async (request, response) => {
+    const input = z.object({reason: z.string().trim().min(2).max(1000)}).parse(request.body);
+    const {reference, snapshot} = await scheduleForAction(
+      routeParameter(request.params.id), request.user!.uid, request.user!.role,
+    );
+    if (["completed", "cancelled"].includes(String(snapshot.get("status")))) {
+      throw new ApiError(409, "This schedule can no longer be cancelled.", "invalid_state");
+    }
+    const batch = db.batch();
+    batch.update(reference, {
+      status: "cancelled", cancellationReason: input.reason,
+      cancelledBy: request.user!.uid, cancelledAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    batch.update(db.collection("vehicles").doc(String(snapshot.get("vehicleId"))), {
+      availability: "available", updatedAt: FieldValue.serverTimestamp(),
+    });
+    for (const pickupId of snapshot.get("pickupIds") ?? []) {
+      const pickup = db.collection("pickupRequests").doc(String(pickupId));
+      batch.update(pickup, {status: "approved", updatedAt: FieldValue.serverTimestamp()});
+      batch.set(pickup.collection("events").doc(), {
+        type: "scheduleCancelled", scheduleId: reference.id, reason: input.reason,
+        actorId: request.user!.uid, createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    batch.set(reference.collection("events").doc(), {
+      type: "cancelled", status: "cancelled", reason: input.reason,
+      actorId: request.user!.uid, createdAt: FieldValue.serverTimestamp(),
+    });
+    for (const staffId of [...new Set([snapshot.get("driverId"), ...(snapshot.get("collectorIds") ?? [])].filter(Boolean).map(String))]) {
+      batch.set(db.collection("users").doc(staffId).collection("notifications").doc(), {
+        type: "assignment", title: "Collection cancelled", body: input.reason,
+        data: {scheduleId: reference.id}, read: false, createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+    response.json({data: {id: reference.id, status: "cancelled"}});
+  },
+);
+
 router.patch(
   "/dispatch/schedules/:id/dispatch",
   authenticate,
@@ -563,6 +594,9 @@ router.patch(
       request.user!.uid,
       request.user!.role,
     );
+    if (snapshot.get("status") !== "planned") {
+      throw new ApiError(409, "Only a planned schedule can be dispatched.", "invalid_state");
+    }
     const batch = db.batch();
     batch.update(reference, {
       status: "dispatched",
@@ -573,11 +607,30 @@ router.patch(
       availability: "dispatched",
       updatedAt: FieldValue.serverTimestamp(),
     });
-    for (const pickupId of snapshot.get("pickupIds") ?? [])
-      batch.update(db.collection("pickupRequests").doc(pickupId), {
+    for (const pickupId of snapshot.get("pickupIds") ?? []) {
+      const pickup = db.collection("pickupRequests").doc(pickupId);
+      const statusEvent = {
+        from: "assigned",
+        to: "scheduled",
+        actorId: request.user!.uid,
+        reason: "Collection team dispatched",
+        changedAt: Timestamp.now(),
+      };
+      batch.update(pickup, {
         status: "scheduled",
+        statusHistory: FieldValue.arrayUnion(statusEvent),
         updatedAt: FieldValue.serverTimestamp(),
       });
+      batch.set(pickup.collection("events").doc(), {
+        type: "statusChanged",
+        ...statusEvent,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    batch.set(reference.collection("events").doc(), {
+      type: "dispatched", status: "dispatched", actorId: request.user!.uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
     await batch.commit();
     response.json({ data: { id: reference.id, status: "dispatched" } });
   },
@@ -593,17 +646,39 @@ router.patch(
       request.user!.uid,
       request.user!.role,
     );
+    if (snapshot.get("status") !== "dispatched") {
+      throw new ApiError(409, "The team must be dispatched before collection starts.", "invalid_state");
+    }
     const batch = db.batch();
     batch.update(reference, {
       status: "inProgress",
       startedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    for (const pickupId of snapshot.get("pickupIds") ?? [])
-      batch.update(db.collection("pickupRequests").doc(pickupId), {
+    for (const pickupId of snapshot.get("pickupIds") ?? []) {
+      const pickup = db.collection("pickupRequests").doc(pickupId);
+      const statusEvent = {
+        from: "scheduled",
+        to: "inProgress",
+        actorId: request.user!.uid,
+        reason: "Collection started",
+        changedAt: Timestamp.now(),
+      };
+      batch.update(pickup, {
         status: "inProgress",
+        statusHistory: FieldValue.arrayUnion(statusEvent),
         updatedAt: FieldValue.serverTimestamp(),
       });
+      batch.set(pickup.collection("events").doc(), {
+        type: "statusChanged",
+        ...statusEvent,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    batch.set(reference.collection("events").doc(), {
+      type: "started", status: "inProgress", actorId: request.user!.uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
     await batch.commit();
     const pickupDocuments = await db.getAll(
       ...(snapshot.get("pickupIds") ?? []).map((pickupId: string) =>
@@ -632,13 +707,16 @@ router.patch(
   requireRoles(...dispatchOperators),
   async (request, response) => {
     const input = z
-      .object({ evidenceUrls: z.array(z.string().url()).default([]) })
+      .object({ evidenceUrls: z.array(z.string().url()).min(1).max(10) })
       .parse(request.body);
     const { reference, snapshot } = await scheduleForAction(
       routeParameter(request.params.id),
       request.user!.uid,
       request.user!.role,
     );
+    if (snapshot.get("status") !== "inProgress") {
+      throw new ApiError(409, "Only an active collection can be completed.", "invalid_state");
+    }
     const batch = db.batch();
     batch.update(reference, {
       status: "completed",
@@ -657,11 +735,30 @@ router.patch(
       completedAt: FieldValue.serverTimestamp(),
       createdAt: FieldValue.serverTimestamp(),
     });
-    for (const pickupId of snapshot.get("pickupIds") ?? [])
-      batch.update(db.collection("pickupRequests").doc(pickupId), {
+    for (const pickupId of snapshot.get("pickupIds") ?? []) {
+      const pickup = db.collection("pickupRequests").doc(pickupId);
+      const statusEvent = {
+        from: "inProgress",
+        to: "collected",
+        actorId: request.user!.uid,
+        reason: "Items collected with evidence",
+        changedAt: Timestamp.now(),
+      };
+      batch.update(pickup, {
         status: "collected",
+        statusHistory: FieldValue.arrayUnion(statusEvent),
         updatedAt: FieldValue.serverTimestamp(),
       });
+      batch.set(pickup.collection("events").doc(), {
+        type: "statusChanged",
+        ...statusEvent,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    batch.set(reference.collection("events").doc(), {
+      type: "completed", status: "completed", evidenceUrls: input.evidenceUrls,
+      actorId: request.user!.uid, createdAt: FieldValue.serverTimestamp(),
+    });
     await batch.commit();
     const pickupDocuments = await db.getAll(
       ...(snapshot.get("pickupIds") ?? []).map((pickupId: string) =>
@@ -690,30 +787,56 @@ router.patch(
   requireRoles(...dispatchSupervisors),
   async (request, response) => {
     const input = z
-      .object({ scheduledAt: z.coerce.date() })
+      .object({scheduledAt: z.coerce.date(), reason: z.string().trim().min(2).max(1000)})
       .parse(request.body);
     const { reference, snapshot } = await scheduleForAction(
       routeParameter(request.params.id),
       request.user!.uid,
       request.user!.role,
     );
+    if (["completed", "cancelled"].includes(String(snapshot.get("status")))) {
+      throw new ApiError(409, "A completed or cancelled schedule cannot be rescheduled.", "invalid_state");
+    }
     const batch = db.batch();
     batch.update(reference, {
       status: "planned",
       scheduledAt: Timestamp.fromDate(input.scheduledAt),
       missedAt: FieldValue.serverTimestamp(),
+      rescheduleReason: input.reason,
+      previousScheduledAt: snapshot.get("scheduledAt"),
       updatedAt: FieldValue.serverTimestamp(),
     });
     batch.update(db.collection("vehicles").doc(snapshot.get("vehicleId")), {
       availability: "available",
       updatedAt: FieldValue.serverTimestamp(),
     });
-    for (const pickupId of snapshot.get("pickupIds") ?? [])
-      batch.update(db.collection("pickupRequests").doc(pickupId), {
+    for (const pickupId of snapshot.get("pickupIds") ?? []) {
+      const pickup = db.collection("pickupRequests").doc(pickupId);
+      const statusEvent = {
+        from: "assigned",
+        to: "assigned",
+        actorId: request.user!.uid,
+        reason: "Missed collection rescheduled",
+        scheduledAt: Timestamp.fromDate(input.scheduledAt),
+        changedAt: Timestamp.now(),
+      };
+      batch.update(pickup, {
         status: "assigned",
         scheduledAt: Timestamp.fromDate(input.scheduledAt),
+        statusHistory: FieldValue.arrayUnion(statusEvent),
         updatedAt: FieldValue.serverTimestamp(),
       });
+      batch.set(pickup.collection("events").doc(), {
+        type: "rescheduled",
+        ...statusEvent,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    }
+    batch.set(reference.collection("events").doc(), {
+      type: "rescheduled", status: "planned", reason: input.reason,
+      scheduledAt: Timestamp.fromDate(input.scheduledAt), actorId: request.user!.uid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
     await batch.commit();
     response.json({ data: { id: reference.id, status: "planned" } });
   },

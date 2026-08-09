@@ -33,7 +33,13 @@ class AssessmentRepository {
     }
   }
 
-  Map<String, dynamic> assistedSuggestion(InventoryItem item) {
+  Future<Map<String, dynamic>> assistedSuggestion(InventoryItem item) async {
+    if (_useApi) {
+      return _api.post(
+        '/api/v1/inventory/items/${item.id}/classification-assist',
+        const {},
+      );
+    }
     final text = '${item.deviceType} ${item.brand} ${item.model}'.toLowerCase();
     final category = text.contains('phone')
         ? DeviceCategory.mobilePhones
@@ -61,6 +67,12 @@ class AssessmentRepository {
           ? <String>['Battery or hazardous chemical component']
           : <String>[],
       'confidence': item.imageUrls.isEmpty ? 0.55 : 0.72,
+      'assessedCondition': item.condition.name,
+      'reusability': hazardous ? 0 : 35,
+      'repairability': hazardous ? 0 : 55,
+      'recommendation': hazardous ? 'hazardousDisposal' : 'repair',
+      'recoveryValue': item.weight * (hazardous ? 5 : 35),
+      'engine': 'offline-heuristic',
     };
   }
 
@@ -72,6 +84,8 @@ class AssessmentRepository {
     required int reusability,
     required int repairability,
     required TreatmentRecommendation recommendation,
+    required ItemCondition assessedCondition,
+    required AssessmentOrigin origin,
     required double recoveryValue,
     required double confidence,
     required String notes,
@@ -84,6 +98,8 @@ class AssessmentRepository {
         'reusability': reusability,
         'repairability': repairability,
         'recommendation': recommendation.name,
+        'assessedCondition': assessedCondition.name,
+        'origin': origin.name,
         'recoveryValue': recoveryValue,
         'confidence': confidence,
         'notes': notes.trim(),
@@ -100,6 +116,8 @@ class AssessmentRepository {
       'reusability': reusability,
       'repairability': repairability,
       'recommendation': recommendation.name,
+      'assessedCondition': assessedCondition.name,
+      'origin': origin.name,
       'recoveryValue': recoveryValue,
       'confidence': confidence,
       'status': AssessmentStatus.pendingSupervisor.name,

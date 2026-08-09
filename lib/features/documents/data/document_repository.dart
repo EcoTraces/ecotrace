@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:http/http.dart' as http;
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_config.dart';
 import '../../../core/media/cloudinary_upload_service.dart';
@@ -11,18 +11,15 @@ class DocumentRepository {
   DocumentRepository({
     FirebaseFirestore? firestore,
     FirebaseStorage? storage,
-    FirebaseAuth? auth,
     ApiClient? apiClient,
   }) : _db = firestore ?? FirebaseFirestore.instance,
        _storage = storage ?? FirebaseStorage.instance,
-       _auth = auth ?? FirebaseAuth.instance,
        _api = apiClient ?? ApiClient.instance,
        _useApi =
            apiClient != null ||
-           (firestore == null && auth == null && ApiConfig.enabled);
+           (firestore == null && ApiConfig.enabled);
   final FirebaseFirestore _db;
   final FirebaseStorage _storage;
-  final FirebaseAuth _auth;
   final ApiClient _api;
   final bool _useApi;
   CollectionReference<Map<String, dynamic>> get _docs =>
@@ -141,6 +138,7 @@ class DocumentRepository {
         'status': 'pendingApproval',
         'ownerId': ownerId,
         'ownerName': ownerName,
+        'accessLevel': access.name,
         'approverId': '',
         'expiresAt': expiresAt?.toIso8601String(),
         'referenceNumber': reference.trim(),
@@ -239,6 +237,7 @@ class DocumentRepository {
     if (_useApi) {
       await _api.patch('/api/v1/documents/${d.id}/approve', {
         'approved': approved,
+        'notes': notes.trim(),
       });
       return;
     }
@@ -269,10 +268,24 @@ class DocumentRepository {
     await batch.commit();
   }
 
-  Future<Uint8List> download(String url) => _storage
-      .refFromURL(url)
-      .getData(20 * 1024 * 1024)
-      .then((x) => x ?? Uint8List(0));
+  Future<Uint8List> download(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) {
+      throw StateError('The document URL is invalid.');
+    }
+    if (uri.scheme == 'http' || uri.scheme == 'https') {
+      final response = await http.get(uri);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw StateError('Unable to download document (${response.statusCode}).');
+      }
+      if (response.bodyBytes.length > 20 * 1024 * 1024) {
+        throw StateError('Document exceeds the 20 MB download limit.');
+      }
+      return response.bodyBytes;
+    }
+    return await _storage.refFromURL(url).getData(20 * 1024 * 1024) ??
+        Uint8List(0);
+  }
   Future<String> _store(
     String ownerId,
     String id,

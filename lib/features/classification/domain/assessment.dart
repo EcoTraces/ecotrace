@@ -24,6 +24,8 @@ enum TreatmentRecommendation {
 
 enum AssessmentStatus { pendingSupervisor, approved, rejected }
 
+enum AssessmentOrigin { manual, aiAssisted }
+
 class ItemAssessment {
   const ItemAssessment({
     required this.id,
@@ -33,6 +35,8 @@ class ItemAssessment {
     required this.reusability,
     required this.repairability,
     required this.recommendation,
+    required this.assessedCondition,
+    required this.origin,
     required this.recoveryValue,
     required this.confidence,
     required this.status,
@@ -44,6 +48,8 @@ class ItemAssessment {
   final List<String> hazards;
   final int reusability, repairability;
   final TreatmentRecommendation recommendation;
+  final String assessedCondition;
+  final AssessmentOrigin origin;
   final double recoveryValue, confidence;
   final AssessmentStatus status;
   factory ItemAssessment.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
@@ -57,6 +63,10 @@ class ItemAssessment {
       repairability: x['repairability'],
       recommendation: TreatmentRecommendation.values.byName(
         x['recommendation'],
+      ),
+      assessedCondition: x['assessedCondition']?.toString() ?? 'recyclable',
+      origin: AssessmentOrigin.values.byName(
+        x['origin']?.toString() ?? AssessmentOrigin.manual.name,
       ),
       recoveryValue: (x['recoveryValue'] as num).toDouble(),
       confidence: (x['confidence'] as num).toDouble(),
@@ -77,6 +87,10 @@ class ItemAssessment {
     repairability: (x['repairability'] as num? ?? 0).toInt(),
     recommendation: TreatmentRecommendation.values.byName(
       x['recommendation']?.toString() ?? 'recycle',
+    ),
+    assessedCondition: x['assessedCondition']?.toString() ?? 'recyclable',
+    origin: AssessmentOrigin.values.byName(
+      x['origin']?.toString() ?? AssessmentOrigin.manual.name,
     ),
     recoveryValue: (x['recoveryValue'] as num? ?? 0).toDouble(),
     confidence: (x['confidence'] as num? ?? 0).toDouble(),

@@ -51,6 +51,11 @@ class RoutePlan {
     required this.deviationCount,
     required this.startedAt,
     required this.completedAt,
+    required this.trafficFactor,
+    required this.actualDistanceKm,
+    required this.actualMinutes,
+    required this.arrivalRadiusMetres,
+    required this.offlineReady,
   });
   final String id, scheduleId, driverId, vehicleId;
   final List<RouteStop> stops;
@@ -59,6 +64,9 @@ class RoutePlan {
   final double? currentLatitude, currentLongitude;
   final int deviationCount;
   final DateTime? startedAt, completedAt;
+  final double trafficFactor, actualDistanceKm, actualMinutes;
+  final int arrivalRadiusMetres;
+  final bool offlineReady;
   factory RoutePlan.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
     final x = d.data()!;
     return RoutePlan(
@@ -77,6 +85,11 @@ class RoutePlan {
       deviationCount: x['deviationCount'] ?? 0,
       startedAt: (x['startedAt'] as Timestamp?)?.toDate(),
       completedAt: (x['completedAt'] as Timestamp?)?.toDate(),
+      trafficFactor: (x['trafficFactor'] as num? ?? 1).toDouble(),
+      actualDistanceKm: (x['actualDistanceKm'] as num? ?? 0).toDouble(),
+      actualMinutes: (x['actualMinutes'] as num? ?? 0).toDouble(),
+      arrivalRadiusMetres: (x['arrivalRadiusMetres'] as num? ?? 150).toInt(),
+      offlineReady: x['offlineReady'] ?? true,
     );
   }
 
@@ -101,5 +114,37 @@ class RoutePlan {
     deviationCount: (data['deviationCount'] as num? ?? 0).toInt(),
     startedAt: DateTime.tryParse(data['startedAt']?.toString() ?? ''),
     completedAt: DateTime.tryParse(data['completedAt']?.toString() ?? ''),
+    trafficFactor: (data['trafficFactor'] as num? ?? 1).toDouble(),
+    actualDistanceKm: (data['actualDistanceKm'] as num? ?? 0).toDouble(),
+    actualMinutes: (data['actualMinutes'] as num? ?? 0).toDouble(),
+    arrivalRadiusMetres: (data['arrivalRadiusMetres'] as num? ?? 150).toInt(),
+    offlineReady: data['offlineReady'] ?? true,
+  );
+}
+
+class RouteLocation {
+  const RouteLocation({required this.latitude, required this.longitude, required this.speedMps, required this.recordedAt});
+  final double latitude, longitude, speedMps;
+  final DateTime? recordedAt;
+  factory RouteLocation.fromJson(Map<String, dynamic> data) => RouteLocation(
+    latitude: (data['latitude'] as num? ?? 0).toDouble(),
+    longitude: (data['longitude'] as num? ?? 0).toDouble(),
+    speedMps: (data['speedMps'] as num? ?? 0).toDouble(),
+    recordedAt: DateTime.tryParse(data['recordedAt']?.toString() ?? ''),
+  );
+}
+
+class RoutePerformance {
+  const RoutePerformance({required this.routes, required this.completed, required this.active, required this.plannedDistanceKm, required this.actualDistanceKm, required this.deviations, required this.averageCompletionRate});
+  final int routes, completed, active, deviations;
+  final double plannedDistanceKm, actualDistanceKm, averageCompletionRate;
+  factory RoutePerformance.fromJson(Map<String, dynamic> data) => RoutePerformance(
+    routes: (data['routes'] as num? ?? 0).toInt(),
+    completed: (data['completed'] as num? ?? 0).toInt(),
+    active: (data['active'] as num? ?? 0).toInt(),
+    plannedDistanceKm: (data['plannedDistanceKm'] as num? ?? 0).toDouble(),
+    actualDistanceKm: (data['actualDistanceKm'] as num? ?? 0).toDouble(),
+    deviations: (data['deviations'] as num? ?? 0).toInt(),
+    averageCompletionRate: (data['averageCompletionRate'] as num? ?? 0).toDouble(),
   );
 }

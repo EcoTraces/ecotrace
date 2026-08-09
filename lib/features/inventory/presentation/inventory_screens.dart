@@ -406,7 +406,7 @@ class InventoryDetailScreen extends StatelessWidget {
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Center(child: QrImageView(data: x.itemCode, size: 180)),
+            Center(child: QrImageView(data: x.qrPayload, size: 180)),
             Center(child: SelectableText(x.itemCode)),
             const SizedBox(height: 16),
             Card(

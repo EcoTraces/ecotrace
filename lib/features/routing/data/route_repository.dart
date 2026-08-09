@@ -111,6 +111,10 @@ class RouteRepository {
       return RoutePlan.fromJson(
         await _api.post('/api/v1/routes/optimize', {
           'scheduleId': schedule.id,
+          'departureAt': schedule.scheduledAt.toUtc().toIso8601String(),
+          'trafficAware': true,
+          'arrivalRadiusMetres': 150,
+          'deviationRadiusMetres': 2000,
         }),
       );
     }
@@ -338,6 +342,43 @@ class RouteRepository {
         'completedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+  Future<List<RouteLocation>> locationHistory(String routeId) async {
+    if (!_useApi) {
+      final snapshot = await _db.collection('routePlans').doc(routeId).collection('locationHistory').orderBy('recordedAt', descending: true).limit(1000).get();
+      return snapshot.docs.map((document) {
+        final data = document.data();
+        return RouteLocation(
+          latitude: (data['latitude'] as num? ?? 0).toDouble(),
+          longitude: (data['longitude'] as num? ?? 0).toDouble(),
+          speedMps: (data['speedMps'] as num? ?? 0).toDouble(),
+          recordedAt: (data['recordedAt'] as Timestamp?)?.toDate(),
+        );
+      }).toList();
+    }
+    final data = await _api.getList('/api/v1/routes/$routeId/location-history');
+    return data.map(RouteLocation.fromJson).toList();
+  }
+
+  Future<RoutePerformance> performance({required DateTime from, required DateTime to}) async {
+    if (!_useApi) {
+      final routes = await watchRoutes().first;
+      final completed = routes.where((route) => route.status == RoutePlanStatus.completed).toList();
+      return RoutePerformance(
+        routes: routes.length,
+        completed: completed.length,
+        active: routes.where((route) => route.status == RoutePlanStatus.active).length,
+        plannedDistanceKm: routes.fold(0, (total, route) => total + route.distanceKm),
+        actualDistanceKm: completed.fold(0, (total, route) => total + route.actualDistanceKm),
+        deviations: routes.fold(0, (total, route) => total + route.deviationCount),
+        averageCompletionRate: completed.isEmpty ? 0 : 100,
+      );
+    }
+    return RoutePerformance.fromJson(await _api.get('/api/v1/routing/reports/performance', query: {
+      'from': from.toUtc().toIso8601String(),
+      'to': to.toUtc().toIso8601String(),
+    }));
+  }
   static double distanceKm(double lat1, double lon1, double lat2, double lon2) {
     const earth = 6371.0;
     final dLat = (lat2 - lat1) * math.pi / 180,

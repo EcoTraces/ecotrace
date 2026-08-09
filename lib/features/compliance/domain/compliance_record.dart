@@ -1,5 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+DateTime? _complianceDate(dynamic value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is DateTime) return value;
+  if (value is String) return DateTime.tryParse(value);
+  return null;
+}
+
+T _enumValue<T extends Enum>(List<T> values, dynamic value, T fallback) {
+  final name = value?.toString();
+  return values.where((item) => item.name == name).firstOrNull ?? fallback;
+}
+
 enum ComplianceDocumentType {
   operationalLicence,
   recyclerCertification,
@@ -66,9 +78,10 @@ class RegulatoryBody {
   final String id, name, jurisdiction, contactName, contactEmail, contactPhone;
   final bool active;
   factory RegulatoryBody.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data()!;
-    return RegulatoryBody(
-      id: doc.id,
+    return RegulatoryBody.fromJson({'id': doc.id, ...doc.data()!});
+  }
+  factory RegulatoryBody.fromJson(Map<String, dynamic> data) => RegulatoryBody(
+      id: data['id']?.toString() ?? '',
       name: data['name'] ?? '',
       jurisdiction: data['jurisdiction'] ?? '',
       contactName: data['contactName'] ?? '',
@@ -76,7 +89,6 @@ class RegulatoryBody {
       contactPhone: data['contactPhone'] ?? '',
       active: data['active'] as bool? ?? true,
     );
-  }
 }
 
 class ComplianceDocument {
@@ -115,29 +127,25 @@ class ComplianceDocument {
   factory ComplianceDocument.fromDoc(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final data = doc.data()!;
-    return ComplianceDocument(
-      id: doc.id,
-      type: ComplianceDocumentType.values.byName(
-        data['type'] ?? ComplianceDocumentType.other.name,
-      ),
+    return ComplianceDocument.fromJson({'id': doc.id, ...doc.data()!});
+  }
+  factory ComplianceDocument.fromJson(Map<String, dynamic> data) => ComplianceDocument(
+      id: data['id']?.toString() ?? '',
+      type: _enumValue(ComplianceDocumentType.values, data['type'], ComplianceDocumentType.other),
       title: data['title'] ?? '',
       referenceNumber: data['referenceNumber'] ?? '',
       entityName: data['entityName'] ?? '',
       regulatoryBodyId: data['regulatoryBodyId'] ?? '',
       regulatoryBodyName: data['regulatoryBodyName'] ?? '',
-      status: ComplianceDocumentStatus.values.byName(
-        data['status'] ?? ComplianceDocumentStatus.draft.name,
-      ),
+      status: _enumValue(ComplianceDocumentStatus.values, data['status'], ComplianceDocumentStatus.draft),
       documentUrls: List<String>.from(
         data['documentUrls'] as List? ?? const [],
       ),
-      issuedAt: (data['issuedAt'] as Timestamp?)?.toDate(),
-      expiresAt: (data['expiresAt'] as Timestamp?)?.toDate(),
-      submittedAt: (data['submittedAt'] as Timestamp?)?.toDate(),
+      issuedAt: _complianceDate(data['issuedAt']),
+      expiresAt: _complianceDate(data['expiresAt']),
+      submittedAt: _complianceDate(data['submittedAt']),
       notes: data['notes'] ?? '',
     );
-  }
 }
 
 class ComplianceRequirement {
@@ -154,16 +162,16 @@ class ComplianceRequirement {
   factory ComplianceRequirement.fromDoc(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final data = doc.data()!;
-    return ComplianceRequirement(
-      id: doc.id,
+    return ComplianceRequirement.fromJson({'id': doc.id, ...doc.data()!});
+  }
+  factory ComplianceRequirement.fromJson(Map<String, dynamic> data) => ComplianceRequirement(
+      id: data['id']?.toString() ?? '',
       category: data['category'] ?? 'General',
       title: data['title'] ?? '',
       description: data['description'] ?? '',
       mandatory: data['mandatory'] as bool? ?? true,
       active: data['active'] as bool? ?? true,
     );
-  }
 }
 
 class ComplianceInspection {
@@ -195,24 +203,22 @@ class ComplianceInspection {
   factory ComplianceInspection.fromDoc(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final data = doc.data()!;
-    return ComplianceInspection(
-      id: doc.id,
+    return ComplianceInspection.fromJson({'id': doc.id, ...doc.data()!});
+  }
+  factory ComplianceInspection.fromJson(Map<String, dynamic> data) => ComplianceInspection(
+      id: data['id']?.toString() ?? '',
       entityName: data['entityName'] ?? '',
       regulatoryBodyId: data['regulatoryBodyId'] ?? '',
       inspectorName: data['inspectorName'] ?? '',
-      scheduledAt: (data['scheduledAt'] as Timestamp?)?.toDate(),
-      completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
-      status: ComplianceInspectionStatus.values.byName(
-        data['status'] ?? ComplianceInspectionStatus.scheduled.name,
-      ),
+      scheduledAt: _complianceDate(data['scheduledAt']),
+      completedAt: _complianceDate(data['completedAt']),
+      status: _enumValue(ComplianceInspectionStatus.values, data['status'], ComplianceInspectionStatus.scheduled),
       checklist: Map<String, bool>.from(data['checklist'] as Map? ?? const {}),
       score: (data['score'] as num? ?? 0).toDouble(),
       findings: data['findings'] ?? '',
       recommendations: data['recommendations'] ?? '',
       reportUrls: List<String>.from(data['reportUrls'] as List? ?? const []),
     );
-  }
 }
 
 class ComplianceViolation {
@@ -249,28 +255,23 @@ class ComplianceViolation {
   factory ComplianceViolation.fromDoc(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final data = doc.data()!;
-    return ComplianceViolation(
-      id: doc.id,
-      referenceNumber: data['referenceNumber'] ?? doc.id,
+    return ComplianceViolation.fromJson({'id': doc.id, ...doc.data()!});
+  }
+  factory ComplianceViolation.fromJson(Map<String, dynamic> data) => ComplianceViolation(
+      id: data['id']?.toString() ?? '',
+      referenceNumber: data['referenceNumber'] ?? data['id']?.toString() ?? '',
       entityName: data['entityName'] ?? '',
       requirement: data['requirement'] ?? '',
       description: data['description'] ?? '',
-      severity: ViolationSeverity.values.byName(
-        data['severity'] ?? ViolationSeverity.minor.name,
-      ),
-      status: ComplianceViolationStatus.values.byName(
-        data['status'] ?? ComplianceViolationStatus.open.name,
-      ),
+      severity: _enumValue(ViolationSeverity.values, data['severity'], ViolationSeverity.minor),
+      status: _enumValue(ComplianceViolationStatus.values, data['status'], ComplianceViolationStatus.open),
       correctiveActionPlan: data['correctiveActionPlan'] ?? '',
       correctiveActionOwner: data['correctiveActionOwner'] ?? '',
-      correctiveActionDueAt: (data['correctiveActionDueAt'] as Timestamp?)
-          ?.toDate(),
+      correctiveActionDueAt: _complianceDate(data['correctiveActionDueAt']),
       resolutionEvidence: data['resolutionEvidence'] ?? '',
-      reportedAt: (data['reportedAt'] as Timestamp?)?.toDate(),
-      resolvedAt: (data['resolvedAt'] as Timestamp?)?.toDate(),
+      reportedAt: _complianceDate(data['reportedAt']),
+      resolvedAt: _complianceDate(data['resolvedAt']),
     );
-  }
 }
 
 class PenaltyRecord {
@@ -289,20 +290,18 @@ class PenaltyRecord {
   final PenaltyStatus status;
   final DateTime? dueAt;
   factory PenaltyRecord.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data()!;
-    return PenaltyRecord(
-      id: doc.id,
+    return PenaltyRecord.fromJson({'id': doc.id, ...doc.data()!});
+  }
+  factory PenaltyRecord.fromJson(Map<String, dynamic> data) => PenaltyRecord(
+      id: data['id']?.toString() ?? '',
       violationId: data['violationId'] ?? '',
       referenceNumber: data['referenceNumber'] ?? '',
       amount: (data['amount'] as num? ?? 0).toDouble(),
       currency: data['currency'] ?? 'SLE',
-      status: PenaltyStatus.values.byName(
-        data['status'] ?? PenaltyStatus.issued.name,
-      ),
-      dueAt: (data['dueAt'] as Timestamp?)?.toDate(),
+      status: _enumValue(PenaltyStatus.values, data['status'], PenaltyStatus.issued),
+      dueAt: _complianceDate(data['dueAt']),
       notes: data['notes'] ?? '',
     );
-  }
 }
 
 class ComplianceScore {

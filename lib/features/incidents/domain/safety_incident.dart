@@ -183,6 +183,16 @@ class EmergencyContact {
       active: x['active'] ?? true,
     );
   }
+  factory EmergencyContact.fromJson(Map<String, dynamic> json) =>
+      EmergencyContact(
+        id: json['id']?.toString() ?? '',
+        name: json['name']?.toString() ?? '',
+        role: json['role']?.toString() ?? '',
+        phone: json['phone']?.toString() ?? '',
+        email: json['email']?.toString() ?? '',
+        region: json['region']?.toString() ?? '',
+        active: json['active'] as bool? ?? true,
+      );
 }
 
 class SafetyStatistics {

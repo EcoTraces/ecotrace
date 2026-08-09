@@ -49,13 +49,40 @@ class InventoryRepository {
   }
 
   Stream<InventoryItem> watchItem(String id) => _useApi
-      ? _pollItems().map((items) => items.firstWhere((item) => item.id == id))
+      ? _pollItem(id)
       : _db
             .collection('inventoryItems')
             .doc(id)
             .snapshots()
             .where((d) => d.exists)
             .map(InventoryItem.fromDoc);
+  Stream<InventoryItem> _pollItem(String id) async* {
+    while (true) {
+      final data = await _api.get('/api/v1/inventory/items/$id');
+      yield InventoryItem.fromJson(data);
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Future<InventoryItem> findByCode(String code) async {
+    if (_useApi) {
+      final data = await _api.get(
+        '/api/v1/inventory/items/by-code/${Uri.encodeComponent(code.trim())}',
+      );
+      return InventoryItem.fromJson(data);
+    }
+    final snapshot = await _db
+        .collection('inventoryItems')
+        .where('itemCode', isEqualTo: code.trim().toUpperCase())
+        .limit(1)
+        .get();
+    if (snapshot.docs.isEmpty) {
+      throw StateError('Inventory item not found.');
+    }
+    return InventoryItem.fromDoc(snapshot.docs.first);
+  }
   Stream<List<InventoryEvent>> watchHistory(String id) => _useApi
       ? _pollHistory(id)
       : _db
@@ -247,5 +274,35 @@ class InventoryRepository {
         'batchId': {'before': item.batchId, 'after': batchId},
       },
     );
+  }
+
+  Future<void> unassignBatch(InventoryItem item) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/inventory/items/${item.id}/batch', {
+        'batchId': null,
+      });
+      return;
+    }
+    await _db.collection('inventoryItems').doc(item.id).update({
+      'batchId': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> replaceImages(String id, List<Uint8List> images) async {
+    final urls = await CloudinaryUploadService.instance.uploadImages(
+      images,
+      scope: 'inventory',
+    );
+    if (_useApi) {
+      await _api.patch('/api/v1/inventory/items/$id/images', {
+        'imageUrls': urls,
+      });
+      return;
+    }
+    await _db.collection('inventoryItems').doc(id).update({
+      'imageUrls': urls,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 }
