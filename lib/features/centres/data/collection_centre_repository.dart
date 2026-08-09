@@ -11,8 +11,7 @@ class CollectionCentreRepository {
     ApiClient? apiClient,
   }) : _db = firestore ?? FirebaseFirestore.instance,
        _api = apiClient ?? ApiClient.instance,
-       _useApi = apiClient != null ||
-           (firestore == null && ApiConfig.enabled);
+       _useApi = apiClient != null || (firestore == null && ApiConfig.enabled);
 
   final FirebaseFirestore _db;
   final ApiClient _api;
@@ -26,8 +25,9 @@ class CollectionCentreRepository {
       return _pollCentres();
     }
     return _centres.snapshots().map(
-      (snapshot) => snapshot.docs.map(CollectionCentre.fromDoc).toList()
-        ..sort((a, b) => a.name.compareTo(b.name)),
+      (snapshot) =>
+          snapshot.docs.map(CollectionCentre.fromDoc).toList()
+            ..sort((a, b) => a.name.compareTo(b.name)),
     );
   }
 
@@ -51,10 +51,10 @@ class CollectionCentreRepository {
           CollectionCentre.fromJson,
         )
       : _centres
-      .doc(centreId)
-      .snapshots()
-      .where((document) => document.exists)
-      .map(CollectionCentre.fromDoc);
+            .doc(centreId)
+            .snapshots()
+            .where((document) => document.exists)
+            .map(CollectionCentre.fromDoc);
 
   Stream<List<StorageSection>> watchSections(String centreId) => _useApi
       ? _pollList(
@@ -62,13 +62,14 @@ class CollectionCentreRepository {
           StorageSection.fromJson,
         ).map((items) => items..sort((a, b) => a.name.compareTo(b.name)))
       : _centres
-      .doc(centreId)
-      .collection('storageSections')
-      .snapshots()
-      .map(
-        (snapshot) => snapshot.docs.map(StorageSection.fromDoc).toList()
-          ..sort((a, b) => a.name.compareTo(b.name)),
-      );
+            .doc(centreId)
+            .collection('storageSections')
+            .snapshots()
+            .map(
+              (snapshot) =>
+                  snapshot.docs.map(StorageSection.fromDoc).toList()
+                    ..sort((a, b) => a.name.compareTo(b.name)),
+            );
 
   Stream<List<ReceivingRecord>> watchReceivingRecords(String centreId) =>
       _useApi
@@ -84,12 +85,14 @@ class CollectionCentreRepository {
             ),
         )
       : _centres
-          .doc(centreId)
-          .collection('receivingRecords')
-          .orderBy('receivedAt', descending: true)
-          .limit(100)
-          .snapshots()
-          .map((snapshot) => snapshot.docs.map(ReceivingRecord.fromDoc).toList());
+            .doc(centreId)
+            .collection('receivingRecords')
+            .orderBy('receivedAt', descending: true)
+            .limit(100)
+            .snapshots()
+            .map(
+              (snapshot) => snapshot.docs.map(ReceivingRecord.fromDoc).toList(),
+            );
 
   Stream<List<StockMovement>> watchMovements(String centreId) => _useApi
       ? _pollList(
@@ -98,17 +101,18 @@ class CollectionCentreRepository {
         ).map(
           (items) => items
             ..sort(
-              (a, b) =>
-                  (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)),
+              (a, b) => (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)),
             ),
         )
       : _centres
-      .doc(centreId)
-      .collection('stockMovements')
-      .orderBy('createdAt', descending: true)
-      .limit(100)
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map(StockMovement.fromDoc).toList());
+            .doc(centreId)
+            .collection('stockMovements')
+            .orderBy('createdAt', descending: true)
+            .limit(100)
+            .snapshots()
+            .map(
+              (snapshot) => snapshot.docs.map(StockMovement.fromDoc).toList(),
+            );
 
   Stream<List<CentreStaffAssignment>> watchStaff(String centreId) => _useApi
       ? _pollList(
@@ -116,13 +120,13 @@ class CollectionCentreRepository {
           CentreStaffAssignment.fromJson,
         )
       : _centres
-      .doc(centreId)
-      .collection('staffAssignments')
-      .snapshots()
-      .map(
-        (snapshot) =>
-            snapshot.docs.map(CentreStaffAssignment.fromDoc).toList(),
-      );
+            .doc(centreId)
+            .collection('staffAssignments')
+            .snapshots()
+            .map(
+              (snapshot) =>
+                  snapshot.docs.map(CentreStaffAssignment.fromDoc).toList(),
+            );
 
   Stream<List<SafetyInspection>> watchInspections(String centreId) => _useApi
       ? _pollList(
@@ -137,12 +141,15 @@ class CollectionCentreRepository {
             ),
         )
       : _centres
-      .doc(centreId)
-      .collection('safetyInspections')
-      .orderBy('inspectedAt', descending: true)
-      .limit(50)
-          .snapshots()
-          .map((snapshot) => snapshot.docs.map(SafetyInspection.fromDoc).toList());
+            .doc(centreId)
+            .collection('safetyInspections')
+            .orderBy('inspectedAt', descending: true)
+            .limit(50)
+            .snapshots()
+            .map(
+              (snapshot) =>
+                  snapshot.docs.map(SafetyInspection.fromDoc).toList(),
+            );
 
   Stream<T> _pollOne<T>(
     String path,
@@ -183,21 +190,23 @@ class CollectionCentreRepository {
     required double capacityAlertPercent,
   }) {
     if (_useApi) {
-      return _api.post('/api/v1/collection-centres', {
-        'name': name.trim(),
-        'address': address.trim(),
-        'contactName': contactName.trim(),
-        'contactEmail': contactEmail.trim(),
-        'contactPhone': contactPhone.trim(),
-        'latitude': latitude,
-        'longitude': longitude,
-        'operatingHours': operatingHours,
-        'supportedCategories': supportedCategories
-            .map((item) => item.name)
-            .toList(),
-        'capacityKg': capacityKg,
-        'capacityAlertPercent': capacityAlertPercent,
-      }).then((_) {});
+      return _api
+          .post('/api/v1/collection-centres', {
+            'name': name.trim(),
+            'address': address.trim(),
+            'contactName': contactName.trim(),
+            'contactEmail': contactEmail.trim(),
+            'contactPhone': contactPhone.trim(),
+            'latitude': latitude,
+            'longitude': longitude,
+            'operatingHours': operatingHours,
+            'supportedCategories': supportedCategories
+                .map((item) => item.name)
+                .toList(),
+            'capacityKg': capacityKg,
+            'capacityAlertPercent': capacityAlertPercent,
+          })
+          .then((_) {});
     }
     return _centres.add({
       'name': name.trim(),
@@ -228,21 +237,23 @@ class CollectionCentreRepository {
     required double capacityKg,
     required bool restricted,
   }) => _useApi
-      ? _api.post('/api/v1/collection-centres/$centreId/sections', {
+      ? _api
+            .post('/api/v1/collection-centres/$centreId/sections', {
+              'name': name.trim(),
+              'category': category.name,
+              'capacityKg': capacityKg,
+              'restricted': restricted,
+            })
+            .then((_) {})
+      : _centres.doc(centreId).collection('storageSections').add({
           'name': name.trim(),
           'category': category.name,
           'capacityKg': capacityKg,
+          'currentStockKg': 0,
           'restricted': restricted,
-        }).then((_) {})
-      : _centres.doc(centreId).collection('storageSections').add({
-    'name': name.trim(),
-    'category': category.name,
-    'capacityKg': capacityKg,
-    'currentStockKg': 0,
-    'restricted': restricted,
-    'createdAt': FieldValue.serverTimestamp(),
-    'updatedAt': FieldValue.serverTimestamp(),
-  });
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
 
   Future<void> assignStaff(
     String centreId, {
@@ -267,6 +278,32 @@ class CollectionCentreRepository {
     });
     batch.update(centre, {
       'staffIds': FieldValue.arrayUnion([userId.trim()]),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+  }
+
+  Future<void> setStaffActive(
+    String centreId, {
+    required String userId,
+    required bool active,
+  }) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/collection-centres/$centreId/staff/$userId', {
+        'active': active,
+      });
+      return;
+    }
+    final centre = _centres.doc(centreId);
+    final batch = _db.batch();
+    batch.update(centre.collection('staffAssignments').doc(userId), {
+      'active': active,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(centre, {
+      'staffIds': active
+          ? FieldValue.arrayUnion([userId])
+          : FieldValue.arrayRemove([userId]),
       'updatedAt': FieldValue.serverTimestamp(),
     });
     await batch.commit();
@@ -306,7 +343,9 @@ class CollectionCentreRepository {
         throw StateError('This check-in exceeds the centre storage capacity.');
       }
       if (section.currentStockKg + weightKg > section.capacityKg) {
-        throw StateError('This check-in exceeds the selected section capacity.');
+        throw StateError(
+          'This check-in exceeds the selected section capacity.',
+        );
       }
       final record = centreRef.collection('receivingRecords').doc();
       final movement = centreRef.collection('stockMovements').doc();
@@ -455,11 +494,13 @@ class CollectionCentreRepository {
         ? SafetyInspectionStatus.actionRequired
         : SafetyInspectionStatus.failed;
     if (_useApi) {
-      return _api.post('/api/v1/collection-centres/$centreId/inspections', {
-        'inspectorId': inspectorId,
-        'checks': checks,
-        'notes': notes.trim(),
-      }).then((_) {});
+      return _api
+          .post('/api/v1/collection-centres/$centreId/inspections', {
+            'inspectorId': inspectorId,
+            'checks': checks,
+            'notes': notes.trim(),
+          })
+          .then((_) {});
     }
     return _centres.doc(centreId).collection('safetyInspections').add({
       'inspectorId': inspectorId,

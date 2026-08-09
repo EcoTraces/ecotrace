@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
 
 import '../../inventory/domain/inventory_item.dart';
 import '../../recovery/domain/recovered_material.dart';
@@ -6,80 +8,202 @@ import '../../repairs/domain/repair_job.dart';
 import '../domain/marketplace.dart';
 
 class MarketplaceRepository {
-  MarketplaceRepository({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  MarketplaceRepository({FirebaseFirestore? firestore, ApiClient? apiClient})
+    : _db = firestore ?? FirebaseFirestore.instance,
+      _api = apiClient ?? ApiClient.instance,
+      _useApi = apiClient != null || (firestore == null && ApiConfig.enabled);
   final FirebaseFirestore _db;
+  final ApiClient _api;
+  final bool _useApi;
 
-  Stream<MarketplaceProfile?> watchProfile(String userId) => _db
-      .collection('marketplaceProfiles')
-      .doc(userId)
-      .snapshots()
-      .map((doc) => doc.exists ? MarketplaceProfile.fromDoc(doc) : null);
-  Stream<List<MarketplaceListing>> watchListings() => _db
-      .collection('marketplaceListings')
-      .snapshots()
-      .map(
-        (s) => s.docs.map(MarketplaceListing.fromDoc).toList()
-          ..sort(
-            (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
-              a.createdAt ?? DateTime(0),
-            ),
-          ),
+  Stream<MarketplaceProfile?> watchProfile(String userId) => _useApi
+      ? _pollProfile()
+      : _db
+            .collection('marketplaceProfiles')
+            .doc(userId)
+            .snapshots()
+            .map((doc) => doc.exists ? MarketplaceProfile.fromDoc(doc) : null);
+  Stream<MarketplaceProfile?> _pollProfile() async* {
+    while (true) {
+      try {
+        yield MarketplaceProfile.fromJson(
+          await _api.get('/api/v1/marketplace/profile'),
+        );
+      } on ApiException catch (error) {
+        if (error.statusCode == 404) {
+          yield null;
+        } else {
+          rethrow;
+        }
+      }
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
       );
-  Stream<List<MarketplaceOrder>> watchOrders(String userId) => _db
-      .collection('marketplaceOrders')
-      .where('participantIds', arrayContains: userId)
-      .snapshots()
-      .map(
-        (s) => s.docs.map(MarketplaceOrder.fromDoc).toList()
-          ..sort(
-            (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
-              a.createdAt ?? DateTime(0),
-            ),
-          ),
+    }
+  }
+
+  Stream<List<MarketplaceListing>> watchListings() => _useApi
+      ? _pollListings()
+      : _db
+            .collection('marketplaceListings')
+            .snapshots()
+            .map(
+              (s) => s.docs.map(MarketplaceListing.fromDoc).toList()
+                ..sort(
+                  (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
+                    a.createdAt ?? DateTime(0),
+                  ),
+                ),
+            );
+  Stream<List<MarketplaceListing>> _pollListings() async* {
+    while (true) {
+      final data = await _api.getList(
+        '/api/v1/marketplace/listings',
+        authenticated: false,
       );
-  Stream<List<PriceQuotation>> watchQuotes(String userId) => _db
-      .collection('marketplaceQuotes')
-      .where('participantIds', arrayContains: userId)
-      .snapshots()
-      .map((s) => s.docs.map(PriceQuotation.fromDoc).toList());
-  Stream<List<DeliveryEvent>> watchDelivery(String orderId) => _db
-      .collection('marketplaceOrders')
-      .doc(orderId)
-      .collection('deliveryEvents')
-      .snapshots()
-      .map(
-        (s) => s.docs.map(DeliveryEvent.fromDoc).toList()
-          ..sort(
-            (a, b) => (a.createdAt ?? DateTime(0)).compareTo(
-              b.createdAt ?? DateTime(0),
-            ),
-          ),
+      yield data.map(MarketplaceListing.fromJson).toList()..sort(
+        (a, b) =>
+            (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)),
       );
-  Stream<List<MarketplaceReview>> watchReviews(String sellerId) => _db
-      .collection('marketplaceReviews')
-      .where('sellerId', isEqualTo: sellerId)
-      .snapshots()
-      .map((s) => s.docs.map(MarketplaceReview.fromDoc).toList());
-  Stream<List<RepairJob>> watchEligibleDevices() => _db
-      .collection('repairJobs')
-      .where('status', isEqualTo: RepairStatus.completed.name)
-      .snapshots()
-      .map(
-        (s) => s.docs
-            .map(RepairJob.fromDoc)
-            .where(
-              (job) =>
-                  job.dispositionApproved &&
-                  job.disposition == RefurbishedDisposition.resale,
-            )
-            .toList(),
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
       );
-  Stream<List<RecoveredMaterialLot>> watchEligibleMaterials() => _db
-      .collection('recoveredMaterialLots')
-      .where('status', isEqualTo: MaterialLotStatus.salesReady.name)
-      .snapshots()
-      .map((s) => s.docs.map(RecoveredMaterialLot.fromDoc).toList());
+    }
+  }
+
+  Stream<List<MarketplaceOrder>> watchOrders(String userId) => _useApi
+      ? _pollOrders()
+      : _db
+            .collection('marketplaceOrders')
+            .where('participantIds', arrayContains: userId)
+            .snapshots()
+            .map(
+              (s) => s.docs.map(MarketplaceOrder.fromDoc).toList()
+                ..sort(
+                  (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
+                    a.createdAt ?? DateTime(0),
+                  ),
+                ),
+            );
+  Stream<List<MarketplaceOrder>> _pollOrders() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/marketplace/orders');
+      yield data.map(MarketplaceOrder.fromJson).toList()..sort(
+        (a, b) =>
+            (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)),
+      );
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<PriceQuotation>> watchQuotes(String userId) => _useApi
+      ? _pollQuotes()
+      : _db
+            .collection('marketplaceQuotes')
+            .where('participantIds', arrayContains: userId)
+            .snapshots()
+            .map((s) => s.docs.map(PriceQuotation.fromDoc).toList());
+  Stream<List<PriceQuotation>> _pollQuotes() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/marketplace/quotations');
+      yield data.map(PriceQuotation.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<DeliveryEvent>> watchDelivery(String orderId) => _useApi
+      ? _pollDelivery(orderId)
+      : _db
+            .collection('marketplaceOrders')
+            .doc(orderId)
+            .collection('deliveryEvents')
+            .snapshots()
+            .map(
+              (s) => s.docs.map(DeliveryEvent.fromDoc).toList()
+                ..sort(
+                  (a, b) => (a.createdAt ?? DateTime(0)).compareTo(
+                    b.createdAt ?? DateTime(0),
+                  ),
+                ),
+            );
+  Stream<List<DeliveryEvent>> _pollDelivery(String orderId) async* {
+    while (true) {
+      final data = await _api.getList(
+        '/api/v1/marketplace/orders/$orderId/delivery-events',
+      );
+      yield data.map(DeliveryEvent.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<MarketplaceReview>> watchReviews(String sellerId) => _useApi
+      ? _pollReviews(sellerId)
+      : _db
+            .collection('marketplaceReviews')
+            .where('sellerId', isEqualTo: sellerId)
+            .snapshots()
+            .map((s) => s.docs.map(MarketplaceReview.fromDoc).toList());
+  Stream<List<MarketplaceReview>> _pollReviews(String sellerId) async* {
+    while (true) {
+      final data = await _api.getList(
+        '/api/v1/marketplace/sellers/$sellerId/reviews',
+        authenticated: false,
+      );
+      yield data.map(MarketplaceReview.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<RepairJob>> watchEligibleDevices() => _useApi
+      ? _pollEligibleDevices()
+      : _db
+            .collection('repairJobs')
+            .where('status', isEqualTo: RepairStatus.completed.name)
+            .snapshots()
+            .map(
+              (s) => s.docs
+                  .map(RepairJob.fromDoc)
+                  .where(
+                    (job) =>
+                        job.dispositionApproved &&
+                        job.disposition == RefurbishedDisposition.resale,
+                  )
+                  .toList(),
+            );
+  Stream<List<RepairJob>> _pollEligibleDevices() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/marketplace/eligible-devices');
+      yield data.map(RepairJob.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<RecoveredMaterialLot>> watchEligibleMaterials() => _useApi
+      ? _pollEligibleMaterials()
+      : _db
+            .collection('recoveredMaterialLots')
+            .where('status', isEqualTo: MaterialLotStatus.salesReady.name)
+            .snapshots()
+            .map((s) => s.docs.map(RecoveredMaterialLot.fromDoc).toList());
+  Stream<List<RecoveredMaterialLot>> _pollEligibleMaterials() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/marketplace/eligible-materials');
+      yield data.map(RecoveredMaterialLot.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
 
   Future<void> saveProfile({
     required String userId,
@@ -89,18 +213,44 @@ class MarketplaceRepository {
     required String email,
     required String phone,
     required String deliveryAddress,
-  }) => _db.collection('marketplaceProfiles').doc(userId).set({
-    'type': type.name,
-    'displayName': displayName.trim(),
-    'businessName': businessName.trim(),
-    'email': email.trim(),
-    'phone': phone.trim(),
-    'deliveryAddress': deliveryAddress.trim(),
-    'rating': 0,
-    'reviewCount': 0,
-    'verified': false,
-    'updatedAt': FieldValue.serverTimestamp(),
-  }, SetOptions(merge: true));
+  }) {
+    if (_useApi) {
+      if (type == MarketplaceProfileType.seller ||
+          type == MarketplaceProfileType.buyerAndSeller) {
+        return _api
+            .put('/api/v1/marketplace/seller-profile', {
+              'displayName': displayName,
+              'businessName': businessName.isEmpty ? displayName : businessName,
+              'description': '',
+              'phone': phone,
+              'address': deliveryAddress,
+              'serviceAreas': <String>[deliveryAddress],
+            })
+            .then((_) {});
+      }
+      return _api
+          .put('/api/v1/marketplace/buyer-profile', {
+            'displayName': displayName,
+            'phone': phone,
+            'deliveryAddress': deliveryAddress,
+            'buyerType': 'individual',
+            'organizationName': businessName,
+          })
+          .then((_) {});
+    }
+    return _db.collection('marketplaceProfiles').doc(userId).set({
+      'type': type.name,
+      'displayName': displayName.trim(),
+      'businessName': businessName.trim(),
+      'email': email.trim(),
+      'phone': phone.trim(),
+      'deliveryAddress': deliveryAddress.trim(),
+      'rating': 0,
+      'reviewCount': 0,
+      'verified': false,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
 
   Future<void> listDevice({
     required RepairJob job,
@@ -112,6 +262,22 @@ class MarketplaceRepository {
     if (!job.dispositionApproved ||
         job.disposition != RefurbishedDisposition.resale) {
       throw StateError('Device is not approved for resale.');
+    }
+    if (_useApi) {
+      await _api.post('/api/v1/marketplace/listings', {
+        'type': 'refurbishedDevice',
+        'sourceId': job.itemId,
+        'title': job.deviceName,
+        'description': description,
+        'category': 'electronics',
+        'conditionOrGrade': job.grade?.name ?? 'refurbished',
+        'quantityAvailable': 1,
+        'unitPrice': price,
+        'currency': currency,
+        'imageUrls': <String>[],
+        'deliveryAvailable': true,
+      });
+      return;
     }
     await _ensureNotListed(job.itemId);
     final itemDoc = await _db
@@ -153,6 +319,22 @@ class MarketplaceRepository {
     if (lot.status != MaterialLotStatus.salesReady) {
       throw StateError('Material lot is not sales-ready.');
     }
+    if (_useApi) {
+      await _api.post('/api/v1/marketplace/listings', {
+        'type': 'recoveredMaterial',
+        'sourceId': lot.id,
+        'title': '${lot.material.label} recovered material',
+        'description': description,
+        'category': lot.material.name,
+        'conditionOrGrade': lot.qualityGrade.name,
+        'quantityAvailable': lot.weightKg,
+        'unitPrice': pricePerKg,
+        'currency': currency,
+        'imageUrls': <String>[],
+        'deliveryAvailable': true,
+      });
+      return;
+    }
     await _ensureNotListed(lot.id);
     await _db.collection('marketplaceListings').add({
       'type': MarketplaceListingType.recoveredMaterial.name,
@@ -184,6 +366,15 @@ class MarketplaceRepository {
     required double quantity,
   }) async {
     if (quantity <= 0) throw StateError('Quantity must be positive.');
+    if (_useApi) {
+      await _api.post('/api/v1/marketplace/orders', {
+        'listingId': listing.id,
+        'quantity': quantity,
+        'deliveryAddress': buyer.deliveryAddress,
+        'quotationId': '',
+      });
+      return;
+    }
     final listingRef = _db.collection('marketplaceListings').doc(listing.id),
         orderRef = _db.collection('marketplaceOrders').doc();
     await _db.runTransaction((tx) async {
@@ -230,30 +421,49 @@ class MarketplaceRepository {
     required double quantity,
     required double requestedUnitPrice,
     required String message,
-  }) => _db.collection('marketplaceQuotes').add({
-    'listingId': listing.id,
-    'listingTitle': listing.title,
-    'buyerId': buyer.id,
-    'buyerName': buyer.displayName,
-    'sellerId': listing.sellerId,
-    'participantIds': [buyer.id, listing.sellerId],
-    'quantity': quantity,
-    'requestedUnitPrice': requestedUnitPrice,
-    'quotedUnitPrice': 0,
-    'currency': listing.currency,
-    'message': message.trim(),
-    'status': QuoteStatus.requested.name,
-    'createdAt': FieldValue.serverTimestamp(),
-  });
+  }) => _useApi
+      ? _api
+            .post('/api/v1/marketplace/quotations', {
+              'listingId': listing.id,
+              'quantity': quantity,
+              'offeredUnitPrice': requestedUnitPrice,
+              'message': message,
+            })
+            .then((_) {})
+      : _db.collection('marketplaceQuotes').add({
+          'listingId': listing.id,
+          'listingTitle': listing.title,
+          'buyerId': buyer.id,
+          'buyerName': buyer.displayName,
+          'sellerId': listing.sellerId,
+          'participantIds': [buyer.id, listing.sellerId],
+          'quantity': quantity,
+          'requestedUnitPrice': requestedUnitPrice,
+          'quotedUnitPrice': 0,
+          'currency': listing.currency,
+          'message': message.trim(),
+          'status': QuoteStatus.requested.name,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
   Future<void> respondQuote(
     PriceQuotation quote, {
     required bool accepted,
     required double quotedPrice,
-  }) => _db.collection('marketplaceQuotes').doc(quote.id).update({
-    'status': accepted ? QuoteStatus.quoted.name : QuoteStatus.rejected.name,
-    'quotedUnitPrice': quotedPrice,
-    'respondedAt': FieldValue.serverTimestamp(),
-  });
+  }) => _useApi
+      ? _api
+            .patch('/api/v1/marketplace/quotations/${quote.id}/respond', {
+              'decision': accepted ? 'accepted' : 'rejected',
+              'unitPrice': quotedPrice,
+              'message': '',
+            })
+            .then((_) {})
+      : _db.collection('marketplaceQuotes').doc(quote.id).update({
+          'status': accepted
+              ? QuoteStatus.quoted.name
+              : QuoteStatus.rejected.name,
+          'quotedUnitPrice': quotedPrice,
+          'respondedAt': FieldValue.serverTimestamp(),
+        });
 
   Future<void> submitPayment(
     MarketplaceOrder order, {
@@ -265,6 +475,14 @@ class MarketplaceRepository {
         'Payment method and transaction reference are required.',
       );
     }
+    if (_useApi) {
+      return _api
+          .patch('/api/v1/marketplace/orders/${order.id}/payment-submission', {
+            'paymentMethod': _paymentMethod(method),
+            'transactionReference': reference,
+          })
+          .then((_) {});
+    }
     return _db.collection('marketplaceOrders').doc(order.id).update({
       'paymentMethod': method.trim(),
       'paymentReference': reference.trim(),
@@ -273,26 +491,53 @@ class MarketplaceRepository {
     });
   }
 
-  Future<void> confirmPayment(MarketplaceOrder order) =>
-      _db.collection('marketplaceOrders').doc(order.id).update({
-        'paymentStatus': MarketplacePaymentStatus.verified.name,
-        'status': MarketplaceOrderStatus.paid.name,
-        'paidAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-  Future<void> confirmRefund(MarketplaceOrder order) =>
-      _db.collection('marketplaceOrders').doc(order.id).update({
-        'paymentStatus': MarketplacePaymentStatus.refunded.name,
-        'status': MarketplaceOrderStatus.refunded.name,
-        'refundedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+  Future<void> confirmPayment(MarketplaceOrder order) => _useApi
+      ? _api
+            .patch('/api/v1/marketplace/orders/${order.id}/payment', {
+              'status': 'confirmed',
+              'transactionReference': order.paymentReference.isEmpty
+                  ? 'ADMIN-CONFIRMED'
+                  : order.paymentReference,
+              'paymentMethod': _paymentMethod(order.paymentMethod),
+            })
+            .then((_) {})
+      : _db.collection('marketplaceOrders').doc(order.id).update({
+          'paymentStatus': MarketplacePaymentStatus.verified.name,
+          'status': MarketplaceOrderStatus.paid.name,
+          'paidAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+  Future<void> confirmRefund(MarketplaceOrder order) => _useApi
+      ? _api
+            .patch('/api/v1/marketplace/orders/${order.id}/payment', {
+              'status': 'refunded',
+              'transactionReference': order.paymentReference.isEmpty
+                  ? 'ADMIN-REFUND'
+                  : order.paymentReference,
+              'paymentMethod': _paymentMethod(order.paymentMethod),
+            })
+            .then((_) {})
+      : _db.collection('marketplaceOrders').doc(order.id).update({
+          'paymentStatus': MarketplacePaymentStatus.refunded.name,
+          'status': MarketplaceOrderStatus.refunded.name,
+          'refundedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
   Future<void> dispatch(
     MarketplaceOrder order, {
     required String carrier,
     required String trackingNumber,
     required String location,
   }) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/marketplace/orders/${order.id}/delivery', {
+        'status': 'dispatched',
+        'carrier': carrier,
+        'trackingNumber': trackingNumber,
+        'proofUrls': <String>[],
+      });
+      return;
+    }
     final ref = _db.collection('marketplaceOrders').doc(order.id),
         batch = _db.batch();
     batch.update(ref, {
@@ -318,6 +563,15 @@ class MarketplaceRepository {
     required String notes,
     required bool delivered,
   }) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/marketplace/orders/${order.id}/delivery', {
+        'status': delivered ? 'delivered' : _deliveryStatus(status),
+        'carrier': order.carrier,
+        'trackingNumber': order.trackingNumber,
+        'proofUrls': <String>[],
+      });
+      return;
+    }
     final ref = _db.collection('marketplaceOrders').doc(order.id),
         batch = _db.batch();
     batch.update(ref, {
@@ -336,16 +590,28 @@ class MarketplaceRepository {
     await batch.commit();
   }
 
-  Future<void> confirmReceipt(MarketplaceOrder order) =>
-      _db.collection('marketplaceOrders').doc(order.id).update({
-        'status': MarketplaceOrderStatus.completed.name,
-        'completedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+  Future<void> confirmReceipt(MarketplaceOrder order) => _useApi
+      ? _api
+            .patch(
+              '/api/v1/marketplace/orders/${order.id}/confirm-receipt',
+              const {},
+            )
+            .then((_) {})
+      : _db.collection('marketplaceOrders').doc(order.id).update({
+          'status': MarketplaceOrderStatus.completed.name,
+          'completedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
 
   Future<void> cancelOrder(MarketplaceOrder order) async {
     if (!order.cancellable) {
       throw StateError('This order can no longer be cancelled.');
+    }
+    if (_useApi) {
+      await _api.patch('/api/v1/marketplace/orders/${order.id}/cancel', {
+        'reason': 'Cancelled by user',
+      });
+      return;
     }
     final orderRef = _db.collection('marketplaceOrders').doc(order.id),
         listingRef = _db.collection('marketplaceListings').doc(order.listingId);
@@ -380,6 +646,13 @@ class MarketplaceRepository {
         rating < 1 ||
         rating > 5) {
       throw StateError('Complete the order before rating it.');
+    }
+    if (_useApi) {
+      await _api.post('/api/v1/marketplace/orders/${order.id}/reviews', {
+        'rating': rating,
+        'comments': comment,
+      });
+      return;
     }
     final reviewRef = _db.collection('marketplaceReviews').doc(order.id),
         profileRef = _db.collection('marketplaceProfiles').doc(order.sellerId);
@@ -427,4 +700,19 @@ class MarketplaceRepository {
       throw StateError('This asset already has a marketplace listing.');
     }
   }
+}
+
+String _paymentMethod(String value) {
+  final normalized = value.toLowerCase().replaceAll(' ', '');
+  if (normalized.contains('mobile')) return 'mobileMoney';
+  if (normalized.contains('bank')) return 'bank';
+  if (normalized.contains('card')) return 'card';
+  return 'cash';
+}
+
+String _deliveryStatus(String value) {
+  final normalized = value.toLowerCase().replaceAll(' ', '');
+  if (normalized.contains('transit')) return 'inTransit';
+  if (normalized.contains('dispatch')) return 'dispatched';
+  return 'processing';
 }

@@ -37,20 +37,32 @@ class Beneficiary {
   final EligibilityStatus eligibilityStatus;
   final double eligibilityScore;
   factory Beneficiary.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
-    final x = d.data()!;
+    return Beneficiary.fromJson({...d.data()!, 'id': d.id});
+  }
+  factory Beneficiary.fromJson(Map<String, dynamic> x) {
+    final typeName =
+        x['type'] == 'governmentInstitution' || x['type'] == 'healthFacility'
+        ? 'publicInstitution'
+        : x['type'];
     return Beneficiary(
-      id: d.id,
+      id: '${x['id'] ?? ''}',
       name: x['name'] ?? '',
-      type: BeneficiaryType.values.byName(x['type'] ?? 'other'),
+      type:
+          BeneficiaryType.values
+              .where((value) => value.name == typeName)
+              .firstOrNull ??
+          BeneficiaryType.other,
       contactName: x['contactName'] ?? '',
-      contact: x['contact'] ?? '',
+      contact: x['contact'] ?? x['contactPhone'] ?? x['contactEmail'] ?? '',
       address: x['address'] ?? '',
-      peopleServed: x['peopleServed'] ?? 0,
+      peopleServed:
+          (x['peopleServed'] as num? ?? x['beneficiariesServed'] as num? ?? 0)
+              .toInt(),
       eligibilityStatus: EligibilityStatus.values.byName(
         x['eligibilityStatus'] ?? 'pending',
       ),
       eligibilityScore: (x['eligibilityScore'] as num? ?? 0).toDouble(),
-      assessmentNotes: x['assessmentNotes'] ?? '',
+      assessmentNotes: x['assessmentNotes'] ?? x['eligibilityNotes'] ?? '',
     );
   }
 }
@@ -85,22 +97,43 @@ class DonationRequest {
   final DonationStatus status;
   final DateTime? deliveryAt, createdAt;
   factory DonationRequest.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
-    final x = d.data()!;
+    return DonationRequest.fromJson({...d.data()!, 'id': d.id});
+  }
+  factory DonationRequest.fromJson(Map<String, dynamic> x) {
+    final rawStatus = '${x['status'] ?? ''}';
+    final status = switch (rawStatus) {
+      'submitted' => DonationStatus.requested,
+      'deliveryScheduled' => DonationStatus.scheduled,
+      _ =>
+        DonationStatus.values
+                .where((value) => value.name == rawStatus)
+                .firstOrNull ??
+            DonationStatus.requested,
+    };
     return DonationRequest(
-      id: d.id,
-      requestNumber: x['requestNumber'] ?? d.id,
-      requesterId: x['requesterId'] ?? '',
+      id: '${x['id'] ?? ''}',
+      requestNumber:
+          x['requestNumber'] ?? x['requestCode'] ?? '${x['id'] ?? ''}',
+      requesterId: x['requesterId'] ?? x['requestedBy'] ?? '',
       beneficiaryId: x['beneficiaryId'] ?? '',
       beneficiaryName: x['beneficiaryName'] ?? '',
-      deviceTypes: List<String>.from(x['deviceTypes'] ?? []),
-      quantity: x['quantity'] ?? 0,
+      deviceTypes: x['deviceTypes'] is List
+          ? List<String>.from(x['deviceTypes'])
+          : <String>['${x['deviceCategory'] ?? ''}'],
+      quantity: (x['quantity'] as num? ?? 0).toInt(),
       purpose: x['purpose'] ?? '',
-      status: DonationStatus.values.byName(x['status'] ?? 'requested'),
-      allocatedJobIds: List<String>.from(x['allocatedJobIds'] ?? []),
-      deliveryAt: (x['deliveryAt'] as Timestamp?)?.toDate(),
-      proofUrl: x['proofUrl'] ?? '',
+      status: status,
+      allocatedJobIds: List<String>.from(
+        x['allocatedJobIds'] ?? x['allocatedDeviceIds'] ?? [],
+      ),
+      deliveryAt: _date(
+        x['deliveryAt'] ?? x['scheduledAt'] ?? x['deliveredAt'],
+      ),
+      proofUrl:
+          x['proofUrl'] ??
+          ((x['proofOfDeliveryUrls'] as List?)?.firstOrNull ?? ''),
       confirmedBy: x['confirmedBy'] ?? '',
-      createdAt: (x['createdAt'] as Timestamp?)?.toDate(),
+      createdAt: _date(x['createdAt']),
     );
   }
 }
@@ -117,15 +150,36 @@ class SocialImpactRecord {
   final String usageNotes;
   final DateTime? recordedAt;
   factory SocialImpactRecord.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
-    final x = d.data()!;
+    return SocialImpactRecord.fromJson(d.data()!);
+  }
+  factory SocialImpactRecord.fromJson(Map<String, dynamic> x) {
     return SocialImpactRecord(
-      devicesDelivered: x['devicesDelivered'] ?? 0,
-      peopleReached: x['peopleReached'] ?? 0,
-      activeDevices: x['activeDevices'] ?? 0,
-      usageNotes: x['usageNotes'] ?? '',
-      recordedAt: (x['recordedAt'] as Timestamp?)?.toDate(),
+      devicesDelivered:
+          (x['devicesDelivered'] as num? ?? x['devicesInUse'] as num? ?? 0)
+              .toInt(),
+      peopleReached: (x['peopleReached'] as num? ?? 0).toInt(),
+      activeDevices:
+          (x['activeDevices'] as num? ?? x['devicesFunctional'] as num? ?? 0)
+              .toInt(),
+      usageNotes: x['usageNotes'] ?? x['usageSummary'] ?? '',
+      recordedAt: _date(x['recordedAt'] ?? x['createdAt']),
     );
   }
+}
+
+DateTime? _date(dynamic value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is String) return DateTime.tryParse(value);
+  if (value is Map) {
+    final seconds = value['_seconds'] ?? value['seconds'];
+    if (seconds is num) {
+      return DateTime.fromMillisecondsSinceEpoch(
+        seconds.toInt() * 1000,
+        isUtc: true,
+      );
+    }
+  }
+  return null;
 }
 
 class DonationImpact {

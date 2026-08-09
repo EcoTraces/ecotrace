@@ -169,7 +169,107 @@ class ReverseLogisticsTransfer {
       receivedAt: (data['receivedAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory ReverseLogisticsTransfer.fromJson(Map<String, dynamic> data) {
+    final source = Map<String, dynamic>.from(
+      data['source'] as Map? ?? const {},
+    );
+    final destination = Map<String, dynamic>.from(
+      data['destination'] as Map? ?? const {},
+    );
+    return ReverseLogisticsTransfer(
+      id: data['id']?.toString() ?? '',
+      transferNumber:
+          data['transferNumber']?.toString() ??
+          data['transferCode']?.toString() ??
+          data['id']?.toString() ??
+          '',
+      type: ReverseTransferType.values.byName(
+        data['type']?.toString() ?? ReverseTransferType.interFacility.name,
+      ),
+      status: _statusFromApi(data['status']?.toString()),
+      originId:
+          data['originId']?.toString() ??
+          source['facilityId']?.toString() ??
+          '',
+      originName:
+          data['originName']?.toString() ?? source['name']?.toString() ?? '',
+      destinationId:
+          data['destinationId']?.toString() ??
+          destination['facilityId']?.toString() ??
+          '',
+      destinationName:
+          data['destinationName']?.toString() ??
+          destination['name']?.toString() ??
+          '',
+      assetReferences: List<String>.from(
+        data['assetReferences'] as List? ??
+            data['itemIds'] as List? ??
+            const [],
+      ),
+      itemCount:
+          (data['itemCount'] as num? ?? (data['itemIds'] as List?)?.length ?? 0)
+              .toInt(),
+      weightKg: (data['weightKg'] as num? ?? data['totalWeightKg'] as num? ?? 0)
+          .toDouble(),
+      vehicleId: data['vehicleId']?.toString() ?? '',
+      vehicleRegistration: data['vehicleRegistration']?.toString() ?? '',
+      driverId: data['driverId']?.toString() ?? '',
+      driverName: data['driverName']?.toString() ?? '',
+      transportDocumentNumber:
+          data['transportDocumentNumber']?.toString() ?? '',
+      transportDocumentUrls: List<String>.from(
+        data['transportDocumentUrls'] as List? ??
+            data['documentUrls'] as List? ??
+            const [],
+      ),
+      approvalNotes:
+          data['approvalNotes']?.toString() ??
+          data['reviewReason']?.toString() ??
+          '',
+      deliveryProofUrl:
+          data['deliveryProofUrl']?.toString() ??
+          ((data['deliveryProofUrls'] as List?)?.firstOrNull?.toString() ?? ''),
+      receivedBy:
+          data['receiverName']?.toString() ??
+          data['receivedBy']?.toString() ??
+          '',
+      receiptNotes:
+          data['notes']?.toString() ?? data['receiptNotes']?.toString() ?? '',
+      openExceptionCount:
+          (data['openExceptionCount'] as num? ??
+                  data['exceptionCount'] as num? ??
+                  0)
+              .toInt(),
+      createdBy: data['createdBy']?.toString() ?? '',
+      approvedBy:
+          data['approvedBy']?.toString() ??
+          data['reviewedBy']?.toString() ??
+          '',
+      createdAt: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+      approvedAt: DateTime.tryParse(
+        data['approvedAt']?.toString() ?? data['reviewedAt']?.toString() ?? '',
+      ),
+      dispatchedAt: DateTime.tryParse(data['dispatchedAt']?.toString() ?? ''),
+      deliveredAt: DateTime.tryParse(data['deliveredAt']?.toString() ?? ''),
+      receivedAt: DateTime.tryParse(data['receivedAt']?.toString() ?? ''),
+    );
+  }
 }
+
+ReverseTransferStatus _statusFromApi(String? status) => switch (status) {
+  'requested' => ReverseTransferStatus.pendingApproval,
+  'exception' => ReverseTransferStatus.exceptionHold,
+  'pendingApproval' => ReverseTransferStatus.pendingApproval,
+  'approved' => ReverseTransferStatus.approved,
+  'rejected' => ReverseTransferStatus.rejected,
+  'dispatched' => ReverseTransferStatus.dispatched,
+  'inTransit' => ReverseTransferStatus.inTransit,
+  'delivered' => ReverseTransferStatus.delivered,
+  'received' => ReverseTransferStatus.received,
+  'cancelled' => ReverseTransferStatus.cancelled,
+  _ => ReverseTransferStatus.draft,
+};
 
 class CustodyEvent {
   const CustodyEvent({
@@ -193,6 +293,15 @@ class CustodyEvent {
       at: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory CustodyEvent.fromJson(Map<String, dynamic> data) => CustodyEvent(
+    action: data['action']?.toString() ?? data['type']?.toString() ?? '',
+    custodianId: data['custodianId']?.toString() ?? '',
+    custodianName: data['custodianName']?.toString() ?? '',
+    location: data['location']?.toString() ?? '',
+    notes: data['notes']?.toString() ?? '',
+    at: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+  );
 }
 
 class TransferException {
@@ -227,4 +336,29 @@ class TransferException {
       resolvedAt: (data['resolvedAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory TransferException.fromJson(Map<String, dynamic> data) =>
+      TransferException(
+        id: data['id']?.toString() ?? '',
+        type: _exceptionTypeFromApi(data['type']?.toString()),
+        description: data['description']?.toString() ?? '',
+        reportedBy: data['reportedBy']?.toString() ?? '',
+        resolution: data['resolution']?.toString() ?? '',
+        resolved:
+            data['resolved'] as bool? ??
+            data['status']?.toString() == 'resolved',
+        reportedAt: DateTime.tryParse(
+          data['reportedAt']?.toString() ?? data['createdAt']?.toString() ?? '',
+        ),
+        resolvedAt: DateTime.tryParse(data['resolvedAt']?.toString() ?? ''),
+      );
 }
+
+TransferExceptionType _exceptionTypeFromApi(String? type) => switch (type) {
+  'damagedLoad' => TransferExceptionType.damage,
+  'missingItem' => TransferExceptionType.quantityMismatch,
+  'breakdown' => TransferExceptionType.vehicleBreakdown,
+  'routeDeviation' => TransferExceptionType.routeDeviation,
+  'delay' => TransferExceptionType.delay,
+  _ => TransferExceptionType.other,
+};

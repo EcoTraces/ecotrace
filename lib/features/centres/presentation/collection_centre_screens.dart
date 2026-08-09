@@ -25,7 +25,9 @@ class CollectionCentreDashboardScreen extends StatelessWidget {
       stream: repository.watchCentres(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('Unable to load centres: ${snapshot.error}'));
+          return Center(
+            child: Text('Unable to load centres: ${snapshot.error}'),
+          );
         }
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
@@ -132,9 +134,8 @@ class CollectionCentreDashboardScreen extends StatelessWidget {
             onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => RegisterCollectionCentreScreen(
-                  repository: repository,
-                ),
+                builder: (_) =>
+                    RegisterCollectionCentreScreen(repository: repository),
               ),
             ),
             icon: const Icon(Icons.add_business),
@@ -196,7 +197,9 @@ class _RegisterCollectionCentreState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Enable foreground location to attach GPS coordinates.'),
+            content: Text(
+              'Enable foreground location to attach GPS coordinates.',
+            ),
           ),
         );
       }
@@ -278,7 +281,10 @@ class _RegisterCollectionCentreState
           ),
           _requiredField(weekdayHours, 'Monday–Friday hours'),
           _requiredField(weekendHours, 'Weekend hours'),
-          Text('Supported waste categories', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Supported waste categories',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           Wrap(
             spacing: 8,
             children: WasteCategory.values
@@ -356,11 +362,23 @@ class CollectionCentreDetailScreen extends StatelessWidget {
                 tooltip: 'Centre actions',
                 onSelected: (action) => _handleAction(context, centre, action),
                 itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'checkIn', child: Text('Check in items')),
-                  PopupMenuItem(value: 'checkOut', child: Text('Check out stock')),
-                  PopupMenuItem(value: 'section', child: Text('Add storage section')),
+                  PopupMenuItem(
+                    value: 'checkIn',
+                    child: Text('Check in items'),
+                  ),
+                  PopupMenuItem(
+                    value: 'checkOut',
+                    child: Text('Check out stock'),
+                  ),
+                  PopupMenuItem(
+                    value: 'section',
+                    child: Text('Add storage section'),
+                  ),
                   PopupMenuItem(value: 'staff', child: Text('Assign staff')),
-                  PopupMenuItem(value: 'inspection', child: Text('Safety inspection')),
+                  PopupMenuItem(
+                    value: 'inspection',
+                    child: Text('Safety inspection'),
+                  ),
                 ],
               ),
             ],
@@ -368,10 +386,7 @@ class CollectionCentreDetailScreen extends StatelessWidget {
           body: TabBarView(
             children: [
               _OverviewTab(repository: repository, centre: centre),
-              _ReceivingTab(
-                repository: repository,
-                centre: centre,
-              ),
+              _ReceivingTab(repository: repository, centre: centre),
               _StorageTab(repository: repository, centre: centre),
               _StaffTab(repository: repository, centre: centre),
               _SafetyTab(repository: repository, centre: centre),
@@ -422,7 +437,8 @@ class CollectionCentreDetailScreen extends StatelessWidget {
     final count = TextEditingController();
     final weight = TextEditingController();
     final notes = TextEditingController();
-    var category = centre.supportedCategories.firstOrNull ?? WasteCategory.other;
+    var category =
+        centre.supportedCategories.firstOrNull ?? WasteCategory.other;
     var section = sections.first;
     final submitted = await showDialog<bool>(
       context: context,
@@ -433,35 +449,83 @@ class CollectionCentreDetailScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: reference, decoration: const InputDecoration(labelText: 'Receiving reference')),
+                TextField(
+                  controller: reference,
+                  decoration: const InputDecoration(
+                    labelText: 'Receiving reference',
+                  ),
+                ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<WasteCategory>(
                   initialValue: category,
-                  decoration: const InputDecoration(labelText: 'Waste category'),
-                  items: (centre.supportedCategories.isEmpty ? WasteCategory.values : centre.supportedCategories)
-                      .map((item) => DropdownMenuItem(value: item, child: Text(item.label)))
-                      .toList(),
+                  decoration: const InputDecoration(
+                    labelText: 'Waste category',
+                  ),
+                  items:
+                      (centre.supportedCategories.isEmpty
+                              ? WasteCategory.values
+                              : centre.supportedCategories)
+                          .map(
+                            (item) => DropdownMenuItem(
+                              value: item,
+                              child: Text(item.label),
+                            ),
+                          )
+                          .toList(),
                   onChanged: (value) => setLocalState(() => category = value!),
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<StorageSection>(
                   initialValue: section,
-                  decoration: const InputDecoration(labelText: 'Storage section'),
-                  items: sections.map((item) => DropdownMenuItem(value: item, child: Text(item.name))).toList(),
+                  decoration: const InputDecoration(
+                    labelText: 'Storage section',
+                  ),
+                  items: sections
+                      .map(
+                        (item) => DropdownMenuItem(
+                          value: item,
+                          child: Text(item.name),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (value) => setLocalState(() => section = value!),
                 ),
                 const SizedBox(height: 10),
-                TextField(controller: count, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Item count')),
+                TextField(
+                  controller: count,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Item count'),
+                ),
                 const SizedBox(height: 10),
-                TextField(controller: weight, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Scale weight (kg)')),
+                TextField(
+                  controller: weight,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Scale weight (kg)',
+                  ),
+                ),
                 const SizedBox(height: 10),
-                TextField(controller: notes, decoration: const InputDecoration(labelText: 'Condition / notes'), maxLines: 2),
+                TextField(
+                  controller: notes,
+                  decoration: const InputDecoration(
+                    labelText: 'Condition / notes',
+                  ),
+                  maxLines: 2,
+                ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Check in')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Check in'),
+            ),
           ],
         ),
       ),
@@ -509,22 +573,56 @@ class CollectionCentreDetailScreen extends StatelessWidget {
               children: [
                 DropdownButtonFormField<StorageSection>(
                   initialValue: section,
-                  decoration: const InputDecoration(labelText: 'Storage section'),
-                  items: sections.map((item) => DropdownMenuItem(value: item, child: Text('${item.name} (${item.currentStockKg.toStringAsFixed(1)} kg)'))).toList(),
+                  decoration: const InputDecoration(
+                    labelText: 'Storage section',
+                  ),
+                  items: sections
+                      .map(
+                        (item) => DropdownMenuItem(
+                          value: item,
+                          child: Text(
+                            '${item.name} (${item.currentStockKg.toStringAsFixed(1)} kg)',
+                          ),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (value) => setLocalState(() => section = value!),
                 ),
                 const SizedBox(height: 10),
-                TextField(controller: weight, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Weight (kg)')),
+                TextField(
+                  controller: weight,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(labelText: 'Weight (kg)'),
+                ),
                 const SizedBox(height: 10),
-                TextField(controller: destination, decoration: const InputDecoration(labelText: 'Destination / recipient')),
+                TextField(
+                  controller: destination,
+                  decoration: const InputDecoration(
+                    labelText: 'Destination / recipient',
+                  ),
+                ),
                 const SizedBox(height: 10),
-                TextField(controller: notes, decoration: const InputDecoration(labelText: 'Movement notes'), maxLines: 2),
+                TextField(
+                  controller: notes,
+                  decoration: const InputDecoration(
+                    labelText: 'Movement notes',
+                  ),
+                  maxLines: 2,
+                ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Check out')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Check out'),
+            ),
           ],
         ),
       ),
@@ -554,7 +652,8 @@ class CollectionCentreDetailScreen extends StatelessWidget {
   ) async {
     final name = TextEditingController();
     final capacity = TextEditingController();
-    var category = centre.supportedCategories.firstOrNull ?? WasteCategory.other;
+    var category =
+        centre.supportedCategories.firstOrNull ?? WasteCategory.other;
     var restricted = false;
     final submitted = await showDialog<bool>(
       context: context,
@@ -564,16 +663,32 @@ class CollectionCentreDetailScreen extends StatelessWidget {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: name, decoration: const InputDecoration(labelText: 'Section name')),
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'Section name'),
+              ),
               const SizedBox(height: 10),
               DropdownButtonFormField<WasteCategory>(
                 initialValue: category,
                 decoration: const InputDecoration(labelText: 'Waste category'),
-                items: WasteCategory.values.map((item) => DropdownMenuItem(value: item, child: Text(item.label))).toList(),
+                items: WasteCategory.values
+                    .map(
+                      (item) => DropdownMenuItem(
+                        value: item,
+                        child: Text(item.label),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (value) => setLocalState(() => category = value!),
               ),
               const SizedBox(height: 10),
-              TextField(controller: capacity, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Capacity (kg)')),
+              TextField(
+                controller: capacity,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(labelText: 'Capacity (kg)'),
+              ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: restricted,
@@ -583,8 +698,14 @@ class CollectionCentreDetailScreen extends StatelessWidget {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Add')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Add'),
+            ),
           ],
         ),
       ),
@@ -617,15 +738,25 @@ class CollectionCentreDetailScreen extends StatelessWidget {
       title: 'Assign centre staff',
       actionLabel: 'Assign',
       fields: [
-        TextField(controller: userId, decoration: const InputDecoration(labelText: 'User ID')),
+        TextField(
+          controller: userId,
+          decoration: const InputDecoration(labelText: 'User ID'),
+        ),
         const SizedBox(height: 10),
-        TextField(controller: role, decoration: const InputDecoration(labelText: 'Centre role')),
+        TextField(
+          controller: role,
+          decoration: const InputDecoration(labelText: 'Centre role'),
+        ),
       ],
     );
     if (submitted && context.mounted) {
       await _run(
         context,
-        () => repository.assignStaff(centre.id, userId: userId.text, role: role.text),
+        () => repository.assignStaff(
+          centre.id,
+          userId: userId.text,
+          role: role.text,
+        ),
         'Staff member assigned.',
       );
     }
@@ -645,33 +776,49 @@ class CollectionCentreDetailScreen extends StatelessWidget {
       'Storage aisles clear': false,
     };
     final notes = TextEditingController();
-    final submitted = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setLocalState) => AlertDialog(
-          title: const Text('Safety inspection'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (final entry in checks.entries)
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: entry.value,
-                    onChanged: (value) => setLocalState(() => checks[entry.key] = value ?? false),
-                    title: Text(entry.key),
-                  ),
-                TextField(controller: notes, decoration: const InputDecoration(labelText: 'Findings and corrective actions'), maxLines: 3),
+    final submitted =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) => StatefulBuilder(
+            builder: (context, setLocalState) => AlertDialog(
+              title: const Text('Safety inspection'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final entry in checks.entries)
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: entry.value,
+                        onChanged: (value) => setLocalState(
+                          () => checks[entry.key] = value ?? false,
+                        ),
+                        title: Text(entry.key),
+                      ),
+                    TextField(
+                      controller: notes,
+                      decoration: const InputDecoration(
+                        labelText: 'Findings and corrective actions',
+                      ),
+                      maxLines: 3,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Submit'),
+                ),
               ],
             ),
           ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Submit')),
-          ],
-        ),
-      ),
-    ) ?? false;
+        ) ??
+        false;
     if (submitted && context.mounted) {
       await _run(
         context,
@@ -703,7 +850,9 @@ class _OverviewTab extends StatelessWidget {
           child: ListTile(
             leading: const Icon(Icons.warning_amber),
             title: const Text('Capacity alert'),
-            subtitle: Text('Storage is ${centre.occupancyPercent.toStringAsFixed(0)}% full. Plan a stock movement.'),
+            subtitle: Text(
+              'Storage is ${centre.occupancyPercent.toStringAsFixed(0)}% full. Plan a stock movement.',
+            ),
           ),
         ),
       _CapacityCard(centre: centre),
@@ -713,12 +862,18 @@ class _OverviewTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Location and contact', style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                'Location and contact',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
               Text(centre.address),
               Text('${centre.contactName} • ${centre.contactPhone}'),
               Text(centre.contactEmail),
-              if (centre.latitude != null) Text('${centre.latitude!.toStringAsFixed(5)}, ${centre.longitude!.toStringAsFixed(5)}'),
+              if (centre.latitude != null)
+                Text(
+                  '${centre.latitude!.toStringAsFixed(5)}, ${centre.longitude!.toStringAsFixed(5)}',
+                ),
             ],
           ),
         ),
@@ -729,10 +884,16 @@ class _OverviewTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Operating hours', style: Theme.of(context).textTheme.titleMedium),
-              for (final entry in centre.operatingHours.entries) Text('${entry.key}: ${entry.value}'),
+              Text(
+                'Operating hours',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              for (final entry in centre.operatingHours.entries)
+                Text('${entry.key}: ${entry.value}'),
               const SizedBox(height: 8),
-              Text('Accepted: ${centre.supportedCategories.map((item) => item.label).join(', ')}'),
+              Text(
+                'Accepted: ${centre.supportedCategories.map((item) => item.label).join(', ')}',
+              ),
             ],
           ),
         ),
@@ -744,18 +905,34 @@ class _OverviewTab extends StatelessWidget {
           final now = DateTime.now();
           final today = records.where((record) {
             final at = record.receivedAt;
-            return at != null && at.year == now.year && at.month == now.month && at.day == now.day;
+            return at != null &&
+                at.year == now.year &&
+                at.month == now.month &&
+                at.day == now.day;
           }).toList();
-          final weight = today.fold<double>(0, (sum, record) => sum + record.stockWeightKg);
-          final items = today.fold<int>(0, (sum, record) => sum + record.itemCount);
-          final verificationRate = records.isEmpty ? 0 : records.where((record) => record.verified).length / records.length * 100;
+          final weight = today.fold<double>(
+            0,
+            (sum, record) => sum + record.stockWeightKg,
+          );
+          final items = today.fold<int>(
+            0,
+            (sum, record) => sum + record.itemCount,
+          );
+          final verificationRate = records.isEmpty
+              ? 0
+              : records.where((record) => record.verified).length /
+                    records.length *
+                    100;
           return Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Centre performance', style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Centre performance',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 24,
@@ -764,7 +941,9 @@ class _OverviewTab extends StatelessWidget {
                       Text('Today: ${today.length} receipts'),
                       Text('Items: $items'),
                       Text('Received: ${weight.toStringAsFixed(1)} kg'),
-                      Text('Weights verified: ${verificationRate.toStringAsFixed(0)}%'),
+                      Text(
+                        'Weights verified: ${verificationRate.toStringAsFixed(0)}%',
+                      ),
                     ],
                   ),
                 ],
@@ -780,12 +959,22 @@ class _OverviewTab extends StatelessWidget {
             title: const Text('Recent stock movements'),
             children: (snapshot.data ?? const <StockMovement>[])
                 .take(10)
-                .map((movement) => ListTile(
-                      leading: Icon(movement.type == StockMovementType.checkOut ? Icons.outbox : Icons.move_to_inbox),
-                      title: Text('${movement.type.name} • ${movement.weightKg.toStringAsFixed(1)} kg'),
-                      subtitle: Text('${movement.destination}\n${movement.notes}'),
-                      isThreeLine: true,
-                    ))
+                .map(
+                  (movement) => ListTile(
+                    leading: Icon(
+                      movement.type == StockMovementType.checkOut
+                          ? Icons.outbox
+                          : Icons.move_to_inbox,
+                    ),
+                    title: Text(
+                      '${movement.type.name} • ${movement.weightKg.toStringAsFixed(1)} kg',
+                    ),
+                    subtitle: Text(
+                      '${movement.destination}\n${movement.notes}',
+                    ),
+                    isThreeLine: true,
+                  ),
+                )
                 .toList(),
           ),
         ),
@@ -803,8 +992,12 @@ class _ReceivingTab extends StatelessWidget {
   Widget build(BuildContext context) => StreamBuilder<List<ReceivingRecord>>(
     stream: repository.watchReceivingRecords(centre.id),
     builder: (context, snapshot) {
-      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-      if (snapshot.data!.isEmpty) return const Center(child: Text('No receiving records.'));
+      if (!snapshot.hasData) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (snapshot.data!.isEmpty) {
+        return const Center(child: Text('No receiving records.'));
+      }
       return ListView.builder(
         padding: const EdgeInsets.all(12),
         itemCount: snapshot.data!.length,
@@ -812,9 +1005,13 @@ class _ReceivingTab extends StatelessWidget {
           final record = snapshot.data![index];
           return Card(
             child: ListTile(
-              leading: Icon(record.verified ? Icons.verified : Icons.scale_outlined),
+              leading: Icon(
+                record.verified ? Icons.verified : Icons.scale_outlined,
+              ),
               title: Text('${record.reference} • ${record.category.label}'),
-              subtitle: Text('${record.itemCount} items • ${record.stockWeightKg.toStringAsFixed(1)} kg\n${record.verified ? 'Weight verified' : 'Awaiting weight verification'}'),
+              subtitle: Text(
+                '${record.itemCount} items • ${record.stockWeightKg.toStringAsFixed(1)} kg\n${record.verified ? 'Weight verified' : 'Awaiting weight verification'}',
+              ),
               isThreeLine: true,
               trailing: record.verified
                   ? null
@@ -830,7 +1027,9 @@ class _ReceivingTab extends StatelessWidget {
   );
 
   Future<void> _verify(BuildContext context, ReceivingRecord record) async {
-    final controller = TextEditingController(text: record.recordedWeightKg.toString());
+    final controller = TextEditingController(
+      text: record.recordedWeightKg.toString(),
+    );
     final submitted = await _simpleFormDialog(
       context,
       title: 'Verify scale weight',
@@ -847,7 +1046,11 @@ class _ReceivingTab extends StatelessWidget {
     if (submitted && context.mounted) {
       await _run(
         context,
-        () => repository.verifyWeight(centre.id, record, double.tryParse(controller.text) ?? 0),
+        () => repository.verifyWeight(
+          centre.id,
+          record,
+          double.tryParse(controller.text) ?? 0,
+        ),
         'Weight verified and stock adjusted.',
       );
     }
@@ -863,25 +1066,41 @@ class _StorageTab extends StatelessWidget {
   Widget build(BuildContext context) => StreamBuilder<List<StorageSection>>(
     stream: repository.watchSections(centre.id),
     builder: (context, snapshot) {
-      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-      if (snapshot.data!.isEmpty) return const Center(child: Text('No storage sections configured.'));
+      if (!snapshot.hasData) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (snapshot.data!.isEmpty) {
+        return const Center(child: Text('No storage sections configured.'));
+      }
       return ListView(
         padding: const EdgeInsets.all(12),
-        children: snapshot.data!.map((section) => Card(
-          child: ListTile(
-            leading: Icon(section.restricted ? Icons.lock_outline : Icons.inventory_2_outlined),
-            title: Text(section.name),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${section.category.label} • ${section.currentStockKg.toStringAsFixed(1)} / ${section.capacityKg.toStringAsFixed(1)} kg'),
-                const SizedBox(height: 4),
-                LinearProgressIndicator(value: (section.occupancyPercent / 100).clamp(0, 1)),
-              ],
-            ),
-            isThreeLine: true,
-          ),
-        )).toList(),
+        children: snapshot.data!
+            .map(
+              (section) => Card(
+                child: ListTile(
+                  leading: Icon(
+                    section.restricted
+                        ? Icons.lock_outline
+                        : Icons.inventory_2_outlined,
+                  ),
+                  title: Text(section.name),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${section.category.label} • ${section.currentStockKg.toStringAsFixed(1)} / ${section.capacityKg.toStringAsFixed(1)} kg',
+                      ),
+                      const SizedBox(height: 4),
+                      LinearProgressIndicator(
+                        value: (section.occupancyPercent / 100).clamp(0, 1),
+                      ),
+                    ],
+                  ),
+                  isThreeLine: true,
+                ),
+              ),
+            )
+            .toList(),
       );
     },
   );
@@ -892,24 +1111,78 @@ class _StaffTab extends StatelessWidget {
   final CollectionCentreRepository repository;
   final CollectionCentre centre;
   @override
-  Widget build(BuildContext context) => StreamBuilder<List<CentreStaffAssignment>>(
-    stream: repository.watchStaff(centre.id),
-    builder: (context, snapshot) {
-      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-      if (snapshot.data!.isEmpty) return const Center(child: Text('No staff assigned.'));
-      return ListView(
-        padding: const EdgeInsets.all(12),
-        children: snapshot.data!.map((assignment) => Card(
-          child: ListTile(
-            leading: const Icon(Icons.badge_outlined),
-            title: Text(assignment.userId),
-            subtitle: Text(assignment.role),
-            trailing: Chip(label: Text(assignment.active ? 'Active' : 'Inactive')),
-          ),
-        )).toList(),
+  Widget build(BuildContext context) =>
+      StreamBuilder<List<CentreStaffAssignment>>(
+        stream: repository.watchStaff(centre.id),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.data!.isEmpty) {
+            return const Center(child: Text('No staff assigned.'));
+          }
+          return ListView(
+            padding: const EdgeInsets.all(12),
+            children: snapshot.data!
+                .map(
+                  (assignment) => Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.badge_outlined),
+                      title: Text(assignment.userId),
+                      subtitle: Text(assignment.role),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Chip(
+                            label: Text(
+                              assignment.active ? 'Active' : 'Inactive',
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: assignment.active
+                                ? 'Deactivate assignment'
+                                : 'Reactivate assignment',
+                            icon: Icon(
+                              assignment.active
+                                  ? Icons.person_remove_outlined
+                                  : Icons.person_add_alt_outlined,
+                            ),
+                            onPressed: () async {
+                              try {
+                                await repository.setStaffActive(
+                                  centre.id,
+                                  userId: assignment.userId,
+                                  active: !assignment.active,
+                                );
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        assignment.active
+                                            ? 'Staff assignment deactivated.'
+                                            : 'Staff assignment reactivated.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              } catch (error) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('$error')),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          );
+        },
       );
-    },
-  );
 }
 
 class _SafetyTab extends StatelessWidget {
@@ -920,18 +1193,34 @@ class _SafetyTab extends StatelessWidget {
   Widget build(BuildContext context) => StreamBuilder<List<SafetyInspection>>(
     stream: repository.watchInspections(centre.id),
     builder: (context, snapshot) {
-      if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-      if (snapshot.data!.isEmpty) return const Center(child: Text('No safety inspections recorded.'));
+      if (!snapshot.hasData) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (snapshot.data!.isEmpty) {
+        return const Center(child: Text('No safety inspections recorded.'));
+      }
       return ListView(
         padding: const EdgeInsets.all(12),
-        children: snapshot.data!.map((inspection) => Card(
-          child: ListTile(
-            leading: Icon(inspection.status == SafetyInspectionStatus.passed ? Icons.health_and_safety : Icons.warning_amber),
-            title: Text('${inspection.score}% • ${inspection.status.name}'),
-            subtitle: Text('${inspection.inspectorId}\n${inspection.notes}'),
-            isThreeLine: true,
-          ),
-        )).toList(),
+        children: snapshot.data!
+            .map(
+              (inspection) => Card(
+                child: ListTile(
+                  leading: Icon(
+                    inspection.status == SafetyInspectionStatus.passed
+                        ? Icons.health_and_safety
+                        : Icons.warning_amber,
+                  ),
+                  title: Text(
+                    '${inspection.score}% • ${inspection.status.name}',
+                  ),
+                  subtitle: Text(
+                    '${inspection.inspectorId}\n${inspection.notes}',
+                  ),
+                  isThreeLine: true,
+                ),
+              ),
+            )
+            .toList(),
       );
     },
   );
@@ -947,15 +1236,24 @@ class _CapacityCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Storage capacity', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Storage capacity',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           LinearProgressIndicator(
             value: (centre.occupancyPercent / 100).clamp(0, 1),
-            color: centre.hasCapacityAlert ? Theme.of(context).colorScheme.error : null,
+            color: centre.hasCapacityAlert
+                ? Theme.of(context).colorScheme.error
+                : null,
           ),
           const SizedBox(height: 8),
-          Text('${centre.currentStockKg.toStringAsFixed(1)} kg stored • ${centre.availableCapacityKg.toStringAsFixed(1)} kg available'),
-          Text('${centre.occupancyPercent.toStringAsFixed(0)}% occupied • alert at ${centre.capacityAlertPercent.toStringAsFixed(0)}%'),
+          Text(
+            '${centre.currentStockKg.toStringAsFixed(1)} kg stored • ${centre.availableCapacityKg.toStringAsFixed(1)} kg available',
+          ),
+          Text(
+            '${centre.occupancyPercent.toStringAsFixed(0)}% occupied • alert at ${centre.capacityAlertPercent.toStringAsFixed(0)}%',
+          ),
         ],
       ),
     ),
@@ -977,11 +1275,17 @@ Widget _requiredField(
     keyboardType: keyboardType,
     decoration: InputDecoration(labelText: label),
     validator: (value) {
-      if (value == null || value.trim().isEmpty) return 'Required';
-      if (positiveNumber && (double.tryParse(value) ?? 0) <= 0) return 'Enter a positive number';
+      if (value == null || value.trim().isEmpty) {
+        return 'Required';
+      }
+      if (positiveNumber && (double.tryParse(value) ?? 0) <= 0) {
+        return 'Enter a positive number';
+      }
       if (percent) {
         final number = double.tryParse(value);
-        if (number == null || number <= 0 || number > 100) return 'Enter a percentage from 1 to 100';
+        if (number == null || number <= 0 || number > 100) {
+          return 'Enter a percentage from 1 to 100';
+        }
       }
       return null;
     },
@@ -1002,11 +1306,18 @@ Future<bool> _simpleFormDialog(
           child: Column(mainAxisSize: MainAxisSize.min, children: fields),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(actionLabel)),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(actionLabel),
+          ),
         ],
       ),
-    ) ?? false;
+    ) ??
+    false;
 
 Future<void> _run(
   BuildContext context,
@@ -1015,11 +1326,16 @@ Future<void> _run(
 ) async {
   try {
     await action();
-    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(success)));
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(success)));
+    }
   } catch (error) {
     if (context.mounted) _showError(context, error);
   }
 }
 
-void _showError(BuildContext context, Object error) =>
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Operation failed: $error')));
+void _showError(BuildContext context, Object error) => ScaffoldMessenger.of(
+  context,
+).showSnackBar(SnackBar(content: Text('Operation failed: $error')));

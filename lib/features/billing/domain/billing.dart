@@ -22,6 +22,7 @@ enum BillingStatus {
   failed,
   cancelled,
   refundPending,
+  partiallyRefunded,
   refunded,
 }
 
@@ -120,25 +121,29 @@ class BillingTransaction {
   final double subtotal, tax, serviceCharge, total;
   final DateTime? createdAt;
   factory BillingTransaction.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
-    final x = d.data()!;
+    return BillingTransaction.fromJson({'id': d.id, ...?d.data()});
+  }
+  factory BillingTransaction.fromJson(Map<String, dynamic> x) {
+    final amount = (x['amount'] ?? x['total'] as num? ?? 0) as num;
     return BillingTransaction(
-      id: d.id,
-      number: x['transactionNumber'] ?? d.id,
-      purpose: BillingPurpose.values.byName(x['purpose']),
-      payerId: x['payerId'] ?? '',
-      payeeId: x['payeeId'] ?? '',
-      referenceId: x['referenceId'] ?? '',
-      method: BillingMethod.values.byName(x['method'] ?? 'manual'),
-      status: BillingStatus.values.byName(x['status'] ?? 'pending'),
+      id: (x['id'] ?? '').toString(),
+      number: (x['transactionNumber'] ?? x['id'] ?? '').toString(),
+      purpose: _purpose(x['purpose']?.toString()),
+      payerId: (x['payerId'] ?? '').toString(),
+      payeeId: (x['payeeId'] ?? '').toString(),
+      referenceId: (x['referenceId'] ?? '').toString(),
+      method: _method(x['method']?.toString()),
+      status: _billingStatus(x['status']?.toString()),
       subtotal: (x['subtotal'] as num? ?? 0).toDouble(),
       tax: (x['tax'] as num? ?? 0).toDouble(),
       serviceCharge: (x['serviceCharge'] as num? ?? 0).toDouble(),
-      total: (x['total'] as num? ?? 0).toDouble(),
-      currency: x['currency'] ?? 'SLE',
-      providerReference: x['providerReference'] ?? '',
-      maskedAccount: x['maskedAccount'] ?? '',
-      failureReason: x['failureReason'] ?? '',
-      createdAt: (x['createdAt'] as Timestamp?)?.toDate(),
+      total: amount.toDouble(),
+      currency: (x['currency'] ?? 'SLE').toString(),
+      providerReference: (x['providerReference'] ?? '').toString(),
+      maskedAccount: (x['maskedAccount'] ?? x['payerPhoneOrReference'] ?? '')
+          .toString(),
+      failureReason: (x['failureReason'] ?? '').toString(),
+      createdAt: _date(x['createdAt']),
     );
   }
 }
@@ -159,18 +164,62 @@ class BillingInvoice {
   final InvoiceStatus status;
   final DateTime? dueAt;
   factory BillingInvoice.fromDoc(DocumentSnapshot<Map<String, dynamic>> d) {
-    final x = d.data()!;
+    return BillingInvoice.fromJson({'id': d.id, ...?d.data()});
+  }
+  factory BillingInvoice.fromJson(Map<String, dynamic> x) {
+    final items = x['lineItems'] as List? ?? const [];
     return BillingInvoice(
-      id: d.id,
-      number: x['invoiceNumber'] ?? d.id,
-      customerId: x['customerId'] ?? '',
-      description: x['description'] ?? '',
-      amount: (x['amount'] as num? ?? 0).toDouble(),
-      currency: x['currency'] ?? 'SLE',
-      status: InvoiceStatus.values.byName(x['status'] ?? 'issued'),
-      dueAt: (x['dueAt'] as Timestamp?)?.toDate(),
+      id: (x['id'] ?? '').toString(),
+      number: (x['invoiceNumber'] ?? x['id'] ?? '').toString(),
+      customerId: (x['customerId'] ?? '').toString(),
+      description: (x['description'] ??
+              (items.isEmpty
+                  ? ''
+                  : (items.first as Map)['description'] ?? ''))
+          .toString(),
+      amount: (x['total'] ?? x['amount'] as num? ?? 0).toDouble(),
+      currency: (x['currency'] ?? 'SLE').toString(),
+      status: _invoiceStatus(x['status']?.toString()),
+      dueAt: _date(x['dueAt']),
     );
   }
+}
+
+DateTime? _date(dynamic value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is String) return DateTime.tryParse(value);
+  return null;
+}
+
+BillingPurpose _purpose(String? value) {
+  switch (value) {
+    case 'pickupFee': return BillingPurpose.pickupFee;
+    case 'marketplaceOrder': return BillingPurpose.marketplaceOrder;
+    case 'partnerService': return BillingPurpose.serviceFee;
+    default: return BillingPurpose.serviceFee;
+  }
+}
+
+BillingMethod _method(String? value) {
+  if (value == 'bank') return BillingMethod.bankTransfer;
+  for (final item in BillingMethod.values) {
+    if (item.name == value) return item;
+  }
+  return BillingMethod.manual;
+}
+
+BillingStatus _billingStatus(String? value) {
+  for (final item in BillingStatus.values) {
+    if (item.name == value) return item;
+  }
+  return BillingStatus.pending;
+}
+
+InvoiceStatus _invoiceStatus(String? value) {
+  for (final item in InvoiceStatus.values) {
+    if (item.name == value) return item;
+  }
+  return InvoiceStatus.issued;
 }
 
 class ReconciliationSummary {

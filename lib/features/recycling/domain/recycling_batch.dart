@@ -24,6 +24,28 @@ extension RecyclingStageLabel on RecyclingStage {
     RecyclingStage.verification => 'Completion verification',
     RecyclingStage.completed => 'Completed',
   };
+
+  List<RecyclingStage> get nextStages => switch (this) {
+    RecyclingStage.created => const [RecyclingStage.sorting],
+    RecyclingStage.sorting => const [RecyclingStage.dismantling],
+    RecyclingStage.dismantling => const [RecyclingStage.componentSeparation],
+    RecyclingStage.componentSeparation => const [
+      RecyclingStage.materialRecovery,
+      RecyclingStage.hazardousHandling,
+    ],
+    RecyclingStage.materialRecovery => const [
+      RecyclingStage.hazardousHandling,
+      RecyclingStage.finalDisposal,
+      RecyclingStage.verification,
+    ],
+    RecyclingStage.hazardousHandling => const [
+      RecyclingStage.materialRecovery,
+      RecyclingStage.finalDisposal,
+      RecyclingStage.verification,
+    ],
+    RecyclingStage.finalDisposal => const [RecyclingStage.verification],
+    RecyclingStage.verification || RecyclingStage.completed => const [],
+  };
 }
 
 class RecyclingBatch {

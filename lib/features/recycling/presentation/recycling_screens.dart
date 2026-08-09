@@ -326,35 +326,66 @@ class RecyclingBatchScreen extends StatelessWidget {
               runSpacing: 8,
               children: [
                 FilledButton.tonalIcon(
-                  onPressed: batch.completionVerified
+                  onPressed:
+                      batch.completionVerified ||
+                          batch.stage != RecyclingStage.created
                       ? null
                       : () => _facility(context, batch),
                   icon: const Icon(Icons.factory_outlined),
                   label: const Text('Assign facility'),
                 ),
                 FilledButton.tonalIcon(
-                  onPressed: batch.completionVerified
+                  onPressed:
+                      batch.completionVerified || batch.stage.nextStages.isEmpty
                       ? null
                       : () => _stage(context, batch),
                   icon: const Icon(Icons.account_tree_outlined),
                   label: const Text('Update stage'),
                 ),
                 FilledButton.tonalIcon(
-                  onPressed: batch.completionVerified
+                  onPressed:
+                      batch.completionVerified ||
+                          ![
+                            RecyclingStage.sorting,
+                            RecyclingStage.dismantling,
+                            RecyclingStage.componentSeparation,
+                          ].contains(batch.stage)
                       ? null
                       : () => _process(context, batch),
                   icon: const Icon(Icons.precision_manufacturing_outlined),
                   label: const Text('Sorting / dismantling'),
                 ),
                 FilledButton.tonalIcon(
-                  onPressed: batch.completionVerified
+                  onPressed:
+                      batch.completionVerified ||
+                          ![
+                            RecyclingStage.materialRecovery,
+                            RecyclingStage.hazardousHandling,
+                          ].contains(batch.stage)
+                      ? null
+                      : () => _output(context, batch),
+                  icon: const Icon(Icons.recycling),
+                  label: const Text('Record output'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed:
+                      batch.completionVerified ||
+                          ![
+                            RecyclingStage.dismantling,
+                            RecyclingStage.componentSeparation,
+                            RecyclingStage.materialRecovery,
+                            RecyclingStage.hazardousHandling,
+                            RecyclingStage.finalDisposal,
+                          ].contains(batch.stage)
                       ? null
                       : () => _loss(context, batch),
                   icon: const Icon(Icons.trending_down),
                   label: const Text('Record loss'),
                 ),
                 FilledButton.tonalIcon(
-                  onPressed: batch.completionVerified
+                  onPressed:
+                      batch.completionVerified ||
+                          batch.stage != RecyclingStage.finalDisposal
                       ? null
                       : () => _disposal(context, batch),
                   icon: const Icon(Icons.delete_forever_outlined),
@@ -362,7 +393,9 @@ class RecyclingBatchScreen extends StatelessWidget {
                 ),
                 if (canVerify)
                   FilledButton.icon(
-                    onPressed: batch.completionVerified
+                    onPressed:
+                        batch.completionVerified ||
+                            batch.stage != RecyclingStage.verification
                         ? null
                         : () => _verify(context, batch),
                     icon: const Icon(Icons.verified_outlined),
@@ -453,7 +486,7 @@ class RecyclingBatchScreen extends StatelessWidget {
   }
 
   Future<void> _stage(BuildContext context, RecyclingBatch batch) async {
-    var stage = batch.stage;
+    var stage = batch.stage.nextStages.first;
     final ok =
         await showDialog<bool>(
           context: context,
@@ -462,7 +495,7 @@ class RecyclingBatchScreen extends StatelessWidget {
               title: const Text('Processing stage'),
               content: DropdownButtonFormField<RecyclingStage>(
                 initialValue: stage,
-                items: RecyclingStage.values
+                items: batch.stage.nextStages
                     .map(
                       (value) => DropdownMenuItem(
                         value: value,
@@ -496,7 +529,12 @@ class RecyclingBatchScreen extends StatelessWidget {
   }
 
   Future<void> _process(BuildContext context, RecyclingBatch batch) async {
-    var type = 'materialSort';
+    final type = switch (batch.stage) {
+      RecyclingStage.sorting => 'materialSort',
+      RecyclingStage.dismantling => 'dismantling',
+      RecyclingStage.componentSeparation => 'componentSeparation',
+      _ => throw StateError('No process record is available at this stage.'),
+    };
     final material = TextEditingController(),
         component = TextEditingController(),
         quantity = TextEditingController(text: '0'),
@@ -512,23 +550,17 @@ class RecyclingBatchScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    DropdownButtonFormField<String>(
-                      initialValue: type,
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'materialSort',
-                          child: Text('Sort by material'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'dismantling',
-                          child: Text('Dismantling'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'componentSeparation',
-                          child: Text('Component separation'),
-                        ),
-                      ],
-                      onChanged: (value) => setLocal(() => type = value!),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.account_tree_outlined),
+                      title: Text(
+                        type == 'materialSort'
+                            ? 'Sort by material'
+                            : type == 'dismantling'
+                            ? 'Dismantling'
+                            : 'Component separation',
+                      ),
+                      subtitle: Text('Current stage: ${batch.stage.label}'),
                     ),
                     const SizedBox(height: 10),
                     TextField(
@@ -631,6 +663,99 @@ class RecyclingBatchScreen extends StatelessWidget {
     }
     weight.dispose();
     reason.dispose();
+  }
+
+  Future<void> _output(BuildContext context, RecyclingBatch batch) async {
+    var hazardous = batch.stage == RecyclingStage.hazardousHandling;
+    final material = TextEditingController();
+    final component = TextEditingController();
+    final quantity = TextEditingController(text: '0');
+    final weight = TextEditingController();
+    final notes = TextEditingController();
+    final submitted =
+        await showDialog<bool>(
+          context: context,
+          builder: (context) => StatefulBuilder(
+            builder: (context, setLocal) => AlertDialog(
+              title: const Text('Record recovered output'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SwitchListTile(
+                      value: hazardous,
+                      onChanged: (value) => setLocal(() => hazardous = value),
+                      title: const Text('Hazardous material'),
+                    ),
+                    TextField(
+                      controller: material,
+                      decoration: const InputDecoration(labelText: 'Material'),
+                    ),
+                    TextField(
+                      controller: component,
+                      decoration: const InputDecoration(
+                        labelText: 'Component (optional)',
+                      ),
+                    ),
+                    TextField(
+                      controller: quantity,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Quantity'),
+                    ),
+                    TextField(
+                      controller: weight,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Recovered weight (kg)',
+                      ),
+                    ),
+                    TextField(
+                      controller: notes,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Handling / recovery notes',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Record'),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
+    if (submitted && context.mounted) {
+      await _runRecycle(
+        context,
+        () => repository.recordOutput(
+          batch,
+          hazardous: hazardous,
+          material: material.text,
+          component: component.text,
+          quantity: int.tryParse(quantity.text) ?? 0,
+          weightKg: double.tryParse(weight.text) ?? 0,
+          notes: notes.text,
+          actorId: currentUserId,
+        ),
+        hazardous
+            ? 'Hazardous output recorded.'
+            : 'Recovered material recorded.',
+      );
+    }
+    for (final controller in [material, component, quantity, weight, notes]) {
+      controller.dispose();
+    }
   }
 
   Future<void> _disposal(BuildContext context, RecyclingBatch batch) async {

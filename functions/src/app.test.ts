@@ -64,6 +64,9 @@ describe("EcoTrace API", () => {
     expect(
       response.body.paths["/collection-centres/{id}/check-ins"],
     ).toBeDefined();
+    expect(response.body.paths["/collection-centres/{id}/dashboard"]).toBeDefined();
+    expect(response.body.paths["/collection-centres/{id}/capacityAlerts"]).toBeDefined();
+    expect(response.body.paths["/collection-centres/{id}/staff/{userId}"]).toBeDefined();
     expect(response.body.paths["/admin/demo-data"]).toBeDefined();
     expect(response.body.paths["/inventory/items"]).toBeDefined();
     expect(response.body.paths["/inventory/summary"]).toBeDefined();
@@ -98,24 +101,54 @@ describe("EcoTrace API", () => {
     ).toBeDefined();
     expect(response.body.paths["/media/upload-signature"]).toBeDefined();
     expect(response.body.paths["/repairs/{id}/quality-control"]).toBeDefined();
+    expect(response.body.paths["/repairs/summary"]).toBeDefined();
+    expect(response.body.paths["/repairs/refurbished-inventory"]).toBeDefined();
     expect(response.body.paths["/recycling/batches/{id}/verify"]).toBeDefined();
     expect(response.body.paths["/recovery/lots/{id}/sale"]).toBeDefined();
+    expect(response.body.paths["/recovery/lots/{id}/lifecycle"]).toBeDefined();
+    expect(response.body.paths["/recovery/reports/revenue"]).toBeDefined();
     expect(
       response.body.paths["/hazardous/records/{id}/disposal"],
     ).toBeDefined();
     expect(
+      response.body.paths["/hazardous/records/{id}/compliance-documents"],
+    ).toBeDefined();
+    expect(
+      response.body.paths["/hazardous/records/{id}/certificate"].post,
+    ).toBeDefined();
+    expect(
       response.body.paths["/logistics/transfers/{id}/receive"],
+    ).toBeDefined();
+    expect(response.body.paths["/logistics/transfers/drafts"]).toBeDefined();
+    expect(response.body.paths["/logistics/transfers/{id}/deliver"]).toBeDefined();
+    expect(
+      response.body.paths[
+        "/logistics/transfers/{id}/exceptions/{exceptionId}/resolve"
+      ],
     ).toBeDefined();
     expect(
       response.body.paths["/partners/{id}/documents/{documentId}/verify"],
     ).toBeDefined();
+    expect(response.body.paths["/partners/{id}/licence"]).toBeDefined();
+    expect(response.body.paths["/partners/{id}/service-records"]).toBeDefined();
+    expect(response.body.paths["/partners/{id}/compliance-records"].get).toBeDefined();
     expect(
       response.body.paths["/marketplace/orders/{id}/confirm-receipt"],
     ).toBeDefined();
+    expect(response.body.paths["/marketplace/profile"]).toBeDefined();
+    expect(response.body.paths["/marketplace/quotations"].get).toBeDefined();
+    expect(response.body.paths["/marketplace/orders/{id}/payment-submission"]).toBeDefined();
+    expect(response.body.paths["/marketplace/orders/{id}/delivery-events"]).toBeDefined();
+    expect(response.body.paths["/marketplace/eligible-devices"]).toBeDefined();
     expect(
       response.body.paths["/donations/requests/{id}/certificate"],
     ).toBeDefined();
+    expect(response.body.paths["/donations/eligible-devices"]).toBeDefined();
+    expect(response.body.paths["/donations/requests/{id}/follow-ups"].get).toBeDefined();
     expect(response.body.paths["/rewards/redemptions"]).toBeDefined();
+    expect(response.body.paths["/rewards/adjustments"]).toBeDefined();
+    expect(response.body.paths["/rewards/expiry"]).toBeDefined();
+    expect(response.body.paths["/rewards/fraud-flags/{id}"]).toBeDefined();
     expect(response.body.paths["/payments/reconciliation"]).toBeDefined();
     expect(response.body.paths["/impact/comparison"]).toBeDefined();
     expect(response.body.paths["/analytics/operations"]).toBeDefined();

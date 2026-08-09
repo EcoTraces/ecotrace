@@ -92,6 +92,15 @@ class _R extends State<RewardsScreen> {
                         ),
                       ],
                     ),
+                  if (!widget.canManage)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton.tonalIcon(
+                        onPressed: () => _refer(c),
+                        icon: const Icon(Icons.person_add_alt_1_outlined),
+                        label: const Text('Refer someone'),
+                      ),
+                    ),
                   Text(
                     'Recycling challenges',
                     style: Theme.of(c).textTheme.titleLarge,
@@ -100,7 +109,13 @@ class _R extends State<RewardsScreen> {
                     ListTile(
                       title: Text(x.title),
                       subtitle: Text('${x.description} • Target ${x.target}'),
-                      trailing: Text('+${x.rewardPoints}'),
+                      trailing: widget.canManage
+                          ? Text('+${x.rewardPoints}')
+                          : FilledButton.tonal(
+                              onPressed: () =>
+                                  widget.repository.joinChallenge(x.id),
+                              child: Text('Join +${x.rewardPoints}'),
+                            ),
                     ),
                   Text(
                     'Partner rewards and coupons',
@@ -261,16 +276,37 @@ class _R extends State<RewardsScreen> {
     }
   }
 
+  Future<void> _refer(BuildContext c) async {
+    final email = TextEditingController();
+    final ok = await _f(c, 'Refer someone', [
+      TextField(
+        controller: email,
+        keyboardType: TextInputType.emailAddress,
+        decoration: const InputDecoration(labelText: 'Email address'),
+      ),
+    ]);
+    if (ok) await widget.repository.refer(email.text.trim());
+  }
+
   Future<void> _certificate(RewardWallet w) async {
+    Map<String, dynamic>? certificate;
+    try {
+      certificate = await widget.repository.certificate();
+    } catch (_) {
+      // Firestore-only development mode can still render a local summary.
+    }
     final d = pw.Document();
     d.addPage(
       pw.Page(
         build: (_) => pw.Column(
           children: [
             pw.Header(text: 'Digital Environmental Certificate'),
-            pw.Text('Participant ${w.userId}'),
-            pw.Text('Green points ${w.lifetimePoints}'),
-            pw.Text('Level ${w.level.name}'),
+            pw.Text('Certificate ${certificate?['certificateNumber'] ?? ''}'),
+            pw.Text('Participant ${certificate?['userId'] ?? w.userId}'),
+            pw.Text(
+              'Green points ${certificate?['lifetimeGreenPoints'] ?? w.lifetimePoints}',
+            ),
+            pw.Text('Level ${certificate?['level'] ?? w.level.name}'),
             pw.Text(
               'Business sustainability score ${w.businessSustainabilityScore.toStringAsFixed(1)}%',
             ),

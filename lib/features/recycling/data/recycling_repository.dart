@@ -181,9 +181,10 @@ class RecyclingRepository {
     RecyclingStage stage,
     String actorId,
   ) async {
-    if (stage.index < batch.stage.index &&
-        stage != RecyclingStage.hazardousHandling) {
-      throw StateError('Processing stages cannot move backwards.');
+    if (!batch.stage.nextStages.contains(stage)) {
+      throw StateError(
+        'Cannot move from ${batch.stage.label} to ${stage.label}.',
+      );
     }
     if (_useApi) {
       await _api.patch('/api/v1/recycling/batches/${batch.id}/stage', {
@@ -282,6 +283,51 @@ class RecyclingRepository {
     await write.commit();
   }
 
+  Future<void> recordOutput(
+    RecyclingBatch batch, {
+    required bool hazardous,
+    required String material,
+    required String component,
+    required int quantity,
+    required double weightKg,
+    required String notes,
+    required String actorId,
+  }) async {
+    if (weightKg <= 0 ||
+        batch.accountedWeightKg + weightKg > batch.inputWeightKg) {
+      throw StateError('Output weight exceeds the available batch balance.');
+    }
+    if (_useApi) {
+      await _api.post('/api/v1/recycling/batches/${batch.id}/outputs', {
+        'kind': hazardous ? 'hazardous' : 'recovered',
+        'material': material.trim(),
+        'component': component.trim(),
+        'quantity': quantity,
+        'weightKg': weightKg,
+        'notes': notes.trim(),
+      });
+      return;
+    }
+    final ref = _batches.doc(batch.id);
+    final field = hazardous ? 'hazardousWeightKg' : 'recoveredWeightKg';
+    final write = _db.batch();
+    write.update(ref, {
+      field: FieldValue.increment(weightKg),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    write.set(ref.collection('processRecords').doc(), {
+      'type': hazardous ? 'hazardousMaterialHandled' : 'materialRecovered',
+      'material': material.trim(),
+      'component': component.trim(),
+      'quantity': quantity,
+      'weightKg': weightKg,
+      'notes': notes.trim(),
+      'actorId': actorId,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    await write.commit();
+  }
+
   Future<void> recordFinalDisposal(
     RecyclingBatch batch, {
     required String material,
@@ -309,7 +355,6 @@ class RecyclingRepository {
     final write = _db.batch();
     write.update(ref, {
       'disposedWeightKg': FieldValue.increment(weightKg),
-      'stage': RecyclingStage.finalDisposal.name,
       'updatedAt': FieldValue.serverTimestamp(),
     });
     write.set(ref.collection('finalDisposals').doc(), {

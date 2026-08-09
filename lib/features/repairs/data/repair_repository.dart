@@ -327,7 +327,7 @@ class RepairRepository {
     required String details,
     required String actorId,
   }) {
-    if (progressPercent < job.progressPercent || progressPercent > 95) {
+    if (progressPercent <= job.progressPercent || progressPercent > 95) {
       throw ArgumentError('Progress must increase and remain at or below 95%.');
     }
     if (_useApi) {

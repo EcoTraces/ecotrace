@@ -157,9 +157,11 @@ class MaterialBuyer {
     required this.name,
     required this.contact,
     required this.materials,
+    required this.active,
   });
   final String id, name, contact;
   final List<RecoverableMaterial> materials;
+  final bool active;
   factory MaterialBuyer.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data()!;
     return MaterialBuyer(
@@ -169,6 +171,7 @@ class MaterialBuyer {
       materials: List<String>.from(
         data['materials'] as List? ?? const [],
       ).map(RecoverableMaterial.values.byName).toList(),
+      active: data['active'] as bool? ?? true,
     );
   }
 
@@ -179,6 +182,7 @@ class MaterialBuyer {
     materials: List<String>.from(
       data['materials'] as List? ?? const [],
     ).map(RecoverableMaterial.values.byName).toList(),
+    active: data['active'] as bool? ?? true,
   );
 }
 

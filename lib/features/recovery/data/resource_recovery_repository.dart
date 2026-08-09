@@ -280,17 +280,20 @@ class ResourceRecoveryRepository {
   Future<void> recordSale(
     RecoveredMaterialLot lot, {
     required double revenue,
+    required String reference,
     required String actorId,
   }) async {
     if (_useApi) {
       await _api.post('/api/v1/recovery/lots/${lot.id}/sale', {
         'revenue': revenue,
+        'reference': reference.trim(),
       });
       return;
     }
     await _lots.doc(lot.id).update({
       'status': MaterialLotStatus.sold.name,
       'saleRevenue': revenue,
+      'saleReference': reference.trim(),
       'soldBy': actorId,
       'soldAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),

@@ -315,17 +315,22 @@ class DonationDashboardScreen extends StatelessWidget {
   }
 
   Future<void> _certificate(DonationRequest r) async {
+    final certificate = await repository.certificate(r);
     final d = pw.Document();
     d.addPage(
       pw.Page(
         build: (_) => pw.Column(
           children: [
             pw.Header(text: 'EcoTrace Donation Certificate'),
-            pw.Text(r.requestNumber),
-            pw.Text('Beneficiary: ${r.beneficiaryName}'),
-            pw.Text('Devices: ${r.allocatedJobIds.length}'),
+            pw.Text('${certificate['certificateNumber'] ?? r.requestNumber}'),
+            pw.Text(
+              'Beneficiary: ${certificate['beneficiaryName'] ?? r.beneficiaryName}',
+            ),
+            pw.Text(
+              'Devices: ${certificate['donatedQuantity'] ?? r.allocatedJobIds.length}',
+            ),
             pw.Text('Status: ${r.status.name}'),
-            pw.Text('Delivery: ${r.deliveryAt}'),
+            pw.Text('Issued: ${certificate['issuedAt'] ?? r.deliveryAt}'),
           ],
         ),
       ),

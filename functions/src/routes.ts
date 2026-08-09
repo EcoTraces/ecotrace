@@ -80,7 +80,7 @@ const centreSchema = z.object({
   contactPhone: z.string().trim().max(40).default(""),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
-  operatingHours: z.record(z.string(), z.string()).default({}),
+  operatingHours: z.record(z.string(), z.string().trim().min(1).max(80)).refine((value) => Object.keys(value).length > 0, "At least one operating-hours entry is required."),
   supportedCategories: z
     .array(
       z.enum([
@@ -93,9 +93,14 @@ const centreSchema = z.object({
         "other",
       ]),
     )
-    .default([]),
+    .min(1),
   capacityKg: z.number().positive(),
   capacityAlertPercent: z.number().min(1).max(100).default(80),
+}).superRefine((value, context) => {
+  const hasLatitude = value.latitude != null;
+  const hasLongitude = value.longitude != null;
+  if (hasLatitude !== hasLongitude) context.addIssue({code: "custom", message: "Latitude and longitude must be supplied together.", path: [hasLatitude ? "longitude" : "latitude"]});
+  if (!value.contactEmail && !value.contactPhone) context.addIssue({code: "custom", message: "A contact email or phone number is required.", path: ["contactPhone"]});
 });
 
 const scheduleSchema = z.object({
@@ -156,6 +161,7 @@ router.get("/collection-centres", async (_request, response) => {
         name: centre.name ?? "",
         address: centre.address ?? "",
         contactEmail: centre.contactEmail ?? "",
+        contactName: centre.contactName ?? "",
         contactPhone: centre.contactPhone ?? "",
         latitude: centre.latitude ?? null,
         longitude: centre.longitude ?? null,

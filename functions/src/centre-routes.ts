@@ -5,6 +5,7 @@ import {authenticate, requireRoles} from "./auth.js";
 import {ApiError} from "./errors.js";
 import {db} from "./firebase.js";
 import {documentJson} from "./firestore-json.js";
+import {publishNotificationEvent} from "./push-events.js";
 
 const router = Router();
 const operators = [
@@ -36,13 +37,46 @@ router.get("/collection-centres/:id", authenticate, requireRoles(...operators), 
   response.json({data: documentJson(snapshot.id, snapshot.data()!)});
 });
 
-for (const resource of ["storageSections", "receivingRecords", "stockMovements", "staffAssignments", "safetyInspections"] as const) {
+for (const resource of ["storageSections", "receivingRecords", "stockMovements", "staffAssignments", "safetyInspections", "capacityAlerts"] as const) {
   router.get("/collection-centres/:id/" + resource, authenticate, requireRoles(...operators), async (request, response) => {
     const {reference} = await accessibleCentre(parameter(request.params.id), request.user!.uid, request.user!.role);
     const snapshot = await reference.collection(resource).limit(100).get();
     response.json({data: snapshot.docs.map((document) => documentJson(document.id, document.data()))});
   });
 }
+
+router.get("/collection-centres/:id/dashboard", authenticate, requireRoles(...operators), async (request, response) => {
+  const {reference, snapshot: centre} = await accessibleCentre(parameter(request.params.id), request.user!.uid, request.user!.role);
+  const [records, movements, sections, inspections, staff] = await Promise.all([
+    reference.collection("receivingRecords").limit(500).get(),
+    reference.collection("stockMovements").limit(500).get(),
+    reference.collection("storageSections").limit(100).get(),
+    reference.collection("safetyInspections").limit(100).get(),
+    reference.collection("staffAssignments").where("active", "==", true).limit(100).get(),
+  ]);
+  const capacityKg = Number(centre.get("capacityKg") ?? 0);
+  const currentStockKg = Number(centre.get("currentStockKg") ?? 0);
+  const verified = records.docs.filter((document) => document.get("verified") === true).length;
+  const receivedWeightKg = records.docs.reduce((sum, document) => sum + Number(document.get("verifiedWeightKg") ?? document.get("recordedWeightKg") ?? 0), 0);
+  const checkedOutWeightKg = movements.docs.filter((document) => document.get("type") === "checkOut").reduce((sum, document) => sum + Number(document.get("weightKg") ?? 0), 0);
+  const inspectionScores = inspections.docs.map((document) => Number(document.get("score") ?? 0));
+  response.json({data: {
+    centreId: centre.id,
+    capacityKg,
+    currentStockKg,
+    availableCapacityKg: Math.max(0, capacityKg - currentStockKg),
+    utilizationPercent: capacityKg > 0 ? currentStockKg / capacityKg * 100 : 0,
+    capacityAlert: capacityKg > 0 && currentStockKg / capacityKg * 100 >= Number(centre.get("capacityAlertPercent") ?? 80),
+    receivingRecords: records.size,
+    receivedWeightKg,
+    verificationRate: records.size > 0 ? verified / records.size * 100 : 0,
+    checkedOutWeightKg,
+    storageSections: sections.size,
+    activeStaff: staff.size,
+    safetyInspections: inspections.size,
+    averageSafetyScore: inspectionScores.length > 0 ? inspectionScores.reduce((sum, score) => sum + score, 0) / inspectionScores.length : null,
+  }});
+});
 
 router.post("/collection-centres/:id/sections", authenticate, requireRoles(...operators), async (request, response) => {
   const input = z.object({
@@ -52,6 +86,17 @@ router.post("/collection-centres/:id/sections", authenticate, requireRoles(...op
     restricted: z.boolean().default(false),
   }).parse(request.body);
   const {reference} = await accessibleCentre(parameter(request.params.id), request.user!.uid, request.user!.role);
+  const [centre, existingSections] = await Promise.all([
+    reference.get(),
+    reference.collection("storageSections").limit(100).get(),
+  ]);
+  const configuredCapacity = existingSections.docs.reduce((sum, document) => sum + Number(document.get("capacityKg") ?? 0), 0);
+  if (configuredCapacity + input.capacityKg > Number(centre.get("capacityKg") ?? 0)) {
+    throw new ApiError(409, "Storage section capacities exceed the centre capacity.", "section_capacity_exceeded");
+  }
+  if (existingSections.docs.some((document) => String(document.get("name") ?? "").toLowerCase() === input.name.toLowerCase())) {
+    throw new ApiError(409, "A storage section with this name already exists.", "duplicate_section");
+  }
   const section = await reference.collection("storageSections").add({
     ...input,
     currentStockKg: 0,
@@ -65,6 +110,9 @@ router.post("/collection-centres/:id/sections", authenticate, requireRoles(...op
 router.post("/collection-centres/:id/staff", authenticate, requireRoles("administrator", "superAdministrator"), async (request, response) => {
   const input = z.object({userId: z.string().trim().min(1), role: z.string().trim().min(2).max(80)}).parse(request.body);
   const {reference} = await accessibleCentre(parameter(request.params.id), request.user!.uid, request.user!.role);
+  const user = await db.collection("users").doc(input.userId).get();
+  if (!user.exists) throw new ApiError(404, "Staff user not found.", "not_found");
+  if (user.get("accountStatus") !== "active") throw new ApiError(409, "Only active users can be assigned.", "inactive_user");
   const batch = db.batch();
   batch.set(reference.collection("staffAssignments").doc(input.userId), {
     ...input,
@@ -74,7 +122,24 @@ router.post("/collection-centres/:id/staff", authenticate, requireRoles("adminis
   }, {merge: true});
   batch.update(reference, {staffIds: FieldValue.arrayUnion(input.userId), updatedAt: FieldValue.serverTimestamp()});
   await batch.commit();
+  void publishNotificationEvent({event: "centre_staff_assigned", recipientId: input.userId, data: {centreId: reference.id, role: input.role}});
   response.status(201).json({data: {userId: input.userId, active: true}});
+});
+
+router.patch("/collection-centres/:id/staff/:userId", authenticate, requireRoles("administrator", "superAdministrator"), async (request, response) => {
+  const {active} = z.object({active: z.boolean()}).parse(request.body);
+  const userId = parameter(request.params.userId);
+  const {reference} = await accessibleCentre(parameter(request.params.id), request.user!.uid, request.user!.role);
+  const assignment = reference.collection("staffAssignments").doc(userId);
+  if (!(await assignment.get()).exists) throw new ApiError(404, "Staff assignment not found.", "not_found");
+  const batch = db.batch();
+  batch.update(assignment, {active, updatedBy: request.user!.uid, updatedAt: FieldValue.serverTimestamp()});
+  batch.update(reference, {
+    staffIds: active ? FieldValue.arrayUnion(userId) : FieldValue.arrayRemove(userId),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  await batch.commit();
+  response.json({data: {userId, active}});
 });
 
 router.post("/collection-centres/:id/check-ins", authenticate, requireRoles(...operators), async (request, response) => {
@@ -88,8 +153,10 @@ router.post("/collection-centres/:id/check-ins", authenticate, requireRoles(...o
     notes: z.string().trim().max(1000).default(""),
   }).parse(request.body);
   const {reference: centreRef} = await accessibleCentre(parameter(request.params.id), request.user!.uid, request.user!.role);
+  if (input.staffId !== request.user!.uid) throw new ApiError(403, "staffId must match the authenticated user.", "forbidden");
   const sectionRef = centreRef.collection("storageSections").doc(input.sectionId);
   const recordRef = centreRef.collection("receivingRecords").doc();
+  let capacityAlertRaised = false;
   await db.runTransaction(async (transaction) => {
     const [centre, section] = await Promise.all([transaction.get(centreRef), transaction.get(sectionRef)]);
     if (!section.exists) throw new ApiError(404, "Storage section not found.", "not_found");
@@ -97,6 +164,9 @@ router.post("/collection-centres/:id/check-ins", authenticate, requireRoles(...o
     const centreCapacity = Number(centre.get("capacityKg") ?? 0);
     const sectionStock = Number(section.get("currentStockKg") ?? 0);
     const sectionCapacity = Number(section.get("capacityKg") ?? 0);
+    if (section.get("category") !== input.category) throw new ApiError(409, "The item category does not match the selected storage section.", "section_category_mismatch");
+    const supportedCategories = (centre.get("supportedCategories") ?? []) as string[];
+    if (!supportedCategories.includes(input.category)) throw new ApiError(409, "This centre does not accept the selected waste category.", "unsupported_category");
     if (centreStock + input.weightKg > centreCapacity) throw new ApiError(409, "This check-in exceeds centre capacity.", "centre_capacity_exceeded");
     if (sectionStock + input.weightKg > sectionCapacity) throw new ApiError(409, "This check-in exceeds section capacity.", "section_capacity_exceeded");
     transaction.set(recordRef, {
@@ -122,7 +192,17 @@ router.post("/collection-centres/:id/check-ins", authenticate, requireRoles(...o
     });
     transaction.update(centreRef, {currentStockKg: FieldValue.increment(input.weightKg), updatedAt: FieldValue.serverTimestamp()});
     transaction.update(sectionRef, {currentStockKg: FieldValue.increment(input.weightKg), updatedAt: FieldValue.serverTimestamp()});
+    const alertPercent = Number(centre.get("capacityAlertPercent") ?? 80);
+    const beforePercent = centreCapacity > 0 ? centreStock / centreCapacity * 100 : 0;
+    const afterPercent = centreCapacity > 0 ? (centreStock + input.weightKg) / centreCapacity * 100 : 0;
+    capacityAlertRaised = beforePercent < alertPercent && afterPercent >= alertPercent;
+    if (capacityAlertRaised) transaction.set(centreRef.collection("capacityAlerts").doc(), {
+      type: "thresholdReached", thresholdPercent: alertPercent, utilizationPercent: afterPercent,
+      currentStockKg: centreStock + input.weightKg, capacityKg: centreCapacity,
+      acknowledged: false, createdAt: FieldValue.serverTimestamp(), createdBy: request.user!.uid,
+    });
   });
+  if (capacityAlertRaised) void publishNotificationEvent({event: "centre_capacity_alert", affectedUserIds: [request.user!.uid], data: {centreId: centreRef.id}});
   response.status(201).json({data: {id: recordRef.id}});
 });
 
@@ -160,6 +240,7 @@ router.post("/collection-centres/:id/check-outs", authenticate, requireRoles(...
     notes: z.string().trim().max(1000).default(""),
   }).parse(request.body);
   const {reference: centreRef} = await accessibleCentre(parameter(request.params.id), request.user!.uid, request.user!.role);
+  if (input.staffId !== request.user!.uid) throw new ApiError(403, "staffId must match the authenticated user.", "forbidden");
   const sectionRef = centreRef.collection("storageSections").doc(input.sectionId);
   const movementRef = centreRef.collection("stockMovements").doc();
   await db.runTransaction(async (transaction) => {
@@ -182,6 +263,7 @@ router.post("/collection-centres/:id/inspections", authenticate, requireRoles(..
     notes: z.string().trim().max(1000).default(""),
   }).parse(request.body);
   const {reference} = await accessibleCentre(parameter(request.params.id), request.user!.uid, request.user!.role);
+  if (input.inspectorId !== request.user!.uid) throw new ApiError(403, "inspectorId must match the authenticated user.", "forbidden");
   const values = Object.values(input.checks);
   const score = values.length === 0 ? 0 : Math.round(values.filter(Boolean).length / values.length * 100);
   const status = score === 100 ? "passed" : score >= 70 ? "actionRequired" : "failed";
@@ -192,6 +274,7 @@ router.post("/collection-centres/:id/inspections", authenticate, requireRoles(..
     createdBy: request.user!.uid,
     inspectedAt: FieldValue.serverTimestamp(),
   });
+  if (status !== "passed") void publishNotificationEvent({event: "centre_safety_alert", affectedUserIds: [request.user!.uid], data: {centreId: reference.id, inspectionId: inspection.id, score, status}});
   response.status(201).json({data: {id: inspection.id, score, status}});
 });
 

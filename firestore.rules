@@ -438,6 +438,11 @@ service cloud.firestore {
         allow read, create: if isCentreOperator();
         allow update, delete: if false;
       }
+
+      match /capacityAlerts/{alertId} {
+        allow read: if isCentreOperator();
+        allow create, update, delete: if false;
+      }
     }
 
     match /repairJobs/{jobId} {
@@ -548,6 +553,16 @@ service cloud.firestore {
         allow read, create: if isRecyclingOperator();
         allow update, delete: if false;
       }
+
+      match /lifecycleEvents/{eventId} {
+        allow read, create: if isRecyclingOperator();
+        allow update, delete: if false;
+      }
+    }
+
+    match /materialSales/{saleId} {
+      allow read, create: if isRecyclingOperator();
+      allow update, delete: if false;
     }
 
     match /materialCategories/{categoryId} {
@@ -597,6 +612,12 @@ service cloud.firestore {
       allow read: if isHazardousOperator();
       allow create, update: if isHazardousSupervisor();
       allow delete: if isAdministrator();
+    }
+
+    match /hazardousIncidents/{incidentId} {
+      allow read, create: if isHazardousOperator();
+      allow update: if isHazardousSupervisor();
+      allow delete: if false;
     }
 
     match /reverseLogisticsTransfers/{transferId} {

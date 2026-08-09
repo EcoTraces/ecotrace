@@ -405,6 +405,13 @@ export const openApiDocument = {
         responses: { "200": { description: "Collection centre" } },
       },
     },
+    "/collection-centres/{id}/dashboard": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Return collection-centre capacity, receiving, staff and safety performance metrics",
+        responses: { "200": { description: "Centre dashboard" } },
+      },
+    },
     "/collection-centres/{id}/storageSections": {
       get: {
         security: [{ firebaseAuth: [] }],
@@ -440,6 +447,13 @@ export const openApiDocument = {
         responses: { "200": { description: "Safety inspections" } },
       },
     },
+    "/collection-centres/{id}/capacityAlerts": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List persistent collection-centre capacity alerts",
+        responses: { "200": { description: "Capacity alerts" } },
+      },
+    },
     "/collection-centres/{id}/sections": {
       post: {
         security: [{ firebaseAuth: [] }],
@@ -452,6 +466,13 @@ export const openApiDocument = {
         security: [{ firebaseAuth: [] }],
         summary: "Assign centre staff",
         responses: { "201": { description: "Staff assigned" } },
+      },
+    },
+    "/collection-centres/{id}/staff/{userId}": {
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Activate or deactivate a collection-centre staff assignment",
+        responses: { "200": { description: "Staff assignment updated" } },
       },
     },
     "/collection-centres/{id}/check-ins": {
@@ -697,6 +718,20 @@ export const openApiDocument = {
         responses: { "200": { description: "Repair job" } },
       },
     },
+    "/repairs/summary": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Return repair lifecycle, cost, warranty and disposition metrics",
+        responses: { "200": { description: "Repair summary" } },
+      },
+    },
+    "/repairs/refurbished-inventory": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List completed devices in refurbished inventory",
+        responses: { "200": { description: "Refurbished inventory" } },
+      },
+    },
     "/repairs/{id}/assignment": {
       patch: {
         security: [{ firebaseAuth: [] }],
@@ -902,6 +937,13 @@ export const openApiDocument = {
         responses: { "201": { description: "Buyer created" } },
       },
     },
+    "/recovery/buyers/{id}": {
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Update or deactivate a material buyer",
+        responses: { "200": { description: "Buyer updated" } },
+      },
+    },
     "/recovery/lots": {
       get: {
         security: [{ firebaseAuth: [] }],
@@ -947,6 +989,13 @@ export const openApiDocument = {
         responses: { "201": { description: "Transfer recorded" } },
       },
     },
+    "/recovery/lots/{id}/lifecycle": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List immutable recovered-material lifecycle events",
+        responses: { "200": { description: "Lifecycle events" } },
+      },
+    },
     "/recovery/lots/{id}/sale": {
       post: {
         security: [{ firebaseAuth: [] }],
@@ -960,6 +1009,13 @@ export const openApiDocument = {
         summary:
           "Return recovery inventory, efficiency, value, and revenue totals",
         responses: { "200": { description: "Resource recovery summary" } },
+      },
+    },
+    "/recovery/reports/revenue": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Reconcile sold lots against the material-sales ledger",
+        responses: { "200": { description: "Revenue reconciliation" } },
       },
     },
     "/hazardous/records": {
@@ -1033,6 +1089,25 @@ export const openApiDocument = {
         responses: { "201": { description: "Transfer dispatched" } },
       },
     },
+    "/hazardous/records/{id}/disposal-facility": {
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Approve a licensed hazardous-waste disposal facility",
+        responses: { "200": { description: "Disposal facility approved" } },
+      },
+    },
+    "/hazardous/records/{id}/compliance-documents": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List hazardous-waste compliance documents",
+        responses: { "200": { description: "Compliance documents" } },
+      },
+      post: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Record hazardous-waste compliance documentation",
+        responses: { "201": { description: "Compliance document recorded" } },
+      },
+    },
     "/hazardous/records/{id}/disposal": {
       patch: {
         security: [{ firebaseAuth: [] }],
@@ -1058,6 +1133,11 @@ export const openApiDocument = {
         summary: "Generate hazardous waste disposal certificate data",
         responses: { "200": { description: "Hazardous waste certificate" } },
       },
+      post: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Issue and persist a hazardous-waste disposal certificate",
+        responses: { "201": { description: "Certificate issued" } },
+      },
     },
     "/hazardous/reports/summary": {
       get: {
@@ -1078,6 +1158,15 @@ export const openApiDocument = {
         responses: { "201": { description: "Transfer created" } },
       },
     },
+    "/logistics/drivers": {
+      get: {security: [{firebaseAuth: []}], summary: "List active logistics drivers", responses: {"200": {description: "Drivers"}}},
+    },
+    "/logistics/centres": {
+      get: {security: [{firebaseAuth: []}], summary: "List active collection centres for transfers", responses: {"200": {description: "Collection centres"}}},
+    },
+    "/logistics/transfers/drafts": {
+      post: {security: [{firebaseAuth: []}], summary: "Create a reverse-logistics transfer draft", responses: {"201": {description: "Draft created"}}},
+    },
     "/logistics/transfers/{id}": {
       get: {
         security: [{ firebaseAuth: [] }],
@@ -1092,12 +1181,27 @@ export const openApiDocument = {
         responses: { "200": { description: "Transfer reviewed" } },
       },
     },
+    "/logistics/transfers/{id}/transport": {
+      patch: {security: [{firebaseAuth: []}], summary: "Assign a driver, vehicle, and transport document", responses: {"200": {description: "Transport assigned"}}},
+    },
+    "/logistics/transfers/{id}/documents": {
+      patch: {security: [{firebaseAuth: []}], summary: "Attach a Cloudinary transport document", responses: {"200": {description: "Document attached"}}},
+    },
+    "/logistics/transfers/{id}/submit": {
+      patch: {security: [{firebaseAuth: []}], summary: "Submit a complete transfer for approval", responses: {"200": {description: "Transfer submitted"}}},
+    },
     "/logistics/transfers/{id}/dispatch": {
       patch: {
         security: [{ firebaseAuth: [] }],
         summary: "Dispatch a transfer with transport documents",
         responses: { "200": { description: "Transfer dispatched" } },
       },
+    },
+    "/logistics/transfers/{id}/start": {
+      patch: {security: [{firebaseAuth: []}], summary: "Start transfer transit", responses: {"200": {description: "Transit started"}}},
+    },
+    "/logistics/transfers/{id}/deliver": {
+      patch: {security: [{firebaseAuth: []}], summary: "Confirm delivery with Cloudinary proof", responses: {"200": {description: "Delivery confirmed"}}},
     },
     "/logistics/transfers/{id}/custody-events": {
       get: {
@@ -1112,11 +1216,19 @@ export const openApiDocument = {
       },
     },
     "/logistics/transfers/{id}/exceptions": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List transfer exceptions",
+        responses: { "200": { description: "Transfer exceptions" } },
+      },
       post: {
         security: [{ firebaseAuth: [] }],
         summary: "Report a transfer exception",
         responses: { "201": { description: "Exception reported" } },
       },
+    },
+    "/logistics/transfers/{id}/exceptions/{exceptionId}/resolve": {
+      patch: {security: [{firebaseAuth: []}], summary: "Resolve a transfer exception and resume its previous state", responses: {"200": {description: "Exception resolved"}}},
     },
     "/logistics/transfers/{id}/receive": {
       patch: {
@@ -1184,6 +1296,13 @@ export const openApiDocument = {
         responses: { "200": { description: "Document verified" } },
       },
     },
+    "/partners/{id}/licence": {
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Approve or reject a verified partner licence",
+        responses: { "200": { description: "Licence decision recorded" } },
+      },
+    },
     "/partners/{id}/contracts": {
       get: {
         security: [{ firebaseAuth: [] }],
@@ -1203,6 +1322,18 @@ export const openApiDocument = {
         responses: { "200": { description: "Commercial information updated" } },
       },
     },
+    "/partners/{id}/service-records": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List completed partner services and SLA results",
+        responses: { "200": { description: "Partner services" } },
+      },
+      post: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Record a completed service and reconcile SLA performance",
+        responses: { "201": { description: "Service recorded" } },
+      },
+    },
     "/partners/{id}/ratings": {
       post: {
         security: [{ firebaseAuth: [] }],
@@ -1211,6 +1342,11 @@ export const openApiDocument = {
       },
     },
     "/partners/{id}/compliance-records": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List partner compliance records",
+        responses: { "200": { description: "Compliance records" } },
+      },
       post: {
         security: [{ firebaseAuth: [] }],
         summary: "Record partner compliance performance",
@@ -1275,6 +1411,9 @@ export const openApiDocument = {
         responses: { "200": { description: "Buyer profile saved" } },
       },
     },
+    "/marketplace/profile": {
+      get: {security: [{firebaseAuth: []}], summary: "Return the current marketplace profile", responses: {"200": {description: "Marketplace profile"}}},
+    },
     "/marketplace/seller-profile": {
       put: {
         security: [{ firebaseAuth: [] }],
@@ -1289,6 +1428,7 @@ export const openApiDocument = {
       },
     },
     "/marketplace/quotations": {
+      get: {security: [{firebaseAuth: []}], summary: "List current buyer or seller quotations", responses: {"200": {description: "Quotations"}}},
       post: {
         security: [{ firebaseAuth: [] }],
         summary: "Request a price quotation",
@@ -1328,12 +1468,18 @@ export const openApiDocument = {
         responses: { "200": { description: "Payment updated" } },
       },
     },
+    "/marketplace/orders/{id}/payment-submission": {
+      patch: {security: [{firebaseAuth: []}], summary: "Submit buyer payment details", responses: {"200": {description: "Payment submitted"}}},
+    },
     "/marketplace/orders/{id}/delivery": {
       patch: {
         security: [{ firebaseAuth: [] }],
         summary: "Update delivery tracking and proof",
         responses: { "200": { description: "Delivery updated" } },
       },
+    },
+    "/marketplace/orders/{id}/delivery-events": {
+      get: {security: [{firebaseAuth: []}], summary: "List delivery tracking events", responses: {"200": {description: "Delivery events"}}},
     },
     "/marketplace/orders/{id}/confirm-receipt": {
       patch: {
@@ -1362,6 +1508,15 @@ export const openApiDocument = {
         summary: "Review a completed marketplace order",
         responses: { "201": { description: "Review created" } },
       },
+    },
+    "/marketplace/sellers/{id}/reviews": {
+      get: {summary: "List public seller reviews", responses: {"200": {description: "Seller reviews"}}},
+    },
+    "/marketplace/eligible-devices": {
+      get: {security: [{firebaseAuth: []}], summary: "List resale-approved refurbished devices", responses: {"200": {description: "Eligible devices"}}},
+    },
+    "/marketplace/eligible-materials": {
+      get: {security: [{firebaseAuth: []}], summary: "List sales-ready recovered materials", responses: {"200": {description: "Eligible materials"}}},
     },
     "/marketplace/reports/summary": {
       get: {
@@ -1395,6 +1550,9 @@ export const openApiDocument = {
         summary: "Assess beneficiary eligibility",
         responses: { "200": { description: "Eligibility assessed" } },
       },
+    },
+    "/donations/eligible-devices": {
+      get: {security: [{firebaseAuth: []}], summary: "List donation-approved refurbished devices", responses: {"200": {description: "Eligible devices"}}},
     },
     "/donations/requests": {
       get: {
@@ -1444,6 +1602,11 @@ export const openApiDocument = {
       },
     },
     "/donations/requests/{id}/follow-ups": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List donated-device usage follow-ups",
+        responses: { "200": { description: "Donation follow-ups" } },
+      },
       post: {
         security: [{ firebaseAuth: [] }],
         summary: "Record donated-device usage follow-up",
@@ -1506,7 +1669,26 @@ export const openApiDocument = {
         responses: { "201": { description: "Points awarded" } },
       },
     },
+    "/rewards/adjustments": {
+      post: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Create an idempotent manual reward adjustment",
+        responses: { "201": { description: "Reward adjustment created" } },
+      },
+    },
+    "/rewards/expiry": {
+      post: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Expire green points without allowing a negative balance",
+        responses: { "201": { description: "Points expired" } },
+      },
+    },
     "/rewards/referrals": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List referral invitations visible to the caller",
+        responses: { "200": { description: "Referral invitations" } },
+      },
       post: {
         security: [{ firebaseAuth: [] }],
         summary: "Create a referral invitation",
@@ -1561,6 +1743,11 @@ export const openApiDocument = {
       },
     },
     "/rewards/redemptions": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List reward redemptions visible to the caller",
+        responses: { "200": { description: "Reward redemptions" } },
+      },
       post: {
         security: [{ firebaseAuth: [] }],
         summary: "Redeem green points and issue a coupon",
@@ -1568,10 +1755,22 @@ export const openApiDocument = {
       },
     },
     "/rewards/fraud-flags": {
+      get: {
+        security: [{ firebaseAuth: [] }],
+        summary: "List suspicious reward activity for investigation",
+        responses: { "200": { description: "Reward fraud flags" } },
+      },
       post: {
         security: [{ firebaseAuth: [] }],
         summary: "Flag suspicious reward activity",
         responses: { "201": { description: "Fraud flag created" } },
+      },
+    },
+    "/rewards/fraud-flags/{id}": {
+      patch: {
+        security: [{ firebaseAuth: [] }],
+        summary: "Investigate or resolve a reward fraud flag",
+        responses: { "200": { description: "Fraud flag updated" } },
       },
     },
     "/rewards/leaderboard": {

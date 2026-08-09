@@ -1,57 +1,151 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
 import '../../recycling/domain/recycling_batch.dart';
 import '../domain/hazardous_waste.dart';
 
 class HazardousWasteRepository {
-  HazardousWasteRepository({FirebaseFirestore? firestore})
-    : _db = firestore ?? FirebaseFirestore.instance;
+  HazardousWasteRepository({FirebaseFirestore? firestore, ApiClient? apiClient})
+    : _db = firestore ?? FirebaseFirestore.instance,
+      _api = apiClient ?? ApiClient.instance,
+      _useApi = apiClient != null || (firestore == null && ApiConfig.enabled);
   final FirebaseFirestore _db;
+  final ApiClient _api;
+  final bool _useApi;
   CollectionReference<Map<String, dynamic>> get _records =>
       _db.collection('hazardousWasteRecords');
 
-  Stream<List<HazardousWasteRecord>> watchRecords() => _records.snapshots().map(
-    (snapshot) => snapshot.docs.map(HazardousWasteRecord.fromDoc).toList()
-      ..sort((a, b) => b.createdAt?.compareTo(a.createdAt ?? DateTime(0)) ?? 0),
-  );
-  Stream<HazardousWasteRecord> watchRecord(String id) => _records
-      .doc(id)
-      .snapshots()
-      .where((document) => document.exists)
-      .map(HazardousWasteRecord.fromDoc);
-  Stream<List<HazardousIncident>> watchIncidents(String id) => _records
-      .doc(id)
-      .collection('incidents')
-      .orderBy('reportedAt', descending: true)
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map(HazardousIncident.fromDoc).toList());
-  Stream<List<HazardousTransferRecord>> watchTransfers(String id) => _records
-      .doc(id)
-      .collection('transfers')
-      .orderBy('createdAt', descending: true)
-      .snapshots()
-      .map(
-        (snapshot) =>
-            snapshot.docs.map(HazardousTransferRecord.fromDoc).toList(),
+  Stream<List<HazardousWasteRecord>> watchRecords() => _useApi
+      ? _pollRecords()
+      : _records.snapshots().map(
+          (snapshot) => snapshot.docs.map(HazardousWasteRecord.fromDoc).toList()
+            ..sort(
+              (a, b) => b.createdAt?.compareTo(a.createdAt ?? DateTime(0)) ?? 0,
+            ),
+        );
+  Stream<List<HazardousWasteRecord>> _pollRecords() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/hazardous/records');
+      yield data.map(HazardousWasteRecord.fromJson).toList()..sort(
+        (a, b) => b.createdAt?.compareTo(a.createdAt ?? DateTime(0)) ?? 0,
       );
-  Stream<List<SafetyTrainingRecord>> watchTraining() => _db
-      .collection('hazardousSafetyTraining')
-      .orderBy('completedAt', descending: true)
-      .snapshots()
-      .map(
-        (snapshot) => snapshot.docs.map(SafetyTrainingRecord.fromDoc).toList(),
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
       );
+    }
+  }
+
+  Stream<HazardousWasteRecord> watchRecord(String id) => _useApi
+      ? _pollRecord(id)
+      : _records
+            .doc(id)
+            .snapshots()
+            .where((document) => document.exists)
+            .map(HazardousWasteRecord.fromDoc);
+  Stream<HazardousWasteRecord> _pollRecord(String id) async* {
+    while (true) {
+      yield HazardousWasteRecord.fromJson(
+        await _api.get('/api/v1/hazardous/records/$id'),
+      );
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<HazardousIncident>> watchIncidents(String id) => _useApi
+      ? _pollIncidents(id)
+      : _records
+            .doc(id)
+            .collection('incidents')
+            .orderBy('reportedAt', descending: true)
+            .snapshots()
+            .map(
+              (snapshot) =>
+                  snapshot.docs.map(HazardousIncident.fromDoc).toList(),
+            );
+  Stream<List<HazardousIncident>> _pollIncidents(String id) async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/hazardous/incidents');
+      yield data
+          .where((item) => item['recordId']?.toString() == id)
+          .map(HazardousIncident.fromJson)
+          .toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<HazardousTransferRecord>> watchTransfers(String id) => _useApi
+      ? _pollTransfers(id)
+      : _records
+            .doc(id)
+            .collection('transfers')
+            .orderBy('createdAt', descending: true)
+            .snapshots()
+            .map(
+              (snapshot) =>
+                  snapshot.docs.map(HazardousTransferRecord.fromDoc).toList(),
+            );
+  Stream<List<HazardousTransferRecord>> _pollTransfers(String id) async* {
+    while (true) {
+      final data = await _api.getList(
+        '/api/v1/hazardous/records/$id/transfers',
+      );
+      yield data.map(HazardousTransferRecord.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<List<SafetyTrainingRecord>> watchTraining() => _useApi
+      ? _pollTraining()
+      : _db
+            .collection('hazardousSafetyTraining')
+            .orderBy('completedAt', descending: true)
+            .snapshots()
+            .map(
+              (snapshot) =>
+                  snapshot.docs.map(SafetyTrainingRecord.fromDoc).toList(),
+            );
+  Stream<List<SafetyTrainingRecord>> _pollTraining() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/hazardous/training-records');
+      yield data.map(SafetyTrainingRecord.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
   Stream<List<RecyclingBatch>> watchRecyclingBatches() => _db
       .collection('recyclingBatches')
       .snapshots()
       .map((snapshot) => snapshot.docs.map(RecyclingBatch.fromDoc).toList());
   Stream<List<Map<String, dynamic>>> watchComplianceDocuments(String id) =>
-      _records
-          .doc(id)
-          .collection('complianceDocuments')
-          .orderBy('createdAt', descending: true)
-          .snapshots()
-          .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+      _useApi
+      ? _pollComplianceDocuments(id)
+      : _records
+            .doc(id)
+            .collection('complianceDocuments')
+            .orderBy('createdAt', descending: true)
+            .snapshots()
+            .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+  Stream<List<Map<String, dynamic>>> _pollComplianceDocuments(
+    String id,
+  ) async* {
+    while (true) {
+      yield await _api.getList(
+        '/api/v1/hazardous/records/$id/compliance-documents',
+      );
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
 
   Future<void> identify({
     required RecyclingBatch? sourceBatch,
@@ -64,6 +158,24 @@ class HazardousWasteRepository {
     required String actorId,
   }) async {
     if (weightKg <= 0 || quantity < 0) throw ArgumentError('Invalid quantity.');
+    if (_useApi) {
+      await _api.post('/api/v1/hazardous/records', {
+        'sourceType': sourceBatch == null ? 'manual' : 'recyclingBatch',
+        'sourceId': sourceBatch?.id ?? sourceReference.trim(),
+        'classification': _apiClassification(category),
+        'description': classification.trim(),
+        'weightKg': weightKg,
+        'quantity': quantity,
+        'riskLevel': _riskLevel(category),
+        'storageLocation': 'Pending assignment',
+        'safetyInstructions': safetyInstructions
+            .split(RegExp(r'[\n;]+'))
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList(),
+      });
+      return;
+    }
     final record = _records.doc();
     if (sourceBatch == null) {
       await record.set(
@@ -142,27 +254,58 @@ class HazardousWasteRepository {
     HazardousWasteRecord record, {
     required String location,
     required String safetyInstructions,
-  }) => _records.doc(record.id).update({
-    'storageLocation': location.trim(),
-    'safetyInstructions': safetyInstructions.trim(),
-    'status': HazardousWasteStatus.stored.name,
-    'storedAt': FieldValue.serverTimestamp(),
-    'updatedAt': FieldValue.serverTimestamp(),
-  });
+  }) {
+    if (_useApi) {
+      return _api
+          .patch('/api/v1/hazardous/records/${record.id}/storage', {
+            'storageLocation': location.trim(),
+            'containmentType': 'Approved hazardous-waste containment',
+            'inspectionDueAt': DateTime.now()
+                .add(const Duration(days: 30))
+                .toIso8601String(),
+            'safetyInstructions': safetyInstructions
+                .split(RegExp(r'[\n;]+'))
+                .map((item) => item.trim())
+                .where((item) => item.isNotEmpty)
+                .toList(),
+          })
+          .then((_) {});
+    }
+    return _records.doc(record.id).update({
+      'storageLocation': location.trim(),
+      'safetyInstructions': safetyInstructions.trim(),
+      'status': HazardousWasteStatus.stored.name,
+      'storedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 
   Future<void> recordPpeChecklist(
     HazardousWasteRecord record,
     Map<String, bool> checklist,
     String actorId,
-  ) => _records.doc(record.id).update({
-    'ppeChecklist': checklist,
-    'ppeCheckedBy': actorId,
-    'ppeCheckedAt': FieldValue.serverTimestamp(),
-    'status': checklist.values.every((value) => value)
-        ? HazardousWasteStatus.secured.name
-        : record.status.name,
-    'updatedAt': FieldValue.serverTimestamp(),
-  });
+  ) {
+    if (_useApi) {
+      return _api
+          .post('/api/v1/hazardous/records/${record.id}/safety-checks', {
+            'ppeItems': checklist.entries
+                .map((entry) => {'name': entry.key, 'checked': entry.value})
+                .toList(),
+            'instructionsAcknowledged': true,
+            'notes': '',
+          })
+          .then((_) {});
+    }
+    return _records.doc(record.id).update({
+      'ppeChecklist': checklist,
+      'ppeCheckedBy': actorId,
+      'ppeCheckedAt': FieldValue.serverTimestamp(),
+      'status': checklist.values.every((value) => value)
+          ? HazardousWasteStatus.secured.name
+          : record.status.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 
   Future<void> recordBatteryHandling(
     HazardousWasteRecord record, {
@@ -171,15 +314,34 @@ class HazardousWasteRepository {
     required bool chargeProtected,
     required String notes,
     required String actorId,
-  }) => _records.doc(record.id).collection('handlingRecords').add({
-    'type': 'batteryHandling',
-    'terminalsInsulated': terminalsInsulated,
-    'damagedIsolated': damagedIsolated,
-    'chargeProtected': chargeProtected,
-    'notes': notes.trim(),
-    'actorId': actorId,
-    'createdAt': FieldValue.serverTimestamp(),
-  });
+  }) {
+    if (_useApi) {
+      return _api
+          .post('/api/v1/hazardous/records/${record.id}/battery-handling', {
+            'batteryType': record.classification.isEmpty
+                ? record.category.label
+                : record.classification,
+            'damaged': damagedIsolated,
+            'terminalsIsolated': terminalsInsulated,
+            'fireproofContainer': chargeProtected,
+            'notes': notes.trim(),
+          })
+          .then((_) {});
+    }
+    return _records
+        .doc(record.id)
+        .collection('handlingRecords')
+        .add({
+          'type': 'batteryHandling',
+          'terminalsInsulated': terminalsInsulated,
+          'damagedIsolated': damagedIsolated,
+          'chargeProtected': chargeProtected,
+          'notes': notes.trim(),
+          'actorId': actorId,
+          'createdAt': FieldValue.serverTimestamp(),
+        })
+        .then((_) {});
+  }
 
   Future<void> reportIncident(
     HazardousWasteRecord record, {
@@ -188,6 +350,25 @@ class HazardousWasteRepository {
     required String emergencyActions,
     required String actorId,
   }) async {
+    if (_useApi) {
+      await _api.post('/api/v1/hazardous/incidents', {
+        'recordId': record.id,
+        'type': 'other',
+        'severity': _apiSeverity(severity),
+        'location': record.storageLocation.isEmpty
+            ? 'Unknown location'
+            : record.storageLocation,
+        'description': description.trim(),
+        'immediateActions': emergencyActions
+            .split(RegExp(r'[\n;]+'))
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList(),
+        'evidenceUrls': <String>[],
+        'staffIds': <String>[],
+      });
+      return;
+    }
     final ref = _records.doc(record.id);
     final write = _db.batch();
     write.update(ref, {
@@ -212,6 +393,20 @@ class HazardousWasteRepository {
     required String actions,
     required String actorId,
   }) async {
+    if (_useApi) {
+      await _api.patch('/api/v1/hazardous/incidents/${incident.id}/response', {
+        'responseStatus': status.name,
+        'actions': actions
+            .split(RegExp(r'[\n;]+'))
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList(),
+        'emergencyContact': '',
+        'rootCause': '',
+        'correctiveActions': <String>[],
+      });
+      return;
+    }
     final incidentRef = _records
         .doc(record.id)
         .collection('incidents')
@@ -241,23 +436,49 @@ class HazardousWasteRepository {
     required DateTime? expiresAt,
     required String notes,
     required String actorId,
-  }) => _records.doc(record.id).collection('complianceDocuments').add({
-    'title': title.trim(),
-    'reference': reference.trim(),
-    'expiresAt': expiresAt == null ? null : Timestamp.fromDate(expiresAt),
-    'notes': notes.trim(),
-    'recordedBy': actorId,
-    'createdAt': FieldValue.serverTimestamp(),
-  });
+  }) {
+    if (_useApi) {
+      return _api
+          .post('/api/v1/hazardous/records/${record.id}/compliance-documents', {
+            'title': title.trim(),
+            'reference': reference.trim(),
+            'expiresAt': expiresAt?.toIso8601String(),
+            'notes': notes.trim(),
+          })
+          .then((_) {});
+    }
+    return _records
+        .doc(record.id)
+        .collection('complianceDocuments')
+        .add({
+          'title': title.trim(),
+          'reference': reference.trim(),
+          'expiresAt': expiresAt == null ? null : Timestamp.fromDate(expiresAt),
+          'notes': notes.trim(),
+          'recordedBy': actorId,
+          'createdAt': FieldValue.serverTimestamp(),
+        })
+        .then((_) {});
+  }
 
   Future<void> assignDisposalFacility(
     HazardousWasteRecord record,
     String facility,
-  ) => _records.doc(record.id).update({
-    'disposalFacility': facility.trim(),
-    'status': HazardousWasteStatus.transferApproved.name,
-    'updatedAt': FieldValue.serverTimestamp(),
-  });
+  ) {
+    if (_useApi) {
+      return _api
+          .patch('/api/v1/hazardous/records/${record.id}/disposal-facility', {
+            'facilityId': facility.trim(),
+            'facilityName': facility.trim(),
+          })
+          .then((_) {});
+    }
+    return _records.doc(record.id).update({
+      'disposalFacility': facility.trim(),
+      'status': HazardousWasteStatus.transferApproved.name,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 
   Future<void> recordTransfer(
     HazardousWasteRecord record, {
@@ -267,6 +488,18 @@ class HazardousWasteRepository {
   }) async {
     if (record.disposalFacility.isEmpty) {
       throw StateError('Assign a disposal facility first.');
+    }
+    if (_useApi) {
+      await _api.post('/api/v1/hazardous/records/${record.id}/transfers', {
+        'destinationFacilityId': record.disposalFacility,
+        'destinationFacilityName': record.disposalFacility,
+        'carrier': carrier.trim(),
+        'manifestNumber': manifestNumber.trim(),
+        'weightKg': record.weightKg,
+        'driverName': 'Recorded carrier driver',
+        'vehicleRegistration': 'Recorded in manifest',
+      });
+      return;
     }
     final ref = _records.doc(record.id);
     final write = _db.batch();
@@ -290,23 +523,44 @@ class HazardousWasteRepository {
     required String method,
     required String receiptNumber,
     required String actorId,
-  }) => _records.doc(record.id).update({
-    'status': HazardousWasteStatus.disposed.name,
-    'disposalMethod': method.trim(),
-    'disposalReceiptNumber': receiptNumber.trim(),
-    'disposedBy': actorId,
-    'disposedAt': FieldValue.serverTimestamp(),
-    'updatedAt': FieldValue.serverTimestamp(),
-  });
+  }) {
+    if (_useApi) {
+      return _api
+          .patch('/api/v1/hazardous/records/${record.id}/disposal', {
+            'facilityId': record.disposalFacility,
+            'facilityName': record.disposalFacility,
+            'method': method.trim(),
+            'disposedWeightKg': record.weightKg,
+            'manifestNumber': receiptNumber.trim(),
+            'receiptNumber': receiptNumber.trim(),
+            'complianceDocumentUrls': <String>[],
+          })
+          .then((_) {});
+    }
+    return _records.doc(record.id).update({
+      'status': HazardousWasteStatus.disposed.name,
+      'disposalMethod': method.trim(),
+      'disposalReceiptNumber': receiptNumber.trim(),
+      'disposedBy': actorId,
+      'disposedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 
-  Future<void> certify(HazardousWasteRecord record, String actorId) =>
-      _records.doc(record.id).update({
-        'status': HazardousWasteStatus.certified.name,
-        'certificateNumber': 'HZC-${record.id.substring(0, 8).toUpperCase()}',
-        'certifiedBy': actorId,
-        'certifiedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+  Future<void> certify(HazardousWasteRecord record, String actorId) {
+    if (_useApi) {
+      return _api
+          .post('/api/v1/hazardous/records/${record.id}/certificate', {})
+          .then((_) {});
+    }
+    return _records.doc(record.id).update({
+      'status': HazardousWasteStatus.certified.name,
+      'certificateNumber': 'HZC-${record.id.substring(0, 8).toUpperCase()}',
+      'certifiedBy': actorId,
+      'certifiedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 
   Future<void> recordTraining({
     required String staffId,
@@ -314,12 +568,59 @@ class HazardousWasteRepository {
     required DateTime completedAt,
     required DateTime expiresAt,
     required String certificateReference,
-  }) => _db.collection('hazardousSafetyTraining').add({
-    'staffId': staffId.trim(),
-    'course': course.trim(),
-    'completedAt': Timestamp.fromDate(completedAt),
-    'expiresAt': Timestamp.fromDate(expiresAt),
-    'certificateReference': certificateReference.trim(),
-    'createdAt': FieldValue.serverTimestamp(),
-  });
+  }) {
+    if (_useApi) {
+      return _api
+          .post('/api/v1/hazardous/training-records', {
+            'staffId': staffId.trim(),
+            'courseName': course.trim(),
+            'provider': 'EcoTrace approved provider',
+            'completedAt': completedAt.toIso8601String(),
+            'expiresAt': expiresAt.toIso8601String(),
+            'certificateReference': certificateReference.trim(),
+          })
+          .then((_) {});
+    }
+    return _db
+        .collection('hazardousSafetyTraining')
+        .add({
+          'staffId': staffId.trim(),
+          'course': course.trim(),
+          'completedAt': Timestamp.fromDate(completedAt),
+          'expiresAt': Timestamp.fromDate(expiresAt),
+          'certificateReference': certificateReference.trim(),
+          'createdAt': FieldValue.serverTimestamp(),
+        })
+        .then((_) {});
+  }
 }
+
+String _apiClassification(HazardousMaterialCategory category) =>
+    switch (category) {
+      HazardousMaterialCategory.lithiumBattery => 'lithium',
+      HazardousMaterialCategory.leadAcidBattery => 'battery',
+      HazardousMaterialCategory.mercury => 'mercury',
+      HazardousMaterialCategory.lead => 'lead',
+      HazardousMaterialCategory.cadmium => 'cadmium',
+      HazardousMaterialCategory.toxicChemicals => 'other',
+      HazardousMaterialCategory.crtGlass => 'other',
+      HazardousMaterialCategory.contaminatedCircuitBoards => 'other',
+      HazardousMaterialCategory.other => 'other',
+    };
+
+String _riskLevel(HazardousMaterialCategory category) => switch (category) {
+  HazardousMaterialCategory.mercury ||
+  HazardousMaterialCategory.lead ||
+  HazardousMaterialCategory.cadmium => 'critical',
+  HazardousMaterialCategory.lithiumBattery ||
+  HazardousMaterialCategory.leadAcidBattery ||
+  HazardousMaterialCategory.toxicChemicals => 'high',
+  _ => 'medium',
+};
+
+String _apiSeverity(IncidentSeverity severity) => switch (severity) {
+  IncidentSeverity.minor => 'low',
+  IncidentSeverity.moderate => 'medium',
+  IncidentSeverity.serious => 'high',
+  IncidentSeverity.critical => 'critical',
+};

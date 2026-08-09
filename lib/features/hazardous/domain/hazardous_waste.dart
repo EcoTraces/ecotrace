@@ -106,7 +106,64 @@ class HazardousWasteRecord {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory HazardousWasteRecord.fromJson(Map<String, dynamic> data) {
+    final classification = data['classification']?.toString() ?? 'other';
+    return HazardousWasteRecord(
+      id: data['id']?.toString() ?? '',
+      code:
+          data['recordCode']?.toString() ??
+          data['wasteCode']?.toString() ??
+          data['id']?.toString() ??
+          '',
+      sourceBatchId: data['sourceType'] == 'recyclingBatch'
+          ? data['sourceId']?.toString() ?? ''
+          : data['sourceBatchId']?.toString() ?? '',
+      sourceReference:
+          data['sourceId']?.toString() ??
+          data['sourceReference']?.toString() ??
+          '',
+      category: _categoryFromApi(classification),
+      classification: classification,
+      weightKg: (data['weightKg'] as num? ?? 0).toDouble(),
+      quantity: (data['quantity'] as num? ?? 0).toInt(),
+      storageLocation: data['storageLocation']?.toString() ?? '',
+      safetyInstructions: data['safetyInstructions'] is List
+          ? (data['safetyInstructions'] as List).join('\n')
+          : data['safetyInstructions']?.toString() ?? '',
+      ppeChecklist: Map<String, bool>.from(
+        data['ppeChecklist'] as Map? ?? const {},
+      ),
+      disposalFacility:
+          data['disposalFacility']?.toString() ??
+          data['facilityName']?.toString() ??
+          '',
+      status: _statusFromApi(data['status']?.toString()),
+      certificateNumber: data['certificateNumber']?.toString() ?? '',
+      createdAt: DateTime.tryParse(data['createdAt']?.toString() ?? ''),
+    );
+  }
 }
+
+HazardousMaterialCategory _categoryFromApi(String value) => switch (value) {
+  'battery' || 'lithium' => HazardousMaterialCategory.lithiumBattery,
+  'mercury' => HazardousMaterialCategory.mercury,
+  'lead' => HazardousMaterialCategory.lead,
+  'cadmium' => HazardousMaterialCategory.cadmium,
+  'circuitBoards' => HazardousMaterialCategory.contaminatedCircuitBoards,
+  _ => HazardousMaterialCategory.other,
+};
+
+HazardousWasteStatus _statusFromApi(String? value) => switch (value) {
+  'inTransfer' => HazardousWasteStatus.transferred,
+  'incidentHold' => HazardousWasteStatus.incidentHold,
+  'transferApproved' => HazardousWasteStatus.transferApproved,
+  'certified' => HazardousWasteStatus.certified,
+  'disposed' => HazardousWasteStatus.disposed,
+  'stored' => HazardousWasteStatus.stored,
+  'secured' => HazardousWasteStatus.secured,
+  _ => HazardousWasteStatus.identified,
+};
 
 class HazardousIncident {
   const HazardousIncident({
@@ -140,6 +197,28 @@ class HazardousIncident {
       reportedAt: (data['reportedAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory HazardousIncident.fromJson(Map<String, dynamic> data) =>
+      HazardousIncident(
+        id: data['id']?.toString() ?? '',
+        severity: switch (data['severity']?.toString()) {
+          'critical' => IncidentSeverity.critical,
+          'high' => IncidentSeverity.serious,
+          'medium' => IncidentSeverity.moderate,
+          _ => IncidentSeverity.minor,
+        },
+        description: data['description']?.toString() ?? '',
+        emergencyActions: data['actions'] is List
+            ? (data['actions'] as List).join('\n')
+            : data['immediateActions'] is List
+            ? (data['immediateActions'] as List).join('\n')
+            : data['emergencyActions']?.toString() ?? '',
+        status: IncidentStatus.values.byName(
+          data['status']?.toString() ?? IncidentStatus.reported.name,
+        ),
+        reportedBy: data['reportedBy']?.toString() ?? '',
+        reportedAt: DateTime.tryParse(data['reportedAt']?.toString() ?? ''),
+      );
 }
 
 class SafetyTrainingRecord {
@@ -165,6 +244,16 @@ class SafetyTrainingRecord {
       expiresAt: (data['expiresAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory SafetyTrainingRecord.fromJson(Map<String, dynamic> data) =>
+      SafetyTrainingRecord(
+        id: data['id']?.toString() ?? '',
+        staffId: data['staffId']?.toString() ?? '',
+        course:
+            data['courseName']?.toString() ?? data['course']?.toString() ?? '',
+        completedAt: DateTime.tryParse(data['completedAt']?.toString() ?? ''),
+        expiresAt: DateTime.tryParse(data['expiresAt']?.toString() ?? ''),
+      );
 }
 
 class HazardousTransferRecord {
@@ -189,4 +278,20 @@ class HazardousTransferRecord {
       at: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
+
+  factory HazardousTransferRecord.fromJson(Map<String, dynamic> data) =>
+      HazardousTransferRecord(
+        from: data['from']?.toString() ?? '',
+        to:
+            data['to']?.toString() ??
+            data['destinationFacilityName']?.toString() ??
+            '',
+        carrier: data['carrier']?.toString() ?? '',
+        manifestNumber: data['manifestNumber']?.toString() ?? '',
+        at: DateTime.tryParse(
+          data['createdAt']?.toString() ??
+              data['dispatchedAt']?.toString() ??
+              '',
+        ),
+      );
 }

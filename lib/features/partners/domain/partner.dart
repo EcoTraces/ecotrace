@@ -107,43 +107,88 @@ class Partner {
       licenceStatus == LicenceVerificationStatus.verified;
 
   factory Partner.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data()!;
+    return Partner.fromJson({...doc.data()!, 'id': doc.id});
+  }
+
+  factory Partner.fromJson(Map<String, dynamic> data) {
+    PartnerType partnerType(String? value) {
+      final aliases = {
+        'repair': 'repairCentre',
+        'materialBuyer': 'materialBuyer',
+        'transport': 'transporter',
+        'hazardousDisposal': 'disposalFacility',
+        'collectionCentre': 'collectionService',
+      };
+      return PartnerType.values
+              .where((item) => item.name == (aliases[value] ?? value))
+              .firstOrNull ??
+          PartnerType.serviceProvider;
+    }
+
+    PartnerServiceCategory category(String value) {
+      const aliases = {
+        'recycling': 'electronicsRecycling',
+        'repair': 'deviceRepair',
+        'refurbishment': 'refurbishment',
+        'materialBuyer': 'materialPurchase',
+        'transport': 'transport',
+        'hazardousDisposal': 'hazardousDisposal',
+        'collectionCentre': 'collection',
+      };
+      return PartnerServiceCategory.values
+              .where((item) => item.name == (aliases[value] ?? value))
+              .firstOrNull ??
+          PartnerServiceCategory.other;
+    }
+
+    final payment = Map<String, dynamic>.from(
+      data['paymentInformation'] as Map? ?? const {},
+    );
     return Partner(
-      id: doc.id,
-      partnerCode: data['partnerCode'] ?? doc.id,
+      id: '${data['id'] ?? ''}',
+      partnerCode: data['partnerCode'] ?? '${data['id'] ?? ''}',
       name: data['name'] ?? '',
-      type: PartnerType.values.byName(
-        data['type'] ?? PartnerType.serviceProvider.name,
-      ),
+      type: partnerType(data['type'] as String?),
       contactName: data['contactName'] ?? '',
       contactEmail: data['contactEmail'] ?? '',
       contactPhone: data['contactPhone'] ?? '',
       address: data['address'] ?? '',
       serviceCategories: List<String>.from(
         data['serviceCategories'] as List? ?? const [],
-      ).map(PartnerServiceCategory.values.byName).toList(),
+      ).map(category).toList(),
       serviceAreas: List<String>.from(
         data['serviceAreas'] as List? ?? const [],
       ),
-      pricingInformation: data['pricingInformation'] ?? '',
-      currency: data['currency'] ?? 'SLE',
+      pricingInformation:
+          data['pricingInformation'] ??
+          (data['pricing'] is Map
+              ? (data['pricing'] as Map).values.join(', ')
+              : ''),
+      currency: data['currency'] ?? data['paymentCurrency'] ?? 'SLE',
       facilityCapacityKg: (data['facilityCapacityKg'] as num? ?? 0).toDouble(),
-      paymentMethod: data['paymentMethod'] ?? '',
-      payeeName: data['payeeName'] ?? '',
+      paymentMethod:
+          data['paymentMethod'] ??
+          payment['bankName'] ??
+          payment['mobileMoneyProvider'] ??
+          '',
+      payeeName: data['payeeName'] ?? payment['accountName'] ?? '',
       paymentTerms: data['paymentTerms'] ?? '',
       status: PartnerStatus.values.byName(
         data['status'] ?? PartnerStatus.pendingVerification.name,
       ),
-      licenceStatus: LicenceVerificationStatus.values.byName(
-        data['licenceStatus'] ?? LicenceVerificationStatus.pending.name,
-      ),
-      suspensionReason: data['suspensionReason'] ?? '',
+      licenceStatus: data['licenceVerified'] == true
+          ? LicenceVerificationStatus.verified
+          : LicenceVerificationStatus.values
+                    .where((item) => item.name == data['licenceStatus'])
+                    .firstOrNull ??
+                LicenceVerificationStatus.pending,
+      suspensionReason: data['suspensionReason'] ?? data['statusReason'] ?? '',
       performanceRating: (data['performanceRating'] as num? ?? 0).toDouble(),
       complianceScore: (data['complianceScore'] as num? ?? 0).toDouble(),
       completedServiceCount: data['completedServiceCount'] as int? ?? 0,
       onTimeServiceCount: data['onTimeServiceCount'] as int? ?? 0,
       totalSpend: (data['totalSpend'] as num? ?? 0).toDouble(),
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      createdAt: _date(data['createdAt']),
     );
   }
 }
@@ -165,15 +210,18 @@ class PartnerDocument {
   bool expiresWithin(Duration duration) =>
       expiresAt != null && expiresAt!.isBefore(DateTime.now().add(duration));
   factory PartnerDocument.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data()!;
+    return PartnerDocument.fromJson({...doc.data()!, 'id': doc.id});
+  }
+  factory PartnerDocument.fromJson(Map<String, dynamic> data) {
     return PartnerDocument(
-      id: doc.id,
-      documentType: data['documentType'] ?? '',
-      referenceNumber: data['referenceNumber'] ?? '',
-      url: data['url'] ?? '',
-      verified: data['verified'] as bool? ?? false,
-      issuedAt: (data['issuedAt'] as Timestamp?)?.toDate(),
-      expiresAt: (data['expiresAt'] as Timestamp?)?.toDate(),
+      id: '${data['id'] ?? ''}',
+      documentType: data['documentType'] ?? data['type'] ?? '',
+      referenceNumber: data['referenceNumber'] ?? data['number'] ?? '',
+      url: data['url'] ?? data['documentUrl'] ?? '',
+      verified:
+          data['verified'] as bool? ?? data['verificationStatus'] == 'verified',
+      issuedAt: _date(data['issuedAt']),
+      expiresAt: _date(data['expiresAt']),
     );
   }
 }
@@ -198,22 +246,26 @@ class PartnerContract {
   final double contractValue, slaTargetHours, minimumQualityRating;
   bool get expired => endAt != null && endAt!.isBefore(DateTime.now());
   factory PartnerContract.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data()!;
+    return PartnerContract.fromJson({...doc.data()!, 'id': doc.id});
+  }
+  factory PartnerContract.fromJson(Map<String, dynamic> data) {
     return PartnerContract(
-      id: doc.id,
-      contractNumber: data['contractNumber'] ?? '',
+      id: '${data['id'] ?? ''}',
+      contractNumber: data['contractNumber'] ?? '${data['id'] ?? ''}',
       title: data['title'] ?? '',
       status: ContractStatus.values.byName(
         data['status'] ?? ContractStatus.draft.name,
       ),
-      startAt: (data['startAt'] as Timestamp?)?.toDate(),
-      endAt: (data['endAt'] as Timestamp?)?.toDate(),
-      contractValue: (data['contractValue'] as num? ?? 0).toDouble(),
+      startAt: _date(data['startAt'] ?? data['startsAt']),
+      endAt: _date(data['endAt'] ?? data['endsAt']),
+      contractValue:
+          (data['contractValue'] as num? ?? data['value'] as num? ?? 0)
+              .toDouble(),
       currency: data['currency'] ?? 'SLE',
       slaTargetHours: (data['slaTargetHours'] as num? ?? 0).toDouble(),
       minimumQualityRating: (data['minimumQualityRating'] as num? ?? 0)
           .toDouble(),
-      terms: data['terms'] ?? '',
+      terms: data['terms'] ?? data['paymentTerms'] ?? '',
     );
   }
 }
@@ -237,7 +289,9 @@ class PartnerServiceRecord {
   factory PartnerServiceRecord.fromDoc(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final data = doc.data()!;
+    return PartnerServiceRecord.fromJson(doc.data()!);
+  }
+  factory PartnerServiceRecord.fromJson(Map<String, dynamic> data) {
     return PartnerServiceRecord(
       reference: data['reference'] ?? '',
       serviceCategory: PartnerServiceCategory.values.byName(
@@ -248,7 +302,7 @@ class PartnerServiceRecord {
       qualityRating: (data['qualityRating'] as num? ?? 0).toDouble(),
       serviceCost: (data['serviceCost'] as num? ?? 0).toDouble(),
       notes: data['notes'] ?? '',
-      completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
+      completedAt: _date(data['completedAt']),
     );
   }
 }
@@ -268,16 +322,39 @@ class PartnerComplianceRecord {
   factory PartnerComplianceRecord.fromDoc(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final data = doc.data()!;
+    return PartnerComplianceRecord.fromJson(doc.data()!);
+  }
+  factory PartnerComplianceRecord.fromJson(Map<String, dynamic> data) {
     return PartnerComplianceRecord(
-      type: data['type'] ?? '',
+      type: data['type'] ?? data['checklistName'] ?? '',
       score: (data['score'] as num? ?? 0).toDouble(),
-      outcome: data['outcome'] ?? '',
-      findings: data['findings'] ?? '',
-      reviewedAt: (data['reviewedAt'] as Timestamp?)?.toDate(),
-      nextReviewAt: (data['nextReviewAt'] as Timestamp?)?.toDate(),
+      outcome:
+          data['outcome'] ??
+          ((data['score'] as num? ?? 0) >= 80 ? 'passed' : 'requiresAction'),
+      findings:
+          data['findings'] ??
+          (data['violations'] as List? ?? const []).join(', '),
+      reviewedAt: _date(data['reviewedAt'] ?? data['createdAt']),
+      nextReviewAt: _date(
+        data['nextReviewAt'] ?? data['correctiveActionDueAt'],
+      ),
     );
   }
+}
+
+DateTime? _date(dynamic value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is String) return DateTime.tryParse(value);
+  if (value is Map) {
+    final seconds = value['_seconds'] ?? value['seconds'];
+    if (seconds is num) {
+      return DateTime.fromMillisecondsSinceEpoch(
+        seconds.toInt() * 1000,
+        isUtc: true,
+      );
+    }
+  }
+  return null;
 }
 
 class PartnerAnalytics {

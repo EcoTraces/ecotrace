@@ -18,6 +18,9 @@ class NotificationType(StrEnum):
     SECURITY_ALERT = "SECURITY_ALERT"
     ADMIN_MESSAGE = "ADMIN_MESSAGE"
     CLASSIFICATION = "CLASSIFICATION"
+    STATUS_UPDATE = "STATUS_UPDATE"
+    COMPLIANCE_ALERT = "COMPLIANCE_ALERT"
+    REWARD = "REWARD"
 
 
 class DevicePlatform(StrEnum):
@@ -91,6 +94,33 @@ class EventName(StrEnum):
     SECURITY_ALERT = "security_alert"
     CLASSIFICATION_ASSESSMENT_SUBMITTED = "classification_assessment_submitted"
     CLASSIFICATION_ASSESSMENT_REVIEWED = "classification_assessment_reviewed"
+    CENTRE_STAFF_ASSIGNED = "centre_staff_assigned"
+    CENTRE_CAPACITY_ALERT = "centre_capacity_alert"
+    CENTRE_SAFETY_ALERT = "centre_safety_alert"
+    REPAIR_TECHNICIAN_ASSIGNED = "repair_technician_assigned"
+    REPAIR_REVIEWED = "repair_reviewed"
+    REPAIR_COMPLETED = "repair_completed"
+    REPAIR_UNREPAIRABLE = "repair_unrepairable"
+    REPAIR_DISPOSITION_APPROVED = "repair_disposition_approved"
+    RECYCLING_HAZARDOUS_MATERIAL_RECORDED = "recycling_hazardous_material_recorded"
+    HAZARDOUS_INCIDENT_REPORTED = "hazardous_incident_reported"
+    HAZARDOUS_EMERGENCY_RESPONSE_UPDATED = "hazardous_emergency_response_updated"
+    HAZARDOUS_INCIDENT_CLOSED = "hazardous_incident_closed"
+    HAZARDOUS_WASTE_CERTIFIED = "hazardous_waste_certified"
+    LOGISTICS_TRANSFER_SUBMITTED = "logistics_transfer_submitted"
+    LOGISTICS_TRANSFER_REVIEWED = "logistics_transfer_reviewed"
+    LOGISTICS_TRANSPORT_ASSIGNED = "logistics_transport_assigned"
+    LOGISTICS_DISPATCHED = "logistics_dispatched"
+    LOGISTICS_EXCEPTION_REPORTED = "logistics_exception_reported"
+    LOGISTICS_RECEIVED = "logistics_received"
+    PARTNER_LICENCE_REVIEWED = "partner_licence_reviewed"
+    PARTNER_STATUS_CHANGED = "partner_status_changed"
+    MARKETPLACE_DELIVERY_UPDATED = "marketplace_delivery_updated"
+    DONATION_REQUEST_SUBMITTED = "donation_request_submitted"
+    DONATION_STATUS_UPDATED = "donation_status_updated"
+    REWARD_POINTS_AWARDED = "reward_points_awarded"
+    REWARD_POINTS_EXPIRED = "reward_points_expired"
+    REWARD_REDEEMED = "reward_redeemed"
 
 
 class EventNotificationRequest(BaseModel):
@@ -106,6 +136,15 @@ class EventNotificationRequest(BaseModel):
         no_recipient = self.event not in {
             EventName.PICKUP_REQUEST_SUBMITTED,
             EventName.CLASSIFICATION_ASSESSMENT_SUBMITTED,
+            EventName.HAZARDOUS_INCIDENT_REPORTED,
+            EventName.HAZARDOUS_EMERGENCY_RESPONSE_UPDATED,
+            EventName.HAZARDOUS_INCIDENT_CLOSED,
+            EventName.HAZARDOUS_WASTE_CERTIFIED,
+            EventName.LOGISTICS_TRANSFER_SUBMITTED,
+            EventName.LOGISTICS_EXCEPTION_REPORTED,
+            EventName.PARTNER_LICENCE_REVIEWED,
+            EventName.PARTNER_STATUS_CHANGED,
+            EventName.DONATION_REQUEST_SUBMITTED,
         } and not self.recipient_id and not self.affected_user_ids
         if no_recipient:
             raise ValueError("A recipientId or affectedUserIds value is required for this event.")

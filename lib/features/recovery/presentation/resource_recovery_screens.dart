@@ -118,17 +118,28 @@ class ResourceRecoveryDashboardScreen extends StatelessWidget {
                       runSpacing: 8,
                       children: [
                         OutlinedButton(
-                          onPressed: () => _assignBuyer(context, lot),
+                          onPressed:
+                              [
+                                MaterialLotStatus.stored,
+                                MaterialLotStatus.salesReady,
+                                MaterialLotStatus.reserved,
+                              ].contains(lot.status)
+                              ? () => _assignBuyer(context, lot)
+                              : null,
                           child: const Text('Assign buyer'),
                         ),
                         OutlinedButton(
-                          onPressed: lot.status == MaterialLotStatus.sold
-                              ? null
-                              : () => _run(
+                          onPressed:
+                              [
+                                MaterialLotStatus.stored,
+                                MaterialLotStatus.reserved,
+                              ].contains(lot.status)
+                              ? () => _run(
                                   context,
                                   () => repository.markSalesReady(lot),
                                   'Lot marked sales-ready.',
-                                ),
+                                )
+                              : null,
                           child: const Text('Sales ready'),
                         ),
                         OutlinedButton(
@@ -138,9 +149,15 @@ class ResourceRecoveryDashboardScreen extends StatelessWidget {
                           child: const Text('Transfer'),
                         ),
                         FilledButton(
-                          onPressed: lot.status == MaterialLotStatus.sold
-                              ? null
-                              : () => _sale(context, lot),
+                          onPressed:
+                              [
+                                    MaterialLotStatus.salesReady,
+                                    MaterialLotStatus.reserved,
+                                    MaterialLotStatus.transferred,
+                                  ].contains(lot.status) &&
+                                  lot.buyerId.isNotEmpty
+                              ? () => _sale(context, lot)
+                              : null,
                           child: const Text('Record sale'),
                         ),
                       ],
@@ -192,8 +209,20 @@ class ResourceRecoveryDashboardScreen extends StatelessWidget {
       );
       return;
     }
+    final enabledMaterials = definitions.isEmpty
+        ? RecoverableMaterial.values
+        : definitions
+              .where((definition) => definition.active)
+              .map((definition) => definition.material)
+              .toList();
+    if (enabledMaterials.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Activate a material category first.')),
+      );
+      return;
+    }
     var batch = active.first;
-    var material = RecoverableMaterial.copper;
+    var material = enabledMaterials.first;
     var grade = MaterialQualityGrade.gradeA;
     final weight = TextEditingController(),
         quantity = TextEditingController(text: '0'),
@@ -240,7 +269,7 @@ class ResourceRecoveryDashboardScreen extends StatelessWidget {
                       decoration: const InputDecoration(
                         labelText: 'Material category',
                       ),
-                      items: RecoverableMaterial.values
+                      items: enabledMaterials
                           .map(
                             (item) => DropdownMenuItem(
                               value: item,
@@ -487,12 +516,18 @@ class ResourceRecoveryDashboardScreen extends StatelessWidget {
     BuildContext context,
     RecoveredMaterialLot lot,
   ) async {
-    final buyers = await repository.watchBuyers().first;
+    final buyers = (await repository.watchBuyers().first)
+        .where(
+          (buyer) => buyer.active && buyer.materials.contains(lot.material),
+        )
+        .toList();
     if (!context.mounted || buyers.isEmpty) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Add a buyer first.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Add an active buyer for this material first.'),
+          ),
+        );
       }
       return;
     }
@@ -578,11 +613,19 @@ class ResourceRecoveryDashboardScreen extends StatelessWidget {
     final revenue = TextEditingController(
       text: lot.estimatedMarketValue.toStringAsFixed(2),
     );
+    final reference = TextEditingController();
     final ok = await _form(context, 'Record material sale', 'Complete sale', [
       TextField(
         controller: revenue,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: const InputDecoration(labelText: 'Sale revenue (Le)'),
+      ),
+      const SizedBox(height: 10),
+      TextField(
+        controller: reference,
+        decoration: const InputDecoration(
+          labelText: 'Invoice / payment reference',
+        ),
       ),
     ]);
     if (ok && context.mounted) {
@@ -591,12 +634,14 @@ class ResourceRecoveryDashboardScreen extends StatelessWidget {
         () => repository.recordSale(
           lot,
           revenue: double.tryParse(revenue.text) ?? 0,
+          reference: reference.text,
           actorId: currentUserId,
         ),
         'Sale and revenue recorded.',
       );
     }
     revenue.dispose();
+    reference.dispose();
   }
 }
 

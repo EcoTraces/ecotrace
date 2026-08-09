@@ -5,6 +5,7 @@ import {authenticate, requireRoles} from "./auth.js";
 import {ApiError} from "./errors.js";
 import {db} from "./firebase.js";
 import {documentJson} from "./firestore-json.js";
+import {publishNotificationEvent} from "./push-events.js";
 
 const router = Router();
 const buyers = ["household", "business", "institution", "collector", "driver", "collectionCentreOperator", "repairTechnician", "recycler", "environmentalOfficer", "administrator", "superAdministrator"] as const;
@@ -51,6 +52,13 @@ router.put("/marketplace/seller-profile", authenticate, requireRoles(...sellers)
   response.json({data: {id: request.user!.uid}});
 });
 
+router.get("/marketplace/profile", authenticate, requireRoles(...buyers), async (request, response) => {
+  const [buyer, seller] = await Promise.all([db.collection("marketplaceBuyers").doc(request.user!.uid).get(), db.collection("marketplaceSellers").doc(request.user!.uid).get()]);
+  if (!buyer.exists && !seller.exists) throw new ApiError(404, "Marketplace profile not found.", "not_found");
+  const buyerData = buyer.data() ?? {}; const sellerData = seller.data() ?? {};
+  response.json({data: {id: request.user!.uid, ...buyerData, ...sellerData, type: buyer.exists && seller.exists ? "buyerAndSeller" : seller.exists ? "seller" : "buyer", email: request.user!.email ?? "", verified: seller.exists ? seller.get("active") === true : buyer.get("active") === true, reviewCount: seller.get("ratingCount") ?? 0}});
+});
+
 router.get("/marketplace/sellers/:id", async (request, response) => {
   const snapshot = await db.collection("marketplaceSellers").doc(id(request.params.id)).get();
   if (!snapshot.exists || snapshot.get("active") !== true) throw new ApiError(404, "Active seller not found.", "not_found");
@@ -58,13 +66,23 @@ router.get("/marketplace/sellers/:id", async (request, response) => {
 });
 
 router.post("/marketplace/listings", authenticate, requireRoles(...sellers), async (request, response) => {
-  const input = z.object({type: z.enum(listingTypes), sourceId: z.string().trim().min(1), title: z.string().trim().min(2).max(300), description: z.string().trim().min(2).max(2000), category: z.string().trim().min(2).max(100), conditionOrGrade: z.string().trim().min(1).max(100), quantityAvailable: z.number().int().positive(), unitPrice: z.number().nonnegative(), currency: z.string().trim().length(3).default("SLE"), imageUrls: z.array(z.string().url()).min(1).max(10), deliveryAvailable: z.boolean().default(true)}).parse(request.body);
-  const sourceCollection = input.type === "refurbishedDevice" ? "refurbishedInventory" : "recoveredMaterialLots"; const source = await db.collection(sourceCollection).doc(input.sourceId).get();
+  const input = z.object({type: z.enum(listingTypes), sourceId: z.string().trim().min(1), title: z.string().trim().min(2).max(300), description: z.string().trim().min(2).max(2000), category: z.string().trim().min(2).max(100), conditionOrGrade: z.string().trim().min(1).max(100), quantityAvailable: z.number().positive(), unitPrice: z.number().nonnegative(), currency: z.string().trim().length(3).default("SLE"), imageUrls: z.array(z.string().url()).max(10).default([]), deliveryAvailable: z.boolean().default(true)}).parse(request.body);
+  const sourceCollection = input.type === "refurbishedDevice" ? "refurbishedInventory" : "recoveredMaterialLots"; let source = await db.collection(sourceCollection).doc(input.sourceId).get();
+  if (!source.exists && input.type === "refurbishedDevice") source = await db.collection("inventoryItems").doc(input.sourceId).get();
   if (!source.exists) throw new ApiError(404, "Listing source inventory was not found.", "not_found");
   if (input.type === "recoveredMaterial" && !["salesReady", "reserved"].includes(String(source.get("status")))) throw new ApiError(409, "Recovered material must be sales-ready before listing.", "invalid_state");
   const ref = db.collection("marketplaceListings").doc();
-  await ref.set({...input, listingCode: `LST-${ref.id.substring(0, 8).toUpperCase()}`, sellerId: request.user!.uid, reservedQuantity: 0, soldQuantity: 0, status: "active", createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()});
+  const seller = await db.collection("marketplaceSellers").doc(request.user!.uid).get();
+  await ref.set({...input, listingCode: `LST-${ref.id.substring(0, 8).toUpperCase()}`, sellerId: request.user!.uid, sellerName: seller.get("businessName") ?? seller.get("displayName") ?? request.user!.email ?? "", reservedQuantity: 0, soldQuantity: 0, status: "active", createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()});
   response.status(201).json({data: {id: ref.id, listingCode: `LST-${ref.id.substring(0, 8).toUpperCase()}`}});
+});
+
+router.get("/marketplace/eligible-devices", authenticate, requireRoles(...sellers), async (_request, response) => {
+  const snapshot = await db.collection("repairJobs").where("status", "==", "completed").limit(300).get(); response.json({data: snapshot.docs.filter((doc) => doc.get("dispositionApproved") === true && doc.get("disposition") === "resale").map((doc) => documentJson(doc.id, doc.data()))});
+});
+
+router.get("/marketplace/eligible-materials", authenticate, requireRoles(...sellers), async (_request, response) => {
+  const snapshot = await db.collection("recoveredMaterialLots").where("status", "==", "salesReady").limit(300).get(); response.json({data: snapshot.docs.map((doc) => documentJson(doc.id, doc.data()))});
 });
 
 router.patch("/marketplace/listings/:id", authenticate, requireRoles(...sellers), async (request, response) => {
@@ -76,10 +94,10 @@ router.patch("/marketplace/listings/:id", authenticate, requireRoles(...sellers)
 });
 
 router.post("/marketplace/quotations", authenticate, requireRoles(...buyers), async (request, response) => {
-  const input = z.object({listingId: z.string().trim().min(1), quantity: z.number().int().positive(), offeredUnitPrice: z.number().nonnegative(), message: z.string().trim().max(1000).default("")}).parse(request.body);
+  const input = z.object({listingId: z.string().trim().min(1), quantity: z.number().positive(), offeredUnitPrice: z.number().nonnegative(), message: z.string().trim().max(1000).default("")}).parse(request.body);
   const listing = await listingRecord(input.listingId); if (listing.snapshot.get("status") !== "active") throw new ApiError(409, "This listing is not active.", "invalid_state");
   const available = number(listing.snapshot.get("quantityAvailable")) - number(listing.snapshot.get("reservedQuantity")) - number(listing.snapshot.get("soldQuantity")); if (input.quantity > available) throw new ApiError(409, "Requested quantity exceeds available inventory.", "insufficient_inventory");
-  const ref = await db.collection("marketplaceQuotations").add({...input, buyerId: request.user!.uid, sellerId: listing.snapshot.get("sellerId"), status: "pending", createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()});
+  const ref = await db.collection("marketplaceQuotations").add({...input, listingTitle: listing.snapshot.get("title") ?? "", currency: listing.snapshot.get("currency") ?? "SLE", buyerId: request.user!.uid, sellerId: listing.snapshot.get("sellerId"), status: "pending", createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()});
   response.status(201).json({data: {id: ref.id, status: "pending"}});
 });
 
@@ -92,11 +110,17 @@ router.patch("/marketplace/quotations/:id/respond", authenticate, requireRoles(.
   response.json({data: {id: ref.id, status: input.decision}});
 });
 
+router.get("/marketplace/quotations", authenticate, requireRoles(...buyers), async (request, response) => {
+  const privileged = ["administrator", "superAdministrator"].includes(request.user!.role); const [buyerQuotes, sellerQuotes] = privileged ? [await db.collection("marketplaceQuotations").limit(500).get(), null] : await Promise.all([db.collection("marketplaceQuotations").where("buyerId", "==", request.user!.uid).limit(300).get(), db.collection("marketplaceQuotations").where("sellerId", "==", request.user!.uid).limit(300).get()]);
+  const docs = [...buyerQuotes.docs, ...(sellerQuotes?.docs ?? [])]; response.json({data: [...new Map(docs.map((doc) => [doc.id, documentJson(doc.id, doc.data())])).values()]});
+});
+
 router.post("/marketplace/orders", authenticate, requireRoles(...buyers), async (request, response) => {
-  const input = z.object({listingId: z.string().trim().min(1), quantity: z.number().int().positive(), deliveryAddress: z.string().trim().min(2).max(500), quotationId: z.string().trim().default("")}).parse(request.body);
+  const input = z.object({listingId: z.string().trim().min(1), quantity: z.number().positive(), deliveryAddress: z.string().trim().min(2).max(500), quotationId: z.string().trim().default("")}).parse(request.body);
   const listing = await listingRecord(input.listingId); const ref = db.collection("marketplaceOrders").doc(); let unitPrice = number(listing.snapshot.get("unitPrice"));
   if (input.quotationId) { const quote = await db.collection("marketplaceQuotations").doc(input.quotationId).get(); if (!quote.exists || quote.get("buyerId") !== request.user!.uid || quote.get("listingId") !== input.listingId || quote.get("status") !== "accepted") throw new ApiError(409, "A valid accepted quotation is required.", "invalid_quotation"); unitPrice = number(quote.get("finalUnitPrice")); }
-  await db.runTransaction(async (transaction) => { const fresh = await transaction.get(listing.ref); if (fresh.get("status") !== "active") throw new ApiError(409, "This listing is not active.", "invalid_state"); const available = number(fresh.get("quantityAvailable")) - number(fresh.get("reservedQuantity")) - number(fresh.get("soldQuantity")); if (input.quantity > available) throw new ApiError(409, "Requested quantity exceeds available inventory.", "insufficient_inventory"); transaction.update(listing.ref, {reservedQuantity: FieldValue.increment(input.quantity), updatedAt: FieldValue.serverTimestamp()}); transaction.set(ref, {...input, orderNumber: `ORD-${ref.id.substring(0, 10).toUpperCase()}`, buyerId: request.user!.uid, sellerId: fresh.get("sellerId"), unitPrice, subtotal: unitPrice * input.quantity, deliveryFee: 0, total: unitPrice * input.quantity, currency: fresh.get("currency") ?? "SLE", status: "pendingPayment", paymentStatus: "pending", deliveryStatus: "notDispatched", createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()}); });
+  const buyer = await db.collection("marketplaceBuyers").doc(request.user!.uid).get();
+  await db.runTransaction(async (transaction) => { const fresh = await transaction.get(listing.ref); if (fresh.get("status") !== "active") throw new ApiError(409, "This listing is not active.", "invalid_state"); const available = number(fresh.get("quantityAvailable")) - number(fresh.get("reservedQuantity")) - number(fresh.get("soldQuantity")); if (input.quantity > available) throw new ApiError(409, "Requested quantity exceeds available inventory.", "insufficient_inventory"); transaction.update(listing.ref, {reservedQuantity: FieldValue.increment(input.quantity), updatedAt: FieldValue.serverTimestamp()}); transaction.set(ref, {...input, orderNumber: `ORD-${ref.id.substring(0, 10).toUpperCase()}`, listingTitle: fresh.get("title") ?? "", buyerId: request.user!.uid, buyerName: buyer.get("displayName") ?? request.user!.email ?? "", sellerId: fresh.get("sellerId"), sellerName: fresh.get("sellerName") ?? "", unit: fresh.get("type") === "recoveredMaterial" ? "kg" : "device", unitPrice, subtotal: unitPrice * input.quantity, deliveryFee: 0, total: unitPrice * input.quantity, currency: fresh.get("currency") ?? "SLE", status: "pendingPayment", paymentStatus: "pending", deliveryStatus: "notDispatched", createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()}); });
   response.status(201).json({data: {id: ref.id, orderNumber: `ORD-${ref.id.substring(0, 10).toUpperCase()}`, total: unitPrice * input.quantity}});
 });
 
@@ -115,10 +139,22 @@ router.patch("/marketplace/orders/:id/payment", authenticate, requireRoles(...ma
   await order.ref.update({paymentStatus: input.status, transactionReference: input.transactionReference, paymentMethod: input.paymentMethod, status: input.status === "confirmed" ? "confirmed" : order.snapshot.get("status"), paymentUpdatedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()}); response.json({data: {id: order.ref.id, paymentStatus: input.status}});
 });
 
+router.patch("/marketplace/orders/:id/payment-submission", authenticate, requireRoles(...buyers), async (request, response) => {
+  const input = z.object({transactionReference: z.string().trim().min(1).max(200), paymentMethod: z.enum(["mobileMoney", "bank", "card", "cash"])}).parse(request.body); const order = await orderRecord(id(request.params.id));
+  if (order.snapshot.get("buyerId") !== request.user!.uid) throw new ApiError(403, "Only the buyer can submit payment details.", "forbidden");
+  if (!["pending", "failed"].includes(String(order.snapshot.get("paymentStatus")))) throw new ApiError(409, "Payment details cannot be submitted in the current state.", "invalid_state");
+  await order.ref.update({paymentStatus: "submitted", transactionReference: input.transactionReference, paymentMethod: input.paymentMethod, paymentSubmittedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()}); response.json({data: {id: order.ref.id, paymentStatus: "submitted"}});
+});
+
 router.patch("/marketplace/orders/:id/delivery", authenticate, requireRoles(...sellers), async (request, response) => {
   const input = z.object({status: z.enum(["processing", "dispatched", "inTransit", "delivered"]), carrier: z.string().trim().max(200).default(""), trackingNumber: z.string().trim().max(200).default(""), proofUrls: z.array(z.string().url()).max(10).default([])}).parse(request.body); const order = await orderRecord(id(request.params.id));
   if (order.snapshot.get("sellerId") !== request.user!.uid && !["administrator", "superAdministrator"].includes(request.user!.role)) throw new ApiError(403, "Only the seller can update delivery.", "forbidden"); if (order.snapshot.get("paymentStatus") !== "confirmed") throw new ApiError(409, "Payment must be confirmed before delivery.", "invalid_state");
-  await order.ref.update({deliveryStatus: input.status, carrier: input.carrier, trackingNumber: input.trackingNumber, deliveryProofUrls: input.proofUrls, status: input.status === "delivered" ? "delivered" : "fulfilling", deliveryUpdatedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()}); response.json({data: {id: order.ref.id, deliveryStatus: input.status}});
+  const batch = db.batch(); batch.update(order.ref, {deliveryStatus: input.status, carrier: input.carrier, trackingNumber: input.trackingNumber, deliveryProofUrls: input.proofUrls, status: input.status === "delivered" ? "delivered" : "fulfilling", deliveredAt: input.status === "delivered" ? FieldValue.serverTimestamp() : order.snapshot.get("deliveredAt") ?? null, deliveryUpdatedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()}); batch.set(order.ref.collection("deliveryEvents").doc(), {status: input.status, carrier: input.carrier, trackingNumber: input.trackingNumber, proofUrls: input.proofUrls, createdAt: FieldValue.serverTimestamp()}); await batch.commit();
+  void publishNotificationEvent({event: "marketplace_delivery_updated", recipientId: String(order.snapshot.get("buyerId")), body: `Order delivery status changed to ${input.status}.`, data: {orderId: order.ref.id, status: input.status}}); response.json({data: {id: order.ref.id, deliveryStatus: input.status}});
+});
+
+router.get("/marketplace/orders/:id/delivery-events", authenticate, requireRoles(...buyers), async (request, response) => {
+  const order = await orderRecord(id(request.params.id)); if (!orderAccess(order.snapshot.data()!, request.user!.uid, request.user!.role)) throw new ApiError(403, "You cannot access this delivery history.", "forbidden"); const snapshot = await order.ref.collection("deliveryEvents").orderBy("createdAt", "asc").limit(300).get(); response.json({data: snapshot.docs.map((doc) => documentJson(doc.id, doc.data()))});
 });
 
 router.patch("/marketplace/orders/:id/confirm-receipt", authenticate, requireRoles(...buyers), async (request, response) => {
@@ -138,7 +174,11 @@ router.get("/marketplace/orders/:id/receipt", authenticate, requireRoles(...buye
 router.post("/marketplace/orders/:id/reviews", authenticate, requireRoles(...buyers), async (request, response) => {
   const input = z.object({rating: z.number().int().min(1).max(5), comments: z.string().trim().max(1000).default("")}).parse(request.body); const order = await orderRecord(id(request.params.id)); if (order.snapshot.get("buyerId") !== request.user!.uid || order.snapshot.get("status") !== "completed") throw new ApiError(409, "Only the buyer can review a completed order.", "invalid_state");
   const existing = await db.collection("marketplaceReviews").where("orderId", "==", order.ref.id).limit(1).get(); if (!existing.empty) throw new ApiError(409, "This order has already been reviewed.", "conflict");
-  const sellerRef = db.collection("marketplaceSellers").doc(String(order.snapshot.get("sellerId"))); const seller = await sellerRef.get(); const count = number(seller.get("ratingCount")); const rating = (number(seller.get("rating")) * count + input.rating) / (count + 1); const ref = db.collection("marketplaceReviews").doc(); const batch = db.batch(); batch.set(ref, {...input, orderId: order.ref.id, listingId: order.snapshot.get("listingId"), buyerId: request.user!.uid, sellerId: order.snapshot.get("sellerId"), createdAt: FieldValue.serverTimestamp()}); batch.set(sellerRef, {rating, ratingCount: count + 1, updatedAt: FieldValue.serverTimestamp()}, {merge: true}); await batch.commit(); response.status(201).json({data: {id: ref.id, sellerRating: rating}});
+  const sellerRef = db.collection("marketplaceSellers").doc(String(order.snapshot.get("sellerId"))); const seller = await sellerRef.get(); const count = number(seller.get("ratingCount")); const rating = (number(seller.get("rating")) * count + input.rating) / (count + 1); const ref = db.collection("marketplaceReviews").doc(); const batch = db.batch(); batch.set(ref, {...input, comment: input.comments, buyerName: order.snapshot.get("buyerName") ?? "", orderId: order.ref.id, listingId: order.snapshot.get("listingId"), buyerId: request.user!.uid, sellerId: order.snapshot.get("sellerId"), createdAt: FieldValue.serverTimestamp()}); batch.set(sellerRef, {rating, ratingCount: count + 1, updatedAt: FieldValue.serverTimestamp()}, {merge: true}); await batch.commit(); response.status(201).json({data: {id: ref.id, sellerRating: rating}});
+});
+
+router.get("/marketplace/sellers/:id/reviews", async (request, response) => {
+  const snapshot = await db.collection("marketplaceReviews").where("sellerId", "==", id(request.params.id)).limit(300).get(); response.json({data: snapshot.docs.map((doc) => documentJson(doc.id, doc.data()))});
 });
 
 router.get("/marketplace/reports/summary", authenticate, requireRoles(...managers), async (_request, response) => {

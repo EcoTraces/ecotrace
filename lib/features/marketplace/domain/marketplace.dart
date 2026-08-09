@@ -44,19 +44,25 @@ class MarketplaceProfile {
   factory MarketplaceProfile.fromDoc(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final data = doc.data()!;
+    return MarketplaceProfile.fromJson({...doc.data()!, 'id': doc.id});
+  }
+  factory MarketplaceProfile.fromJson(Map<String, dynamic> data) {
     return MarketplaceProfile(
-      id: doc.id,
-      type: MarketplaceProfileType.values.byName(
-        data['type'] ?? MarketplaceProfileType.buyer.name,
-      ),
+      id: '${data['id'] ?? data['userId'] ?? ''}',
+      type:
+          MarketplaceProfileType.values
+              .where((value) => value.name == data['type'])
+              .firstOrNull ??
+          MarketplaceProfileType.buyer,
       displayName: data['displayName'] ?? '',
       businessName: data['businessName'] ?? '',
       email: data['email'] ?? '',
       phone: data['phone'] ?? '',
       deliveryAddress: data['deliveryAddress'] ?? '',
       rating: (data['rating'] as num? ?? 0).toDouble(),
-      reviewCount: data['reviewCount'] as int? ?? 0,
+      reviewCount:
+          (data['reviewCount'] as num? ?? data['ratingCount'] as num? ?? 0)
+              .toInt(),
       verified: data['verified'] as bool? ?? false,
     );
   }
@@ -105,30 +111,41 @@ class MarketplaceListing {
   factory MarketplaceListing.fromDoc(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final data = doc.data()!;
+    return MarketplaceListing.fromJson({...doc.data()!, 'id': doc.id});
+  }
+  factory MarketplaceListing.fromJson(Map<String, dynamic> data) {
+    final total =
+        (data['totalQuantity'] as num? ??
+                data['quantityAvailable'] as num? ??
+                0)
+            .toDouble();
+    final reserved = (data['reservedQuantity'] as num? ?? 0).toDouble();
+    final sold = (data['soldQuantity'] as num? ?? 0).toDouble();
     return MarketplaceListing(
-      id: doc.id,
+      id: '${data['id'] ?? ''}',
       type: MarketplaceListingType.values.byName(
         data['type'] ?? MarketplaceListingType.refurbishedDevice.name,
       ),
       sellerId: data['sellerId'] ?? '',
       sellerName: data['sellerName'] ?? '',
-      assetId: data['assetId'] ?? '',
-      assetCode: data['assetCode'] ?? '',
+      assetId: data['assetId'] ?? data['sourceId'] ?? '',
+      assetCode: data['assetCode'] ?? data['listingCode'] ?? '',
       title: data['title'] ?? '',
       description: data['description'] ?? '',
       category: data['category'] ?? '',
-      grade: data['grade'] ?? '',
+      grade: data['grade'] ?? data['conditionOrGrade'] ?? '',
       unitPrice: (data['unitPrice'] as num? ?? 0).toDouble(),
       currency: data['currency'] ?? 'SLE',
       unit: data['unit'] ?? 'item',
-      totalQuantity: (data['totalQuantity'] as num? ?? 0).toDouble(),
-      availableQuantity: (data['availableQuantity'] as num? ?? 0).toDouble(),
+      totalQuantity: total,
+      availableQuantity:
+          (data['availableQuantity'] as num?)?.toDouble() ??
+          total - reserved - sold,
       imageUrls: List<String>.from(data['imageUrls'] as List? ?? const []),
       status: MarketplaceListingStatus.values.byName(
         data['status'] ?? MarketplaceListingStatus.active.name,
       ),
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      createdAt: _date(data['createdAt']),
     );
   }
 }
@@ -152,21 +169,39 @@ class PriceQuotation {
   final QuoteStatus status;
   final DateTime? createdAt;
   factory PriceQuotation.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data()!;
+    return PriceQuotation.fromJson({...doc.data()!, 'id': doc.id});
+  }
+  factory PriceQuotation.fromJson(Map<String, dynamic> data) {
+    final apiStatus = '${data['status'] ?? ''}';
+    final status = switch (apiStatus) {
+      'pending' => QuoteStatus.requested,
+      'countered' => QuoteStatus.quoted,
+      _ =>
+        QuoteStatus.values
+                .where((value) => value.name == apiStatus)
+                .firstOrNull ??
+            QuoteStatus.requested,
+    };
     return PriceQuotation(
-      id: doc.id,
+      id: '${data['id'] ?? ''}',
       listingId: data['listingId'] ?? '',
       buyerId: data['buyerId'] ?? '',
       sellerId: data['sellerId'] ?? '',
       quantity: (data['quantity'] as num? ?? 0).toDouble(),
-      requestedUnitPrice: (data['requestedUnitPrice'] as num? ?? 0).toDouble(),
-      quotedUnitPrice: (data['quotedUnitPrice'] as num? ?? 0).toDouble(),
+      requestedUnitPrice:
+          (data['requestedUnitPrice'] as num? ??
+                  data['offeredUnitPrice'] as num? ??
+                  0)
+              .toDouble(),
+      quotedUnitPrice:
+          (data['quotedUnitPrice'] as num? ??
+                  data['finalUnitPrice'] as num? ??
+                  0)
+              .toDouble(),
       currency: data['currency'] ?? 'SLE',
       message: data['message'] ?? '',
-      status: QuoteStatus.values.byName(
-        data['status'] ?? QuoteStatus.requested.name,
-      ),
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      status: status,
+      createdAt: _date(data['createdAt']),
     );
   }
 }
@@ -222,10 +257,32 @@ class MarketplaceOrder {
     MarketplaceOrderStatus.processing,
   ].contains(status);
   factory MarketplaceOrder.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data()!;
+    return MarketplaceOrder.fromJson({...doc.data()!, 'id': doc.id});
+  }
+  factory MarketplaceOrder.fromJson(Map<String, dynamic> data) {
+    final rawStatus = '${data['status'] ?? ''}';
+    final status = switch (rawStatus) {
+      'pendingPayment' => MarketplaceOrderStatus.awaitingPayment,
+      'confirmed' => MarketplaceOrderStatus.paid,
+      'fulfilling' => MarketplaceOrderStatus.processing,
+      _ =>
+        MarketplaceOrderStatus.values
+                .where((value) => value.name == rawStatus)
+                .firstOrNull ??
+            MarketplaceOrderStatus.placed,
+    };
+    final rawPayment = '${data['paymentStatus'] ?? ''}';
+    final payment = switch (rawPayment) {
+      'confirmed' => MarketplacePaymentStatus.verified,
+      _ =>
+        MarketplacePaymentStatus.values
+                .where((value) => value.name == rawPayment)
+                .firstOrNull ??
+            MarketplacePaymentStatus.pending,
+    };
     return MarketplaceOrder(
-      id: doc.id,
-      orderNumber: data['orderNumber'] ?? doc.id,
+      id: '${data['id'] ?? ''}',
+      orderNumber: data['orderNumber'] ?? '${data['id'] ?? ''}',
       listingId: data['listingId'] ?? '',
       listingTitle: data['listingTitle'] ?? '',
       buyerId: data['buyerId'] ?? '',
@@ -235,21 +292,19 @@ class MarketplaceOrder {
       quantity: (data['quantity'] as num? ?? 0).toDouble(),
       unit: data['unit'] ?? 'item',
       unitPrice: (data['unitPrice'] as num? ?? 0).toDouble(),
-      totalAmount: (data['totalAmount'] as num? ?? 0).toDouble(),
+      totalAmount: (data['totalAmount'] as num? ?? data['total'] as num? ?? 0)
+          .toDouble(),
       currency: data['currency'] ?? 'SLE',
-      status: MarketplaceOrderStatus.values.byName(
-        data['status'] ?? MarketplaceOrderStatus.placed.name,
-      ),
-      paymentStatus: MarketplacePaymentStatus.values.byName(
-        data['paymentStatus'] ?? MarketplacePaymentStatus.pending.name,
-      ),
+      status: status,
+      paymentStatus: payment,
       paymentMethod: data['paymentMethod'] ?? '',
-      paymentReference: data['paymentReference'] ?? '',
+      paymentReference:
+          data['paymentReference'] ?? data['transactionReference'] ?? '',
       deliveryAddress: data['deliveryAddress'] ?? '',
       carrier: data['carrier'] ?? '',
       trackingNumber: data['trackingNumber'] ?? '',
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
-      deliveredAt: (data['deliveredAt'] as Timestamp?)?.toDate(),
+      createdAt: _date(data['createdAt']),
+      deliveredAt: _date(data['deliveredAt']),
     );
   }
 }
@@ -264,12 +319,16 @@ class DeliveryEvent {
   final String status, location, notes;
   final DateTime? createdAt;
   factory DeliveryEvent.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data()!;
+    return DeliveryEvent.fromJson(doc.data()!);
+  }
+  factory DeliveryEvent.fromJson(Map<String, dynamic> data) {
     return DeliveryEvent(
       status: data['status'] ?? '',
       location: data['location'] ?? '',
-      notes: data['notes'] ?? '',
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      notes:
+          data['notes'] ??
+          '${data['carrier'] ?? ''} ${data['trackingNumber'] ?? ''}'.trim(),
+      createdAt: _date(data['createdAt']),
     );
   }
 }
@@ -287,14 +346,31 @@ class MarketplaceReview {
   factory MarketplaceReview.fromDoc(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    final data = doc.data()!;
+    return MarketplaceReview.fromJson(doc.data()!);
+  }
+  factory MarketplaceReview.fromJson(Map<String, dynamic> data) {
     return MarketplaceReview(
       rating: data['rating'] as int? ?? 0,
-      comment: data['comment'] ?? '',
+      comment: data['comment'] ?? data['comments'] ?? '',
       buyerName: data['buyerName'] ?? '',
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+      createdAt: _date(data['createdAt']),
     );
   }
+}
+
+DateTime? _date(dynamic value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is String) return DateTime.tryParse(value);
+  if (value is Map) {
+    final seconds = value['_seconds'] ?? value['seconds'];
+    if (seconds is num) {
+      return DateTime.fromMillisecondsSinceEpoch(
+        seconds.toInt() * 1000,
+        isUtc: true,
+      );
+    }
+  }
+  return null;
 }
 
 class MarketplaceAnalytics {
