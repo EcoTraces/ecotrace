@@ -49,9 +49,28 @@ class AuthRepository {
       );
 
   Stream<UserProfile?> _pollProfile() async* {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      // Ensure we have a user before starting to poll
+      yield null;
+      return;
+    }
+
+    // Force refresh the Firebase ID token now so that subsequent API
+    // calls in the loop operate with a valid, non-expired token.
+    // Use forceRefresh: true to bypass cached token and obtain a fresh one.
+    const forceRefresh = true;
+    await currentUser.getIdToken(forceRefresh);
+
     while (_auth.currentUser != null) {
-      final data = await _api.get('/api/v1/identity/profile');
-      yield UserProfile.fromJson(data);
+      try {
+        final data = await _api.get('/api/v1/identity/profile');
+        yield UserProfile.fromJson(data);
+      } catch (error) {
+        // If the API call fails, emit null to display the profile-not-found
+        // screen rather than terminating the entire stream silently.
+        yield null;
+      }
       await Future<void>.delayed(
         const Duration(seconds: ApiConfig.pollingSeconds),
       );
