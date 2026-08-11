@@ -5,6 +5,16 @@ import { authenticate, requireRoles } from "./auth.js";
 import { ApiError } from "./errors.js";
 import { db } from "./firebase.js";
 import { documentJson } from "./firestore-json.js";
+import { publishNotificationEvent } from "./push-events.js";
+
+async function administratorIds(): Promise<string[]> {
+  const snapshot = await db
+    .collection("users")
+    .where("role", "in", ["administrator", "superAdministrator"])
+    .limit(200)
+    .get();
+  return snapshot.docs.map((doc) => doc.id);
+}
 
 const router = Router();
 const managers = [
@@ -308,6 +318,14 @@ router.post(
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
+    void administratorIds().then((affectedUserIds) =>
+      publishNotificationEvent({
+        event: "compliance_violation_recorded",
+        affectedUserIds,
+        body: `${input.severity} severity violation recorded for ${input.entityName || input.entityId}: ${input.violationType}.`,
+        data: {violationId: ref.id, entityId: input.entityId, severity: input.severity},
+      }),
+    );
     response.status(201).json({ data: { id: ref.id } });
   },
 );

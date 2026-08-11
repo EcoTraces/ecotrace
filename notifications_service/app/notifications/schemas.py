@@ -21,6 +21,9 @@ class NotificationType(StrEnum):
     STATUS_UPDATE = "STATUS_UPDATE"
     COMPLIANCE_ALERT = "COMPLIANCE_ALERT"
     REWARD = "REWARD"
+    PAYMENT = "PAYMENT"
+    MAINTENANCE = "MAINTENANCE"
+    PICKUP_REMINDER = "PICKUP_REMINDER"
 
 
 class DevicePlatform(StrEnum):
@@ -121,6 +124,15 @@ class EventName(StrEnum):
     REWARD_POINTS_AWARDED = "reward_points_awarded"
     REWARD_POINTS_EXPIRED = "reward_points_expired"
     REWARD_REDEEMED = "reward_redeemed"
+    PAYMENT_CONFIRMED = "payment_confirmed"
+    PAYMENT_FAILED = "payment_failed"
+    PAYMENT_REFUNDED = "payment_refunded"
+    PAYOUT_PROCESSED = "payout_processed"
+    COMPLIANCE_VIOLATION_RECORDED = "compliance_violation_recorded"
+    COMPLIANCE_DOCUMENT_EXPIRING = "compliance_document_expiring"
+    FLEET_MAINTENANCE_DUE = "fleet_maintenance_due"
+    FLEET_DOCUMENT_EXPIRING = "fleet_document_expiring"
+    PICKUP_REMINDER = "pickup_reminder"
 
 
 class EventNotificationRequest(BaseModel):

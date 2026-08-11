@@ -73,6 +73,15 @@ EVENTS: dict[EventName, EventTemplate] = {
     EventName.REWARD_POINTS_AWARDED: EventTemplate(NotificationType.REWARD, "Green Points Awarded", "Green points were added to your EcoTrace wallet."),
     EventName.REWARD_POINTS_EXPIRED: EventTemplate(NotificationType.REWARD, "Green Points Expired", "Expired green points were removed from your EcoTrace wallet."),
     EventName.REWARD_REDEEMED: EventTemplate(NotificationType.REWARD, "Reward Redeemed", "Your EcoTrace reward redemption was successful."),
+    EventName.PAYMENT_CONFIRMED: EventTemplate(NotificationType.PAYMENT, "Payment Confirmed", "Your EcoTrace payment was confirmed."),
+    EventName.PAYMENT_FAILED: EventTemplate(NotificationType.PAYMENT, "Payment Failed", "Your EcoTrace payment could not be processed."),
+    EventName.PAYMENT_REFUNDED: EventTemplate(NotificationType.PAYMENT, "Payment Refunded", "A refund was issued for your EcoTrace payment."),
+    EventName.PAYOUT_PROCESSED: EventTemplate(NotificationType.PAYMENT, "Payout Processed", "A payout to your account was processed."),
+    EventName.COMPLIANCE_VIOLATION_RECORDED: EventTemplate(NotificationType.COMPLIANCE_ALERT, "Compliance Violation Recorded", "A new compliance violation requires attention."),
+    EventName.COMPLIANCE_DOCUMENT_EXPIRING: EventTemplate(NotificationType.COMPLIANCE_ALERT, "Compliance Document Expiring", "A compliance licence, certification, or document is expiring soon."),
+    EventName.FLEET_MAINTENANCE_DUE: EventTemplate(NotificationType.MAINTENANCE, "Vehicle Maintenance Due", "A fleet vehicle has maintenance due soon."),
+    EventName.FLEET_DOCUMENT_EXPIRING: EventTemplate(NotificationType.MAINTENANCE, "Vehicle Document Expiring", "A fleet vehicle's insurance or licence is expiring soon."),
+    EventName.PICKUP_REMINDER: EventTemplate(NotificationType.PICKUP_REMINDER, "Pickup Reminder", "You have a scheduled e-waste pickup coming up."),
 }
 
 

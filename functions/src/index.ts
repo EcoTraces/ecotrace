@@ -12,3 +12,4 @@ export {
   notifyScheduleStatusChanged,
 } from "./notifications.js";
 export {deliverScheduledReports} from "./report-scheduler.js";
+export {sendScheduledReminders} from "./reminder-scheduler.js";

@@ -41,7 +41,16 @@ type NotificationEvent =
   | "reward_points_awarded"
   | "reward_points_expired"
   | "reward_redeemed"
-  | "security_alert";
+  | "security_alert"
+  | "payment_confirmed"
+  | "payment_failed"
+  | "payment_refunded"
+  | "payout_processed"
+  | "compliance_violation_recorded"
+  | "compliance_document_expiring"
+  | "fleet_maintenance_due"
+  | "fleet_document_expiring"
+  | "pickup_reminder";
 
 interface EventPayload {
   event: NotificationEvent;
