@@ -48,18 +48,29 @@ class NotificationRepository {
   Future<void> savePreferences(
     String uid,
     Map<String, bool> channels,
-    Map<String, bool> types,
-    String quiet,
-  ) => _useApi ? _api.put('/api/v1/communication/preferences', {
-    'channels': channels,
-    'categories': types,
-    'quietHours': quiet.isEmpty ? null : {'enabled': true, 'start': '22:00', 'end': '07:00', 'timezone': 'UTC'},
-  }).then((_) {}) : _db.collection('notificationPreferences').doc(uid).set({
-    'channels': channels,
-    'types': types,
-    'quietHours': quiet,
-    'updatedAt': FieldValue.serverTimestamp(),
-  });
+    Map<String, bool> types, {
+    bool quietEnabled = false,
+    String quietStart = '22:00',
+    String quietEnd = '07:00',
+  }) => _useApi
+      ? _api.put('/api/v1/communication/preferences', {
+          'channels': channels,
+          'categories': types,
+          'quietHours': quietEnabled
+              ? {
+                  'enabled': true,
+                  'start': quietStart,
+                  'end': quietEnd,
+                  'timezone': 'UTC',
+                }
+              : null,
+        }).then((_) {})
+      : _db.collection('notificationPreferences').doc(uid).set({
+          'channels': channels,
+          'types': types,
+          'quietHours': quietEnabled ? '$quietStart–$quietEnd' : '',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
   Future<void> read(String uid, String id) => _useApi
       ? _api.patch('/api/v1/communication/notifications/$id/read', const {}).then((_) {})
       : _db
@@ -117,10 +128,11 @@ class NotificationRepository {
     String name,
     NotificationType type,
     String title,
-    String body,
-  ) => _useApi
+    String body, {
+    NotificationChannel channel = NotificationChannel.inApp,
+  }) => _useApi
       ? _api.put('/api/v1/communication/templates/${DateTime.now().microsecondsSinceEpoch}', {
-          'name': name, 'category': type.name, 'channel': 'inApp', 'subject': title, 'body': body, 'variables': <String>[], 'active': true,
+          'name': name, 'category': type.name, 'channel': channel.name, 'subject': title, 'body': body, 'variables': <String>[], 'active': true,
         }).then((_) {})
       : _db.collection('notificationTemplates').add({
     'name': name,
@@ -130,4 +142,10 @@ class NotificationRepository {
     'active': true,
     'createdAt': FieldValue.serverTimestamp(),
   });
+
+  Future<List<NotificationTemplate>> getTemplates() async {
+    if (!_useApi) return const [];
+    final data = await _api.getList('/api/v1/communication/templates');
+    return data.map(NotificationTemplate.fromJson).toList();
+  }
 }

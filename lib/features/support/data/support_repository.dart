@@ -80,11 +80,26 @@ class SupportRepository {
                   ..sort((a, b) => a.title.compareTo(b.title)),
           );
 
-  Stream<List<UserProfile>> watchAgents() => _db
-      .collection('users')
-      .where('role', whereIn: ['administrator', 'superAdministrator'])
-      .snapshots()
-      .map((snapshot) => snapshot.docs.map(UserProfile.fromSnapshot).toList());
+  Stream<List<UserProfile>> watchAgents() => _useApi
+      ? _pollAgents()
+      : _db
+            .collection('users')
+            .where('role', whereIn: ['administrator', 'superAdministrator'])
+            .snapshots()
+            .map(
+              (snapshot) =>
+                  snapshot.docs.map(UserProfile.fromSnapshot).toList(),
+            );
+
+  Stream<List<UserProfile>> _pollAgents() async* {
+    while (true) {
+      final data = await _api.getList('/api/v1/support/agents');
+      yield data.map(UserProfile.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
 
   Stream<List<T>> _pollList<T>(String path, T Function(Map<String, dynamic>) decode, {Map<String, String>? query, bool authenticated = true}) async* {
     while (true) {

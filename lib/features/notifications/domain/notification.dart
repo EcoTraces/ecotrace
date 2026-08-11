@@ -68,6 +68,31 @@ class AppNotification {
   );
 }
 
+class NotificationTemplate {
+  const NotificationTemplate({
+    required this.id,
+    required this.name,
+    required this.category,
+    required this.channel,
+    required this.subject,
+    required this.body,
+    required this.active,
+  });
+  final String id, name, category, channel, subject, body;
+  final bool active;
+
+  factory NotificationTemplate.fromJson(Map<String, dynamic> data) =>
+      NotificationTemplate(
+        id: (data['id'] ?? '').toString(),
+        name: (data['name'] ?? '').toString(),
+        category: (data['category'] ?? 'general').toString(),
+        channel: (data['channel'] ?? 'inApp').toString(),
+        subject: (data['subject'] ?? '').toString(),
+        body: (data['body'] ?? '').toString(),
+        active: data['active'] != false,
+      );
+}
+
 class NotificationPreferences {
   const NotificationPreferences({
     required this.channels,
