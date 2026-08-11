@@ -23,6 +23,14 @@ class RoleDefinition {
       description: data['description'] as String? ?? '',
     );
   }
+
+  factory RoleDefinition.fromJson(Map<String, dynamic> data) => RoleDefinition(
+    role: AppRole.fromValue(
+      data['id']?.toString() ?? data['name']?.toString(),
+    ),
+    permissions: Set<String>.from(data['permissions'] as List? ?? const []),
+    description: data['description']?.toString() ?? '',
+  );
 }
 
 class SystemConfiguration {
@@ -169,6 +177,34 @@ class PlatformHealthSnapshot {
   bool get healthy => services.values.every(
     (status) => status == PlatformServiceStatus.operational,
   );
+
+  factory PlatformHealthSnapshot.fromJson(
+    Map<String, dynamic> health, {
+    int userCount = 0,
+  }) {
+    final services = Map<String, dynamic>.from(
+      health['services'] as Map? ?? const {},
+    );
+    return PlatformHealthSnapshot(
+      services: services.map(
+        (key, value) => MapEntry(key, _statusFromName(value.toString())),
+      ),
+      userCount: userCount,
+      // Role changes now go through PUT /administration/users/:uid/role,
+      // which sets the Firebase custom claim synchronously - there is no
+      // longer a pending-sync queue to report.
+      pendingRoleChanges: 0,
+      checkedAt:
+          DateTime.tryParse(health['checkedAt']?.toString() ?? '') ??
+          DateTime.now(),
+    );
+  }
+
+  static PlatformServiceStatus _statusFromName(String name) =>
+      PlatformServiceStatus.values
+          .where((value) => value.name == name)
+          .firstOrNull ??
+      PlatformServiceStatus.unavailable;
 }
 
 const administrationPermissions = <String>[

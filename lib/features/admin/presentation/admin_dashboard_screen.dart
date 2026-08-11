@@ -477,12 +477,6 @@ class _Configuration extends StatelessWidget {
             icon: const Icon(Icons.tune),
             label: const Text('Edit platform configuration'),
           ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => _template(context),
-            icon: const Icon(Icons.message_outlined),
-            label: const Text('Create notification template'),
-          ),
           const SizedBox(height: 16),
           _section('Waste categories', config.wasteCategories),
           _section('Item conditions', config.itemConditions),
@@ -492,11 +486,20 @@ class _Configuration extends StatelessWidget {
             'Integrations (names only; secrets stay server-side)',
             config.integrationNames,
           ),
-          _section('Notification templates', config.notificationTemplateNames),
-          _mapSection('Pickup fees', config.pickupFees),
-          _mapSection('Reward rules', config.rewardRules),
           _mapSection('Environmental formulas', config.environmentalFormulas),
           _textMapSection('System settings', config.settings),
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.info_outline),
+              title: Text('Managed elsewhere'),
+              subtitle: Text(
+                'Notification templates: Notifications screen.\n'
+                'Pickup fees and reward rules: not yet exposed here - '
+                'each is read from a separate configuration location by '
+                'the code that calculates them.',
+              ),
+            ),
+          ),
         ],
       );
     },
@@ -536,16 +539,6 @@ class _Configuration extends StatelessWidget {
     final languages = TextEditingController(
       text: config.supportedLanguages.join(', '),
     );
-    final integrations = TextEditingController(
-      text: config.integrationNames.join(', '),
-    );
-    final templates = TextEditingController(
-      text: config.notificationTemplateNames.join(', '),
-    );
-    final fees = TextEditingController(text: _encodeNumbers(config.pickupFees));
-    final rewards = TextEditingController(
-      text: _encodeNumbers(config.rewardRules),
-    );
     final formulas = TextEditingController(
       text: _encodeNumbers(config.environmentalFormulas),
     );
@@ -567,18 +560,6 @@ class _Configuration extends StatelessWidget {
                 _field(conditions, 'Item conditions (comma separated)'),
                 _field(areas, 'Service areas (comma separated)'),
                 _field(languages, 'Supported languages (comma separated)'),
-                _field(integrations, 'Integration names (comma separated)'),
-                _field(templates, 'Template names (comma separated)'),
-                _field(
-                  fees,
-                  'Pickup fee rules (key=value, one per line)',
-                  lines: 6,
-                ),
-                _field(
-                  rewards,
-                  'Reward rules (key=value, one per line)',
-                  lines: 4,
-                ),
                 _field(
                   formulas,
                   'Environmental formulas (key=value, one per line)',
@@ -613,10 +594,10 @@ class _Configuration extends StatelessWidget {
             itemConditions: _list(conditions.text),
             serviceAreas: _list(areas.text),
             supportedLanguages: _list(languages.text),
-            integrationNames: _list(integrations.text),
-            notificationTemplateNames: _list(templates.text),
-            pickupFees: _numberMap(fees.text),
-            rewardRules: _numberMap(rewards.text),
+            integrationNames: config.integrationNames,
+            notificationTemplateNames: const [],
+            pickupFees: config.pickupFees,
+            rewardRules: config.rewardRules,
             environmentalFormulas: _numberMap(formulas.text),
             settings: _stringMap(settings.text),
           ),
@@ -634,10 +615,6 @@ class _Configuration extends StatelessWidget {
       conditions,
       areas,
       languages,
-      integrations,
-      templates,
-      fees,
-      rewards,
       formulas,
       settings,
     ]) {
@@ -657,44 +634,6 @@ class _Configuration extends StatelessWidget {
       decoration: InputDecoration(labelText: label, alignLabelWithHint: true),
     ),
   );
-
-  Future<void> _template(BuildContext context) async {
-    final name = TextEditingController(),
-        title = TextEditingController(),
-        body = TextEditingController();
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Notification template'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _field(name, 'Name', lines: 1),
-            _field(title, 'Title', lines: 1),
-            _field(body, 'Message body', lines: 4),
-          ],
-        ),
-        actions: [
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Create'),
-          ),
-        ],
-      ),
-    );
-    if (saved == true &&
-        name.text.trim().isNotEmpty &&
-        title.text.trim().isNotEmpty) {
-      await repository.saveNotificationTemplate(
-        name: name.text,
-        title: title.text,
-        body: body.text,
-      );
-    }
-    name.dispose();
-    title.dispose();
-    body.dispose();
-  }
 
   String _encodeNumbers(Map<String, double> values) =>
       values.entries.map((e) => '${e.key}=${e.value}').join('\n');
