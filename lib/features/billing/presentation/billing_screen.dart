@@ -78,14 +78,43 @@ class BillingScreen extends StatelessWidget {
                         ),
                         if (canManage)
                           PopupMenuButton<String>(
-                            onSelected: (a) => a == 'confirm'
-                                ? repository.confirm(x, userId)
-                                : a == 'refund'
-                                ? repository.refund(x, userId)
-                                : repository.fail(
+                            onSelected: (a) async {
+                              if (a == 'confirm') {
+                                final result = await _promptSettlement(
+                                  c,
+                                  successful: true,
+                                );
+                                if (result != null) {
+                                  await repository.confirm(
                                     x,
-                                    'Provider declined transaction',
-                                  ),
+                                    userId,
+                                    providerReference: result.$1,
+                                  );
+                                }
+                              } else if (a == 'refund') {
+                                final result = await _promptRefund(c, x);
+                                if (result != null) {
+                                  await repository.refund(
+                                    x,
+                                    userId,
+                                    amount: result.$1,
+                                    reason: result.$2,
+                                  );
+                                }
+                              } else {
+                                final result = await _promptSettlement(
+                                  c,
+                                  successful: false,
+                                );
+                                if (result != null) {
+                                  await repository.fail(
+                                    x,
+                                    result.$2,
+                                    providerReference: result.$1,
+                                  );
+                                }
+                              }
+                            },
                             itemBuilder: (_) => const [
                               PopupMenuItem(
                                 value: 'confirm',
@@ -181,7 +210,7 @@ class BillingScreen extends StatelessWidget {
       TextField(
         controller: provider,
         decoration: const InputDecoration(
-          labelText: 'Provider transaction reference',
+          labelText: 'Payment provider (e.g. Orange Money)',
         ),
       ),
       TextField(
@@ -212,7 +241,7 @@ class BillingScreen extends StatelessWidget {
           serviceChargeRate: double.tryParse(fee.text) ?? 0,
         ),
         currency: currency.text,
-        providerReference: provider.text,
+        provider: provider.text,
         maskedAccount: masked.text,
       );
     }
@@ -239,6 +268,49 @@ class BillingScreen extends StatelessWidget {
         dueAt: DateTime.now().add(const Duration(days: 30)),
       );
     }
+  }
+
+  Future<(String, String)?> _promptSettlement(
+    BuildContext c, {
+    required bool successful,
+  }) async {
+    final providerReference = TextEditingController();
+    final reason = TextEditingController(
+      text: successful ? '' : 'Provider declined transaction',
+    );
+    final ok = await _f(c, successful ? 'Confirm payment' : 'Mark payment failed', [
+      TextField(
+        controller: providerReference,
+        decoration: const InputDecoration(labelText: 'Provider reference'),
+      ),
+      if (!successful)
+        TextField(
+          controller: reason,
+          decoration: const InputDecoration(labelText: 'Failure reason'),
+        ),
+    ]);
+    if (!ok) return null;
+    return (providerReference.text, reason.text);
+  }
+
+  Future<(double, String)?> _promptRefund(
+    BuildContext c,
+    BillingTransaction t,
+  ) async {
+    final amount = TextEditingController(text: t.total.toStringAsFixed(2));
+    final reason = TextEditingController();
+    final ok = await _f(c, 'Refund payment', [
+      TextField(
+        controller: amount,
+        decoration: const InputDecoration(labelText: 'Refund amount (Le)'),
+      ),
+      TextField(
+        controller: reason,
+        decoration: const InputDecoration(labelText: 'Refund reason'),
+      ),
+    ]);
+    if (!ok) return null;
+    return (double.tryParse(amount.text) ?? t.total, reason.text);
   }
 
   Future<void> _receipt(BillingInvoice x) async {
