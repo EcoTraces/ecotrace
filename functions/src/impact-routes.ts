@@ -9,14 +9,57 @@ import {documentJson} from "./firestore-json.js";
 const router = Router();
 const users = ["household", "business", "institution", "collector", "driver", "collectionCentreOperator", "repairTechnician", "recycler", "environmentalOfficer", "administrator", "superAdministrator"] as const;
 const managers = ["environmentalOfficer", "administrator", "superAdministrator"] as const;
-const defaultFormulas = {carbonAvoidedKgPerRecycledKg: 1.85, energySavedKwhPerRecycledKg: 2.4, treesPerTonneCarbon: 45, waterProtectedLitresPerHazardousKg: 500, landfillDiversionIncludesReuse: true};
+const defaultMaterialCarbonKgPerKg = {copper: 3.5, aluminium: 9.0, steel: 1.8, plastic: 2.5, glass: 0.3, gold: 17.0, silver: 12.0, lithium: 5.0, cobalt: 6.0, circuitBoards: 4.5};
+const defaultMaterialEnergyKwhPerKg = {copper: 18.0, aluminium: 45.0, steel: 8.0, plastic: 14.0, glass: 2.0, gold: 80.0, silver: 60.0, lithium: 25.0, cobalt: 30.0, circuitBoards: 22.0};
+const defaultFormulas = {reuseCarbonKgPerDevice: 50, reuseEnergyKwhPerDevice: 200, treeCarbonKgPerYear: 21, waterProtectedLitresPerHazardousKg: 1000, materialCarbonKgPerKg: defaultMaterialCarbonKgPerKg, materialEnergyKwhPerKg: defaultMaterialEnergyKwhPerKg};
 function number(value: unknown) { return Number(value ?? 0); }
 function scope(request: Request) { const requested = typeof request.query.userId === "string" ? request.query.userId : ""; const privileged = ["environmentalOfficer", "administrator", "superAdministrator"].includes(request.user!.role); if (requested && requested !== request.user!.uid && !privileged) throw new ApiError(403, "You cannot access another user's impact.", "forbidden"); return requested || (privileged ? "" : request.user!.uid); }
 async function formulas() { const snapshot = await db.collection("systemSettings").doc("environmentalFormulas").get(); return {...defaultFormulas, ...(snapshot.exists ? snapshot.data() : {})}; }
+function materialCarbonFactor(formula: Record<string, unknown>, material: string) { const table = (formula.materialCarbonKgPerKg ?? defaultMaterialCarbonKgPerKg) as Record<string, number>; return Number(table[material] ?? 1.0); }
+function materialEnergyFactor(formula: Record<string, unknown>, material: string) { const table = (formula.materialEnergyKwhPerKg ?? defaultMaterialEnergyKwhPerKg) as Record<string, number>; return Number(table[material] ?? 5.0); }
+function timestampDate(value: unknown): Date | null { return value instanceof Timestamp ? value.toDate() : null; }
+function monthKey(date: Date) { return `${date.getUTCFullYear()}-${date.getUTCMonth()}`; }
+
+type MonthlyBucket = {collectedKg: number; recycledKg: number; materialsRecoveredKg: number; hazardousHandledKg: number; reusableDevices: number; carbonAvoidedKg: number; energySavedKwh: number};
+function emptyBucket(): MonthlyBucket { return {collectedKg: 0, recycledKg: 0, materialsRecoveredKg: 0, hazardousHandledKg: 0, reusableDevices: 0, carbonAvoidedKg: 0, energySavedKwh: 0}; }
+
+function monthlyTrend(months: number, inventory: FirebaseFirestore.QueryDocumentSnapshot[], recycled: FirebaseFirestore.QueryDocumentSnapshot[], materialLots: FirebaseFirestore.QueryDocumentSnapshot[], hazardousHandled: FirebaseFirestore.QueryDocumentSnapshot[], completedRepairs: FirebaseFirestore.QueryDocumentSnapshot[], formula: Record<string, unknown>) {
+  const buckets = new Map<string, MonthlyBucket>();
+  function bucket(key: string) { let value = buckets.get(key); if (!value) { value = emptyBucket(); buckets.set(key, value); } return value; }
+  for (const doc of inventory) { const date = timestampDate(doc.get("createdAt")); if (!date) continue; bucket(monthKey(date)).collectedKg += number(doc.get("weight")); }
+  for (const doc of recycled) { const date = timestampDate(doc.get("completedAt")) ?? timestampDate(doc.get("updatedAt")); if (!date) continue; bucket(monthKey(date)).recycledKg += number(doc.get("inputWeightKg")); }
+  for (const doc of materialLots) { const date = timestampDate(doc.get("createdAt")); if (!date) continue; const material = String(doc.get("material") ?? "other"); const weightKg = number(doc.get("weightKg")); const entry = bucket(monthKey(date)); entry.materialsRecoveredKg += weightKg; entry.carbonAvoidedKg += weightKg * materialCarbonFactor(formula, material); entry.energySavedKwh += weightKg * materialEnergyFactor(formula, material); }
+  for (const doc of hazardousHandled) { const date = timestampDate(doc.get("certifiedAt")) ?? timestampDate(doc.get("disposalRecordedAt")) ?? timestampDate(doc.get("updatedAt")); if (!date) continue; bucket(monthKey(date)).hazardousHandledKg += number(doc.get("weightKg")); }
+  for (const doc of completedRepairs) { const date = timestampDate(doc.get("completedAt")); if (!date) continue; const entry = bucket(monthKey(date)); entry.reusableDevices += 1; entry.carbonAvoidedKg += number(formula.reuseCarbonKgPerDevice); entry.energySavedKwh += number(formula.reuseEnergyKwhPerDevice); }
+  const now = new Date();
+  const trend = [];
+  for (let offset = months - 1; offset >= 0; offset--) {
+    const monthDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offset, 1));
+    const entry = buckets.get(monthKey(monthDate)) ?? emptyBucket();
+    trend.push({month: monthDate.toISOString(), ...entry, landfillDiversionRate: entry.collectedKg > 0 ? Math.min(100, entry.recycledKg / entry.collectedKg * 100) : 0});
+  }
+  return trend;
+}
+
 async function calculate(userId = "") {
-  let pickupsQuery: FirebaseFirestore.Query = db.collection("pickupRequests"); if (userId) pickupsQuery = pickupsQuery.where("userId", "==", userId);
-  const [pickups, batches, materials, hazardous, repairs, formula] = await Promise.all([pickupsQuery.limit(2000).get(), db.collection("recyclingBatches").limit(1000).get(), db.collection("recoveredMaterialLots").limit(2000).get(), db.collection("hazardousWasteRecords").limit(1000).get(), db.collection("repairJobs").limit(1000).get(), formulas()]);
-  const completedPickups = pickups.docs.filter((doc) => ["completed", "collected", "received"].includes(String(doc.get("status")))); const totalCollectedKg = completedPickups.reduce((sum, doc) => sum + number(doc.get("actualWeight") ?? doc.get("estimatedWeight")), 0); const totalRecycledKg = batches.docs.filter((doc) => doc.get("completionVerified") === true || doc.get("stage") === "completed").reduce((sum, doc) => sum + number(doc.get("inputWeightKg")), 0); const materialsRecoveredKg = materials.docs.reduce((sum, doc) => sum + number(doc.get("weightKg")), 0); const hazardousSafelyHandledKg = hazardous.docs.reduce((sum, doc) => sum + number(doc.get("disposedWeightKg")), 0); const reusableDevicesRecovered = repairs.docs.filter((doc) => doc.get("status") === "completed").length; const reusedEstimatedKg = repairs.docs.filter((doc) => doc.get("status") === "completed").reduce((sum, doc) => sum + number(doc.get("weightKg")), 0); const divertedKg = totalRecycledKg + (formula.landfillDiversionIncludesReuse ? reusedEstimatedKg : 0); const landfillDiversionRate = totalCollectedKg ? Math.min(100, divertedKg / totalCollectedKg * 100) : 0; const carbonEmissionsAvoidedKg = totalRecycledKg * number(formula.carbonAvoidedKgPerRecycledKg); const energySavedKwh = totalRecycledKg * number(formula.energySavedKwhPerRecycledKg); const treesEquivalent = carbonEmissionsAvoidedKg / 1000 * number(formula.treesPerTonneCarbon); const waterPollutionReductionLitres = hazardousSafelyHandledKg * number(formula.waterProtectedLitresPerHazardousKg); return {totalCollectedKg, totalRecycledKg, landfillDiversionRate, materialsRecoveredKg, carbonEmissionsAvoidedKg, energySavedKwh, hazardousSafelyHandledKg, reusableDevicesRecovered, treesEquivalent, waterPollutionReductionLitres, formulas: formula};
+  let inventoryQuery: FirebaseFirestore.Query = db.collection("inventoryItems"); if (userId) inventoryQuery = inventoryQuery.where("createdBy", "==", userId);
+  const [inventory, batches, materials, hazardous, repairs, formula] = await Promise.all([inventoryQuery.limit(3000).get(), db.collection("recyclingBatches").limit(1000).get(), db.collection("recoveredMaterialLots").limit(2000).get(), db.collection("hazardousWasteRecords").limit(1000).get(), db.collection("repairJobs").where("status", "==", "completed").limit(1000).get(), formulas()]);
+  const recycledBatches = batches.docs.filter((doc) => doc.get("completionVerified") === true || doc.get("stage") === "completed");
+  const hazardousHandled = hazardous.docs.filter((doc) => ["disposed", "certified"].includes(String(doc.get("status"))));
+  const totalCollectedKg = inventory.docs.reduce((sum, doc) => sum + number(doc.get("weight")), 0);
+  const totalRecycledKg = recycledBatches.reduce((sum, doc) => sum + number(doc.get("inputWeightKg")), 0);
+  const hazardousSafelyHandledKg = hazardousHandled.reduce((sum, doc) => sum + number(doc.get("weightKg")), 0);
+  const reusableDevicesRecovered = repairs.docs.length;
+  const materialBreakdownKg: Record<string, number> = {};
+  let carbonEmissionsAvoidedKg = reusableDevicesRecovered * number(formula.reuseCarbonKgPerDevice);
+  let energySavedKwh = reusableDevicesRecovered * number(formula.reuseEnergyKwhPerDevice);
+  for (const doc of materials.docs) { const material = String(doc.get("material") ?? "other"); const weightKg = number(doc.get("weightKg")); materialBreakdownKg[material] = (materialBreakdownKg[material] ?? 0) + weightKg; carbonEmissionsAvoidedKg += weightKg * materialCarbonFactor(formula, material); energySavedKwh += weightKg * materialEnergyFactor(formula, material); }
+  const materialsRecoveredKg = materials.docs.reduce((sum, doc) => sum + number(doc.get("weightKg")), 0);
+  const landfillDiversionRate = totalCollectedKg ? Math.min(100, totalRecycledKg / totalCollectedKg * 100) : 0;
+  const treesEquivalent = number(formula.treeCarbonKgPerYear) > 0 ? carbonEmissionsAvoidedKg / number(formula.treeCarbonKgPerYear) : 0;
+  const waterPollutionReductionLitres = hazardousSafelyHandledKg * number(formula.waterProtectedLitresPerHazardousKg);
+  const monthly = monthlyTrend(12, inventory.docs, recycledBatches, materials.docs, hazardousHandled, repairs.docs, formula);
+  return {totalCollectedKg, totalRecycledKg, landfillDiversionRate, materialsRecoveredKg, materialBreakdownKg, carbonEmissionsAvoidedKg, energySavedKwh, hazardousSafelyHandledKg, reusableDevicesRecovered, treesEquivalent, waterPollutionReductionLitres, monthly, formulas: formula};
 }
 
 router.get("/impact/summary", authenticate, requireRoles(...users), async (request, response) => { response.json({data: await calculate(scope(request))}); });

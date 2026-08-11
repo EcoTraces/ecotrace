@@ -2,19 +2,39 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../core/api/api_client.dart';
+import '../../../core/api/api_config.dart';
 import '../domain/environmental_impact.dart';
 
 class EnvironmentalImpactRepository {
   EnvironmentalImpactRepository({
     FirebaseFirestore? firestore,
     EnvironmentalImpactCalculator? calculator,
+    ApiClient? apiClient,
   }) : _db = firestore ?? FirebaseFirestore.instance,
-       _calculator = calculator ?? const EnvironmentalImpactCalculator();
+       _calculator = calculator ?? const EnvironmentalImpactCalculator(),
+       _api = apiClient ?? ApiClient.instance,
+       _useApi = apiClient != null || (firestore == null && ApiConfig.enabled);
 
   final FirebaseFirestore _db;
   final EnvironmentalImpactCalculator _calculator;
+  final ApiClient _api;
+  final bool _useApi;
 
-  Stream<EnvironmentalImpactSnapshot> watchImpact() {
+  Stream<EnvironmentalImpactSnapshot> watchImpact() =>
+      _useApi ? _pollImpact() : _watchImpactFromFirestore();
+
+  Stream<EnvironmentalImpactSnapshot> _pollImpact() async* {
+    while (true) {
+      final data = await _api.get('/api/v1/impact/summary');
+      yield EnvironmentalImpactSnapshot.fromJson(data);
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
+
+  Stream<EnvironmentalImpactSnapshot> _watchImpactFromFirestore() {
     late StreamController<EnvironmentalImpactSnapshot> controller;
     final subscriptions = <StreamSubscription<dynamic>>[];
     var inventory = <Map<String, dynamic>>[];
@@ -124,39 +144,66 @@ class EnvironmentalImpactRepository {
     return controller.stream;
   }
 
-  Stream<List<EnvironmentalImpactReport>> watchReports() => _db
-      .collection('environmentalImpactReports')
-      .snapshots()
-      .map(
-        (snapshot) =>
-            snapshot.docs.map(EnvironmentalImpactReport.fromDoc).toList()..sort(
-              (a, b) => (b.generatedAt ?? DateTime(2000)).compareTo(
-                a.generatedAt ?? DateTime(2000),
-              ),
-            ),
+  Stream<List<EnvironmentalImpactReport>> watchReports() => _useApi
+      ? _pollReports()
+      : _db
+            .collection('environmentalImpactReports')
+            .snapshots()
+            .map(
+              (snapshot) =>
+                  snapshot.docs.map(EnvironmentalImpactReport.fromDoc).toList()
+                    ..sort(
+                      (a, b) => (b.generatedAt ?? DateTime(2000)).compareTo(
+                        a.generatedAt ?? DateTime(2000),
+                      ),
+                    ),
+            );
+
+  Stream<List<EnvironmentalImpactReport>> _pollReports() async* {
+    while (true) {
+      final data = await _api.getList(
+        '/api/v1/impact/monthly',
+        query: const {'months': '12'},
       );
+      yield data.map(EnvironmentalImpactReport.fromJson).toList();
+      await Future<void>.delayed(
+        const Duration(seconds: ApiConfig.pollingSeconds),
+      );
+    }
+  }
 
   Future<void> saveReport(
     EnvironmentalImpactSnapshot impact, {
     required String periodLabel,
     required String actorId,
-  }) => _db.collection('environmentalImpactReports').add({
-    'periodLabel': periodLabel.trim(),
-    'totalCollectedKg': impact.totalCollectedKg,
-    'totalRecycledKg': impact.totalRecycledKg,
-    'landfillDiversionRate': impact.landfillDiversionRate,
-    'materialsRecoveredKg': impact.materialsRecoveredKg,
-    'carbonAvoidedKg': impact.carbonEmissionsAvoidedKg,
-    'energySavedKwh': impact.energySavedKwh,
-    'hazardousHandledKg': impact.hazardousSafelyHandledKg,
-    'reusableDevices': impact.reusableDevices,
-    'treesEquivalent': impact.treesEquivalent,
-    'waterPollutionReductionLitres': impact.waterPollutionReductionLitres,
-    'materialBreakdownKg': impact.materialBreakdownKg,
-    'factorVersion': ImpactFactors.version,
-    'generatedBy': actorId,
-    'generatedAt': FieldValue.serverTimestamp(),
-  });
+  }) async {
+    if (_useApi) {
+      final period =
+          '${impact.generatedAt.year}-${impact.generatedAt.month.toString().padLeft(2, '0')}';
+      await _api.post('/api/v1/impact/snapshots', {
+        'period': period,
+        'notes': periodLabel.trim(),
+      });
+      return;
+    }
+    await _db.collection('environmentalImpactReports').add({
+      'periodLabel': periodLabel.trim(),
+      'totalCollectedKg': impact.totalCollectedKg,
+      'totalRecycledKg': impact.totalRecycledKg,
+      'landfillDiversionRate': impact.landfillDiversionRate,
+      'materialsRecoveredKg': impact.materialsRecoveredKg,
+      'carbonAvoidedKg': impact.carbonEmissionsAvoidedKg,
+      'energySavedKwh': impact.energySavedKwh,
+      'hazardousHandledKg': impact.hazardousSafelyHandledKg,
+      'reusableDevices': impact.reusableDevices,
+      'treesEquivalent': impact.treesEquivalent,
+      'waterPollutionReductionLitres': impact.waterPollutionReductionLitres,
+      'materialBreakdownKg': impact.materialBreakdownKg,
+      'factorVersion': ImpactFactors.version,
+      'generatedBy': actorId,
+      'generatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 
   static DateTime? _date(Object? value) =>
       value is Timestamp ? value.toDate() : null;

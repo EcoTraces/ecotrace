@@ -91,6 +91,22 @@ class MonthlyEnvironmentalImpact {
   final int reusableDevices;
   double get landfillDiversionRate =>
       collectedKg <= 0 ? 0 : (recycledKg / collectedKg * 100).clamp(0, 100);
+
+  factory MonthlyEnvironmentalImpact.fromJson(Map<String, dynamic> data) =>
+      MonthlyEnvironmentalImpact(
+        month:
+            DateTime.tryParse(data['month']?.toString() ?? '') ??
+            DateTime.now(),
+        collectedKg: (data['collectedKg'] as num? ?? 0).toDouble(),
+        recycledKg: (data['recycledKg'] as num? ?? 0).toDouble(),
+        materialsRecoveredKg: (data['materialsRecoveredKg'] as num? ?? 0)
+            .toDouble(),
+        hazardousHandledKg: (data['hazardousHandledKg'] as num? ?? 0)
+            .toDouble(),
+        reusableDevices: (data['reusableDevices'] as num? ?? 0).toInt(),
+        carbonAvoidedKg: (data['carbonAvoidedKg'] as num? ?? 0).toDouble(),
+        energySavedKwh: (data['energySavedKwh'] as num? ?? 0).toDouble(),
+      );
 }
 
 class EnvironmentalImpactSnapshot {
@@ -128,6 +144,40 @@ class EnvironmentalImpactSnapshot {
       monthly.isEmpty ? null : monthly.last;
   MonthlyEnvironmentalImpact? get previousMonth =>
       monthly.length < 2 ? null : monthly[monthly.length - 2];
+
+  factory EnvironmentalImpactSnapshot.fromJson(Map<String, dynamic> data) {
+    final breakdown = <String, double>{};
+    for (final entry in (data['materialBreakdownKg'] as Map? ?? const {})
+        .entries) {
+      breakdown[entry.key.toString()] = (entry.value as num? ?? 0)
+          .toDouble();
+    }
+    return EnvironmentalImpactSnapshot(
+      totalCollectedKg: (data['totalCollectedKg'] as num? ?? 0).toDouble(),
+      totalRecycledKg: (data['totalRecycledKg'] as num? ?? 0).toDouble(),
+      materialsRecoveredKg: (data['materialsRecoveredKg'] as num? ?? 0)
+          .toDouble(),
+      hazardousSafelyHandledKg: (data['hazardousSafelyHandledKg'] as num? ?? 0)
+          .toDouble(),
+      reusableDevices: (data['reusableDevicesRecovered'] as num? ?? 0)
+          .toInt(),
+      carbonEmissionsAvoidedKg: (data['carbonEmissionsAvoidedKg'] as num? ?? 0)
+          .toDouble(),
+      energySavedKwh: (data['energySavedKwh'] as num? ?? 0).toDouble(),
+      treesEquivalent: (data['treesEquivalent'] as num? ?? 0).toDouble(),
+      waterPollutionReductionLitres:
+          (data['waterPollutionReductionLitres'] as num? ?? 0).toDouble(),
+      materialBreakdownKg: breakdown,
+      monthly: (data['monthly'] as List? ?? const [])
+          .map(
+            (entry) => MonthlyEnvironmentalImpact.fromJson(
+              Map<String, dynamic>.from(entry as Map),
+            ),
+          )
+          .toList(),
+      generatedAt: DateTime.now(),
+    );
+  }
 }
 
 class EnvironmentalImpactCalculator {
@@ -258,5 +308,46 @@ class EnvironmentalImpactReport {
       generatedBy: data['generatedBy'] ?? '',
       generatedAt: (data['generatedAt'] as Timestamp?)?.toDate(),
     );
+  }
+
+  factory EnvironmentalImpactReport.fromJson(Map<String, dynamic> data) {
+    final period = (data['period'] ?? '').toString();
+    return EnvironmentalImpactReport(
+      id: (data['id'] ?? period).toString(),
+      periodLabel: _periodLabel(period),
+      totalCollectedKg: (data['totalCollectedKg'] as num? ?? 0).toDouble(),
+      totalRecycledKg: (data['totalRecycledKg'] as num? ?? 0).toDouble(),
+      landfillDiversionRate: (data['landfillDiversionRate'] as num? ?? 0)
+          .toDouble(),
+      carbonAvoidedKg: (data['carbonEmissionsAvoidedKg'] as num? ?? 0)
+          .toDouble(),
+      generatedBy: (data['generatedBy'] ?? '').toString(),
+      generatedAt: DateTime.tryParse(data['generatedAt']?.toString() ?? ''),
+    );
+  }
+
+  static String _periodLabel(String period) {
+    final parts = period.split('-');
+    if (parts.length != 2) return period;
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    if (year == null || month == null || month < 1 || month > 12) {
+      return period;
+    }
+    const names = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${names[month - 1]} $year impact snapshot';
   }
 }
