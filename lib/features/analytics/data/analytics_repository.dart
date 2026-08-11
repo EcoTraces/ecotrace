@@ -235,4 +235,73 @@ class AnalyticsRepository {
     'createdAt': FieldValue.serverTimestamp(),
     });
   }
+
+  Future<List<DashboardWidgetConfig>> getWidgets() async {
+    if (!_useApi) return const [];
+    final data = await _api.getList('/api/v1/analytics/widgets');
+    return data.map(DashboardWidgetConfig.fromJson).toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
+  }
+
+  Future<void> saveWidget({
+    required String id,
+    required String title,
+    required String metric,
+    required String visualization,
+    required List<String> roles,
+    required int order,
+    required bool active,
+  }) async {
+    if (!_useApi) return;
+    await _api.put('/api/v1/analytics/widgets/$id', {
+      'title': title.trim(),
+      'metric': metric,
+      'visualization': visualization,
+      'roles': roles,
+      'order': order,
+      'active': active,
+    });
+  }
+
+  Future<List<ReportDefinition>> getDefinitions() async {
+    if (!_useApi) return const [];
+    final data = await _api.getList('/api/v1/reports/definitions');
+    return data.map(ReportDefinition.fromJson).toList();
+  }
+
+  Future<void> createDefinition({
+    required String name,
+    required ReportType type,
+    required List<String> fields,
+    String groupBy = '',
+    List<String> metrics = const ['count'],
+  }) async {
+    if (!_useApi) return;
+    await _api.post('/api/v1/reports/definitions', {
+      'name': name.trim(),
+      'type': type.name,
+      'sourceCollection': type == ReportType.custom ? 'pickupRequests' : '',
+      'fields': fields,
+      'filters': const <Map<String, dynamic>>[],
+      'groupBy': groupBy.trim(),
+      'metrics': metrics,
+      'active': true,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> generateReport({
+    required String definitionId,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    if (!_useApi) return const [];
+    final data = await _api.post('/api/v1/reports/generate', {
+      'definitionId': definitionId,
+      'from': from.toUtc().toIso8601String(),
+      'to': to.toUtc().toIso8601String(),
+      'format': 'json',
+    });
+    final rows = data['rows'] as List? ?? const [];
+    return rows.map((row) => Map<String, dynamic>.from(row as Map)).toList();
+  }
 }
