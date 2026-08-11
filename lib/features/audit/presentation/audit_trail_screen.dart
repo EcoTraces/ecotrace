@@ -98,6 +98,11 @@ class _AuditTrailScreenState extends State<AuditTrailScreen> {
                     icon: const Icon(Icons.download_outlined),
                     label: Text('Export CSV (${events.length})'),
                   ),
+                  OutlinedButton.icon(
+                    onPressed: () => _verifyIntegrity(context),
+                    icon: const Icon(Icons.verified_user_outlined),
+                    label: const Text('Verify chain integrity'),
+                  ),
                 ],
               ),
             ),
@@ -136,6 +141,85 @@ class _AuditTrailScreenState extends State<AuditTrailScreen> {
 
   String _dateLabel(DateTimeRange range) =>
       '${range.start.toIso8601String().substring(0, 10)} – ${range.end.toIso8601String().substring(0, 10)}';
+
+  Future<void> _verifyIntegrity(BuildContext context) async {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Verifying audit chain...'),
+          ],
+        ),
+      ),
+    );
+    try {
+      final result = await widget.repository.checkIntegrity();
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(
+                result == null
+                    ? Icons.help_outline
+                    : result.valid
+                    ? Icons.verified_outlined
+                    : Icons.report_gmailerrorred,
+                color: result == null
+                    ? null
+                    : result.valid
+                    ? Colors.green
+                    : Colors.red,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                result == null
+                    ? 'Unavailable'
+                    : result.valid
+                    ? 'Chain intact'
+                    : 'Tampering detected',
+              ),
+            ],
+          ),
+          content: Text(
+            result == null
+                ? 'Chain verification requires the authenticated API.'
+                : 'Verified ${result.recordsVerified} record(s).\n'
+                      'Last hash: ${result.lastHash}',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Icon(Icons.report_gmailerrorred, color: Colors.red),
+          content: Text('Chain verification failed: $error'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
 
   Future<void> _export(List<AuditEvent> events) async {
     final rows = <List<dynamic>>[

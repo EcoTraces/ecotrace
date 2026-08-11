@@ -79,7 +79,7 @@ export const auditMutations: RequestHandler = (request, response, next) => {
 };
 
 const eventSchema = z.object({
-  action: z.enum(["login", "logout", "create", "update", "delete", "approve", "reject", "payment", "itemMovement", "roleChange", "permissionChange", "system"]),
+  action: z.enum(["login", "logout", "create", "update", "delete", "approve", "reject", "payment", "itemMovement", "roleChange", "permissionChange", "configurationChange", "security", "system"]),
   resourceType: z.string().trim().min(1).max(100),
   resourceId: z.string().trim().max(200).default(""),
   outcome: z.enum(["success", "failure"]).default("success"),

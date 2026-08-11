@@ -36,6 +36,8 @@ class AuditEvent {
     required this.severity,
     required this.source,
     required this.createdAt,
+    this.sequence,
+    this.hash,
   });
 
   final String id;
@@ -53,6 +55,8 @@ class AuditEvent {
   final AuditSeverity severity;
   final String source;
   final DateTime? createdAt;
+  final int? sequence;
+  final String? hash;
 
   factory AuditEvent.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? const <String, dynamic>{};
@@ -76,6 +80,39 @@ class AuditEvent {
       ),
       source: data['source'] as String? ?? 'client',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+    );
+  }
+
+  factory AuditEvent.fromJson(Map<String, dynamic> data) {
+    final metadata = Map<String, dynamic>.from(
+      data['metadata'] as Map? ?? const {},
+    );
+    return AuditEvent(
+      id: data['id']?.toString() ?? '',
+      actorId: data['actorId']?.toString() ?? '',
+      actorName: data['actorName']?.toString() ?? data['actorId']?.toString() ?? '',
+      actorRole: data['actorRole']?.toString() ?? '',
+      action:
+          AuditAction.values
+              .where((value) => value.name == data['action'])
+              .firstOrNull ??
+          AuditAction.system,
+      entityType: data['resourceType']?.toString() ?? '',
+      entityId: data['resourceId']?.toString() ?? '',
+      description: data['description']?.toString() ?? '',
+      changes: metadata,
+      ipAddress: data['ipAddress']?.toString() ?? '',
+      deviceInformation: data['deviceInformation']?.toString() ?? '',
+      success: data['outcome']?.toString() != 'failure',
+      severity:
+          AuditSeverity.values
+              .where((value) => value.name == metadata['severity'])
+              .firstOrNull ??
+          AuditSeverity.information,
+      source: 'api',
+      createdAt: DateTime.tryParse(data['occurredAt']?.toString() ?? ''),
+      sequence: (data['sequence'] as num?)?.toInt(),
+      hash: data['hash']?.toString(),
     );
   }
 
@@ -112,4 +149,22 @@ class AuditFilter {
   final AuditAction? action;
   final DateTime? from;
   final DateTime? to;
+}
+
+class AuditIntegrityResult {
+  const AuditIntegrityResult({
+    required this.valid,
+    required this.recordsVerified,
+    required this.lastHash,
+  });
+  final bool valid;
+  final int recordsVerified;
+  final String lastHash;
+
+  factory AuditIntegrityResult.fromJson(Map<String, dynamic> data) =>
+      AuditIntegrityResult(
+        valid: data['valid'] == true,
+        recordsVerified: (data['recordsVerified'] as num? ?? 0).toInt(),
+        lastHash: data['lastHash']?.toString() ?? '',
+      );
 }
