@@ -29,6 +29,9 @@ export const authenticate: RequestHandler = async (request, _response, next) => 
     };
     next();
   } catch (error) {
+    if (!(error instanceof ApiError)) {
+      console.error("Token verification failed.", error);
+    }
     next(error instanceof ApiError ? error : new ApiError(401, "The Firebase ID token is invalid or expired.", "unauthenticated"));
   }
 };
