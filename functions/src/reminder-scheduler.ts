@@ -106,11 +106,35 @@ async function sendComplianceReminders(): Promise<void> {
   }
 }
 
+/** Notify the owner and administrators about secure vault documents (licences, certificates, contracts, etc.) expiring within 60 days. */
+async function sendDocumentReminders(): Promise<void> {
+  const cutoff = Date.now() + 60 * 24 * 60 * 60 * 1000;
+  const admins = await administratorIds();
+  const snapshot = await db.collection("documents").limit(500).get();
+  for (const doc of snapshot.docs) {
+    const due = doc.get("expiresAt")?.toDate?.() as Date | undefined;
+    if (!due || due.getTime() > cutoff) continue;
+    const dueIso = due.toISOString();
+    if (doc.get("expiryReminderFor") === dueIso) continue;
+    const ownerId = String(doc.get("ownerId") ?? "");
+    const recipients = [...new Set([...admins, ownerId].filter(Boolean))];
+    if (recipients.length === 0) continue;
+    await publishNotificationEvent({
+      event: "compliance_document_expiring",
+      affectedUserIds: recipients,
+      body: `${String(doc.get("title") ?? doc.id)} is ${due.getTime() < Date.now() ? "overdue" : "expiring soon"} (${due.toISOString().slice(0, 10)}).`,
+      data: {documentId: doc.id},
+    });
+    await doc.ref.update({expiryReminderFor: dueIso, expiryReminderSentAt: FieldValue.serverTimestamp()});
+  }
+}
+
 export const sendScheduledReminders = onSchedule(
   {schedule: "every 60 minutes", region: "europe-west1"},
   async () => {
     await sendPickupReminders();
     await sendFleetReminders();
     await sendComplianceReminders();
+    await sendDocumentReminders();
   },
 );

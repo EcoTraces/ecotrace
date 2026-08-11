@@ -92,6 +92,7 @@ class DocumentDashboardScreen extends StatelessWidget {
     final selectedFile = picked.files.single;
     var category = DocumentCategory.other;
     var access = DocumentAccessLevel.owner;
+    var expiresAt = DateTime.now().add(const Duration(days: 365));
     final title = TextEditingController(text: selectedFile.name),
         reference = TextEditingController();
     final ok = await showDialog<bool>(
@@ -123,6 +124,21 @@ class DocumentDashboardScreen extends StatelessWidget {
                     .toList(),
                 onChanged: (x) => setLocal(() => access = x!),
               ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Expiry date'),
+                subtitle: Text('$expiresAt'),
+                trailing: const Icon(Icons.calendar_today_outlined),
+                onTap: () async {
+                  final date = await showDatePicker(
+                    context: context,
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime(2100),
+                    initialDate: expiresAt,
+                  );
+                  if (date != null) setLocal(() => expiresAt = date);
+                },
+              ),
             ],
           ),
           actions: [
@@ -142,7 +158,7 @@ class DocumentDashboardScreen extends StatelessWidget {
         category: category,
         access: access,
         reference: reference.text,
-        expiresAt: DateTime.now().add(const Duration(days: 365)),
+        expiresAt: expiresAt,
         fileName: selectedFile.name,
         mimeType: _mime(selectedFile.extension),
         bytes: selectedFile.bytes!,
@@ -190,14 +206,18 @@ class DocumentDetailScreen extends StatelessWidget {
                   child: const Text('Download / preview'),
                 ),
                 FilledButton.tonal(
-                  onPressed: () => _version(d),
+                  onPressed: () => _version(context, d),
                   child: const Text('New version'),
                 ),
                 if (canGovern)
                   FilledButton(
-                    onPressed: () =>
-                        repository.approve(d, true, userId, 'Approved'),
+                    onPressed: () => _approve(context, d, true),
                     child: const Text('Approve'),
+                  ),
+                if (canGovern)
+                  OutlinedButton(
+                    onPressed: () => _approve(context, d, false),
+                    child: const Text('Reject'),
                   ),
                 if (canGovern)
                   OutlinedButton(
@@ -256,18 +276,76 @@ class DocumentDetailScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _version(ManagedDocument d) async {
+  Future<void> _version(BuildContext context, ManagedDocument d) async {
     final p = await FilePicker.pickFiles(withData: true);
-    if (p != null) {
-      final selectedFile = p.files.single;
+    if (p == null || p.files.single.bytes == null) return;
+    final selectedFile = p.files.single;
+    final notes = TextEditingController();
+    if (!context.mounted) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('New version notes'),
+        content: TextField(
+          controller: notes,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'What changed in this version?',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Upload'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
       await repository.newVersion(
         d,
         fileName: selectedFile.name,
         mimeType: _mime(selectedFile.extension),
         bytes: selectedFile.bytes!,
-        notes: 'Updated document',
+        notes: notes.text.trim(),
         actorId: userId,
       );
+    }
+  }
+
+  Future<void> _approve(
+    BuildContext context,
+    ManagedDocument d,
+    bool approved,
+  ) async {
+    final notes = TextEditingController(text: approved ? 'Approved' : '');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(approved ? 'Approve document' : 'Reject document'),
+        content: TextField(
+          controller: notes,
+          maxLines: 3,
+          decoration: const InputDecoration(labelText: 'Notes'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(approved ? 'Approve' : 'Reject'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await repository.approve(d, approved, userId, notes.text.trim());
     }
   }
 }
