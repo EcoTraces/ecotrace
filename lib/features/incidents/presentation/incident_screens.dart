@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import '../data/incident_repository.dart';
 import '../domain/safety_incident.dart';
@@ -103,6 +104,7 @@ class IncidentDashboardScreen extends StatelessWidget {
   Future<void> _report(BuildContext c) async {
     var type = SafetyIncidentType.accident,
         severity = SafetyIncidentSeverity.moderate;
+    double? latitude, longitude;
     final title = TextEditingController(),
         description = TextEditingController(),
         location = TextEditingController(),
@@ -151,6 +153,30 @@ class IncidentDashboardScreen extends StatelessWidget {
                   controller: location,
                   decoration: const InputDecoration(
                     labelText: 'Incident location',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    var permission = await Geolocator.checkPermission();
+                    if (permission == LocationPermission.denied) {
+                      permission = await Geolocator.requestPermission();
+                    }
+                    if (permission == LocationPermission.denied ||
+                        permission == LocationPermission.deniedForever) {
+                      return;
+                    }
+                    final position = await Geolocator.getCurrentPosition();
+                    set(() {
+                      latitude = position.latitude;
+                      longitude = position.longitude;
+                    });
+                  },
+                  icon: const Icon(Icons.my_location),
+                  label: Text(
+                    latitude == null
+                        ? 'Attach GPS coordinates'
+                        : '${latitude!.toStringAsFixed(5)}, ${longitude!.toStringAsFixed(5)}',
                   ),
                 ),
                 TextField(
@@ -205,8 +231,8 @@ class IncidentDashboardScreen extends StatelessWidget {
         title: title.text,
         description: description.text,
         location: location.text,
-        latitude: null,
-        longitude: null,
+        latitude: latitude,
+        longitude: longitude,
         staff: staff.text.split(',').map((x) => x.trim()).toList(),
         injuryDetails: injury.text,
         hazardType: hazard.text,
@@ -318,11 +344,7 @@ class IncidentDetailScreen extends StatelessWidget {
                     child: const Text('Follow-up'),
                   ),
                   FilledButton(
-                    onPressed: () => repository.close(
-                      i,
-                      'Corrective actions verified',
-                      userId,
-                    ),
+                    onPressed: () => _close(c, i),
                     child: const Text('Close'),
                   ),
                 ],
@@ -348,34 +370,131 @@ class IncidentDetailScreen extends StatelessWidget {
     final root = TextEditingController(),
         action = TextEditingController(),
         owner = TextEditingController();
-    final ok = await _form(c, 'Root cause and corrective action', [
-      TextField(controller: root),
-      TextField(controller: action),
-      TextField(controller: owner),
-    ]);
-    if (ok) {
+    var due = DateTime.now().add(const Duration(days: 30));
+    final ok = await showDialog<bool>(
+      context: c,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => AlertDialog(
+          title: const Text('Root cause and corrective action'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: root,
+                  maxLines: 3,
+                  decoration: const InputDecoration(labelText: 'Root cause'),
+                ),
+                TextField(
+                  controller: action,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Corrective action',
+                  ),
+                ),
+                TextField(
+                  controller: owner,
+                  decoration: const InputDecoration(
+                    labelText: 'Responsible owner',
+                  ),
+                ),
+                ListTile(
+                  title: const Text('Due date'),
+                  subtitle: Text('$due'),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: c,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2100),
+                      initialDate: due,
+                    );
+                    if (date != null) set(() => due = date);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok == true) {
       await repository.recordRootCause(
         i,
         rootCause: root.text,
         correctiveAction: action.text,
         owner: owner.text,
-        dueAt: DateTime.now().add(const Duration(days: 30)),
+        dueAt: due,
       );
     }
   }
 
   Future<void> _follow(BuildContext c, SafetyIncident i) async {
     final n = TextEditingController();
-    final ok = await _form(c, 'Follow-up monitoring', [
-      TextField(controller: n),
-    ]);
-    if (ok) {
+    var riskRemaining = false;
+    final ok = await showDialog<bool>(
+      context: c,
+      builder: (c) => StatefulBuilder(
+        builder: (c, set) => AlertDialog(
+          title: const Text('Follow-up monitoring'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: n,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Findings'),
+              ),
+              SwitchListTile(
+                value: riskRemaining,
+                onChanged: (value) => set(() => riskRemaining = value),
+                title: const Text('Risk remains after this follow-up'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok == true) {
       await repository.followUp(
         i,
         findings: n.text,
-        riskRemaining: false,
+        riskRemaining: riskRemaining,
         actorId: userId,
       );
+    }
+  }
+
+  Future<void> _close(BuildContext c, SafetyIncident i) async {
+    final notes = TextEditingController(text: 'Corrective actions verified');
+    final ok = await _form(c, 'Close incident', [
+      TextField(
+        controller: notes,
+        maxLines: 3,
+        decoration: const InputDecoration(labelText: 'Closure notes'),
+      ),
+    ]);
+    if (ok) {
+      await repository.close(i, notes.text, userId);
     }
   }
 }

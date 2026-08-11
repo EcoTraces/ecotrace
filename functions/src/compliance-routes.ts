@@ -610,7 +610,9 @@ router.get(
       violations,
       penalties,
       certificates,
+      certifications,
       submissions,
+      documents,
     ] = await Promise.all([
       db.collection("regulatoryBodies").limit(500).get(),
       db.collection("complianceLicences").limit(500).get(),
@@ -618,18 +620,26 @@ router.get(
       db.collection("complianceViolations").limit(500).get(),
       db.collection("penaltyRecords").limit(500).get(),
       db.collection("environmentalCertificates").limit(500).get(),
+      db.collection("recyclerCertifications").limit(500).get(),
       db.collection("regulatorySubmissions").limit(500).get(),
+      // The Flutter client tracks licences/certifications/certificates/
+      // submissions as one generic, type-tagged complianceDocuments entity
+      // rather than writing to the dedicated collections above, so those
+      // collections alone would always undercount what actually exists.
+      db.collection("complianceDocuments").limit(2000).get(),
     ]);
+    const documentTypeCount = (type: string) => documents.docs.filter((doc) => String(doc.get("type") ?? "") === type).length;
     response.json({
       data: {
         generatedAt: new Date().toISOString(),
         regulatoryBodies: bodies.size,
-        licences: licences.size,
+        licences: licences.size + documentTypeCount("operationalLicence"),
         inspections: inspections.size,
         violations: violations.size,
         penalties: penalties.size,
-        certificates: certificates.size,
-        submissions: submissions.size,
+        certificates: certificates.size + documentTypeCount("environmentalCertificate"),
+        certifications: certifications.size + documentTypeCount("recyclerCertification"),
+        submissions: submissions.size + documentTypeCount("regulatorySubmission"),
         complianceScore: violations.docs.length
           ? Math.max(0, 100 - violations.docs.length * 10)
           : 100,
