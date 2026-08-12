@@ -8,6 +8,7 @@ const router = Router();
 const scopeSchema = z.enum([
   "pickups", "inventory", "collection-evidence", "incidents", "donations",
   "support", "compliance", "partners", "organizations", "reverse-logistics", "profiles",
+  "documents", "traceability", "marketplace", "hazardous",
 ]);
 
 router.post("/media/upload-signature", authenticate, (request, response) => {

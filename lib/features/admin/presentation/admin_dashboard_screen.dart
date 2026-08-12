@@ -13,11 +13,15 @@ class AdministrationDashboardScreen extends StatelessWidget {
     required this.repository,
     required this.auditRepository,
     this.initialTab = 0,
+    this.canChangeRoles = false,
   });
 
   final AdminRepository repository;
   final AuditRepository auditRepository;
   final int initialTab;
+  // Backend gates PUT /administration/users/:uid/role to superAdministrator
+  // only; hiding the action for a plain administrator avoids a surprise 403.
+  final bool canChangeRoles;
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
@@ -43,7 +47,7 @@ class AdministrationDashboardScreen extends StatelessWidget {
       body: TabBarView(
         children: [
           _Overview(repository: repository),
-          _Users(repository: repository),
+          _Users(repository: repository, canChangeRoles: canChangeRoles),
           _Roles(repository: repository),
           _Configuration(repository: repository),
           AuditTrailScreen(repository: auditRepository, embedded: true),
@@ -236,8 +240,9 @@ class _Metric extends StatelessWidget {
 }
 
 class _Users extends StatelessWidget {
-  const _Users({required this.repository});
+  const _Users({required this.repository, required this.canChangeRoles});
   final AdminRepository repository;
+  final bool canChangeRoles;
 
   @override
   Widget build(BuildContext context) => StreamBuilder<List<UserProfile>>(
@@ -264,9 +269,13 @@ class _Users extends StatelessWidget {
               isThreeLine: true,
               trailing: PopupMenuButton<String>(
                 onSelected: (value) => _action(context, user, value),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'role', child: Text('Change role')),
-                  PopupMenuItem(
+                itemBuilder: (_) => [
+                  if (canChangeRoles)
+                    const PopupMenuItem(
+                      value: 'role',
+                      child: Text('Change role'),
+                    ),
+                  const PopupMenuItem(
                     value: 'status',
                     child: Text('Change account status'),
                   ),

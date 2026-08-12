@@ -8,8 +8,8 @@ import {documentJson} from "./firestore-json.js";
 import {publishNotificationEvent} from "./push-events.js";
 
 const router = Router();
-const technicians = ["repairTechnician", "administrator", "superAdministrator"] as const;
-const supervisors = ["administrator", "superAdministrator"] as const;
+const technicians = ["repairTechnician", "environmentalOfficer", "administrator", "superAdministrator"] as const;
+const supervisors = ["environmentalOfficer", "administrator", "superAdministrator"] as const;
 const statuses = ["awaitingAssessment", "diagnosed", "approved", "repairInProgress", "qualityTesting", "completed", "rejected", "unrepairable"] as const;
 const grades = ["gradeA", "gradeB", "gradeC", "partsOnly"] as const;
 

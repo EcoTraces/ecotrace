@@ -349,6 +349,7 @@ class HazardousWasteRepository {
     required String description,
     required String emergencyActions,
     required String actorId,
+    List<String> evidenceUrls = const [],
   }) async {
     if (_useApi) {
       await _api.post('/api/v1/hazardous/incidents', {
@@ -364,7 +365,7 @@ class HazardousWasteRepository {
             .map((item) => item.trim())
             .where((item) => item.isNotEmpty)
             .toList(),
-        'evidenceUrls': <String>[],
+        'evidenceUrls': evidenceUrls,
         'staffIds': <String>[],
       });
       return;
@@ -379,6 +380,7 @@ class HazardousWasteRepository {
       'severity': severity.name,
       'description': description.trim(),
       'emergencyActions': emergencyActions.trim(),
+      'evidenceUrls': evidenceUrls,
       'status': IncidentStatus.reported.name,
       'reportedBy': actorId,
       'reportedAt': FieldValue.serverTimestamp(),

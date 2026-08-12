@@ -8,7 +8,7 @@ import {documentJson} from "./firestore-json.js";
 
 const router = Router(); const managers = ["environmentalOfficer", "administrator", "superAdministrator"] as const;
 const reportTypes = ["collection", "pickup", "inventory", "recycling", "repair", "resourceRecovery", "environmentalImpact", "user", "partner", "financial", "compliance", "incident", "custom"] as const;
-const sourceMap: Record<string, string> = {collection: "collectionSchedules", pickup: "pickupRequests", inventory: "inventoryItems", recycling: "recyclingBatches", repair: "repairJobs", resourceRecovery: "recoveredMaterialLots", environmentalImpact: "environmentalImpactSnapshots", user: "users", partner: "partners", financial: "paymentTransactions", compliance: "complianceRecords", incident: "hazardousIncidents"};
+const sourceMap: Record<string, string> = {collection: "collectionSchedules", pickup: "pickupRequests", inventory: "inventoryItems", recycling: "recyclingBatches", repair: "repairJobs", resourceRecovery: "recoveredMaterialLots", environmentalImpact: "environmentalImpactSnapshots", user: "users", partner: "partners", financial: "paymentTransactions", compliance: "complianceRecords", incident: "incidents"};
 function id(value: string | string[]) { return Array.isArray(value) ? value[0] : value; }
 async function definition(reportId: string) { const ref = db.collection("reportDefinitions").doc(reportId); const snapshot = await ref.get(); if (!snapshot.exists) throw new ApiError(404, "Report definition not found.", "not_found"); return {ref, snapshot}; }
 

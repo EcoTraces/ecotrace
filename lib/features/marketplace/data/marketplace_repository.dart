@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/api/api_config.dart';
@@ -16,13 +18,71 @@ class MarketplaceRepository {
   final ApiClient _api;
   final bool _useApi;
 
-  Stream<MarketplaceProfile?> watchProfile(String userId) => _useApi
-      ? _pollProfile()
-      : _db
-            .collection('marketplaceProfiles')
-            .doc(userId)
-            .snapshots()
-            .map((doc) => doc.exists ? MarketplaceProfile.fromDoc(doc) : null);
+  Stream<MarketplaceProfile?> watchProfile(String userId) =>
+      _useApi ? _pollProfile() : _watchProfileFromFirestore(userId);
+
+  // Mirrors the merge performed by GET /api/v1/marketplace/profile
+  // (marketplace-routes.ts), which reads separate marketplaceBuyers and
+  // marketplaceSellers documents and combines them into one profile.
+  Stream<MarketplaceProfile?> _watchProfileFromFirestore(String userId) {
+    final controller = StreamController<MarketplaceProfile?>.broadcast();
+    DocumentSnapshot<Map<String, dynamic>>? buyerSnap;
+    DocumentSnapshot<Map<String, dynamic>>? sellerSnap;
+    var buyerReady = false, sellerReady = false;
+
+    void emit() {
+      if (!buyerReady || !sellerReady) return;
+      final buyerExists = buyerSnap?.exists ?? false;
+      final sellerExists = sellerSnap?.exists ?? false;
+      if (!buyerExists && !sellerExists) {
+        controller.add(null);
+        return;
+      }
+      final buyerData = buyerSnap?.data() ?? const <String, dynamic>{};
+      final sellerData = sellerSnap?.data() ?? const <String, dynamic>{};
+      controller.add(
+        MarketplaceProfile.fromJson({
+          'id': userId,
+          ...buyerData,
+          ...sellerData,
+          'type': buyerExists && sellerExists
+              ? 'buyerAndSeller'
+              : sellerExists
+              ? 'seller'
+              : 'buyer',
+          'verified': sellerExists
+              ? sellerData['active'] == true
+              : buyerData['active'] == true,
+          'reviewCount': sellerData['ratingCount'] ?? 0,
+        }),
+      );
+    }
+
+    final buyerSub = _db
+        .collection('marketplaceBuyers')
+        .doc(userId)
+        .snapshots()
+        .listen((snapshot) {
+          buyerSnap = snapshot;
+          buyerReady = true;
+          emit();
+        }, onError: controller.addError);
+    final sellerSub = _db
+        .collection('marketplaceSellers')
+        .doc(userId)
+        .snapshots()
+        .listen((snapshot) {
+          sellerSnap = snapshot;
+          sellerReady = true;
+          emit();
+        }, onError: controller.addError);
+
+    controller.onCancel = () async {
+      await buyerSub.cancel();
+      await sellerSub.cancel();
+    };
+    return controller.stream;
+  }
   Stream<MarketplaceProfile?> _pollProfile() async* {
     while (true) {
       try {
@@ -101,7 +161,7 @@ class MarketplaceRepository {
   Stream<List<PriceQuotation>> watchQuotes(String userId) => _useApi
       ? _pollQuotes()
       : _db
-            .collection('marketplaceQuotes')
+            .collection('marketplaceQuotations')
             .where('participantIds', arrayContains: userId)
             .snapshots()
             .map((s) => s.docs.map(PriceQuotation.fromDoc).toList());
@@ -238,16 +298,33 @@ class MarketplaceRepository {
           })
           .then((_) {});
     }
-    return _db.collection('marketplaceProfiles').doc(userId).set({
-      'type': type.name,
+    if (type == MarketplaceProfileType.seller ||
+        type == MarketplaceProfileType.buyerAndSeller) {
+      return _db.collection('marketplaceSellers').doc(userId).set({
+        'userId': userId,
+        'displayName': displayName.trim(),
+        'businessName': businessName.trim().isEmpty
+            ? displayName.trim()
+            : businessName.trim(),
+        'description': '',
+        'phone': phone.trim(),
+        'address': deliveryAddress.trim(),
+        'serviceAreas': [deliveryAddress.trim()],
+        'active': true,
+        'rating': 0,
+        'ratingCount': 0,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    }
+    return _db.collection('marketplaceBuyers').doc(userId).set({
+      'userId': userId,
       'displayName': displayName.trim(),
-      'businessName': businessName.trim(),
-      'email': email.trim(),
       'phone': phone.trim(),
       'deliveryAddress': deliveryAddress.trim(),
-      'rating': 0,
-      'reviewCount': 0,
-      'verified': false,
+      'buyerType': 'individual',
+      'organizationName': businessName.trim(),
+      'email': email.trim(),
+      'active': true,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
@@ -258,6 +335,7 @@ class MarketplaceRepository {
     required String description,
     required double price,
     required String currency,
+    List<String> imageUrls = const [],
   }) async {
     if (!job.dispositionApproved ||
         job.disposition != RefurbishedDisposition.resale) {
@@ -274,7 +352,7 @@ class MarketplaceRepository {
         'quantityAvailable': 1,
         'unitPrice': price,
         'currency': currency,
-        'imageUrls': <String>[],
+        'imageUrls': imageUrls,
         'deliveryAvailable': true,
       });
       return;
@@ -302,7 +380,7 @@ class MarketplaceRepository {
       'unit': 'device',
       'totalQuantity': 1,
       'availableQuantity': 1,
-      'imageUrls': item.imageUrls,
+      'imageUrls': imageUrls.isNotEmpty ? imageUrls : item.imageUrls,
       'status': MarketplaceListingStatus.active.name,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -315,6 +393,7 @@ class MarketplaceRepository {
     required String description,
     required double pricePerKg,
     required String currency,
+    List<String> imageUrls = const [],
   }) async {
     if (lot.status != MaterialLotStatus.salesReady) {
       throw StateError('Material lot is not sales-ready.');
@@ -330,7 +409,7 @@ class MarketplaceRepository {
         'quantityAvailable': lot.weightKg,
         'unitPrice': pricePerKg,
         'currency': currency,
-        'imageUrls': <String>[],
+        'imageUrls': imageUrls,
         'deliveryAvailable': true,
       });
       return;
@@ -353,7 +432,7 @@ class MarketplaceRepository {
       'unit': 'kg',
       'totalQuantity': lot.weightKg,
       'availableQuantity': lot.weightKg,
-      'imageUrls': [],
+      'imageUrls': imageUrls,
       'status': MarketplaceListingStatus.active.name,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -430,7 +509,7 @@ class MarketplaceRepository {
               'message': message,
             })
             .then((_) {})
-      : _db.collection('marketplaceQuotes').add({
+      : _db.collection('marketplaceQuotations').add({
           'listingId': listing.id,
           'listingTitle': listing.title,
           'buyerId': buyer.id,
@@ -457,7 +536,7 @@ class MarketplaceRepository {
               'message': '',
             })
             .then((_) {})
-      : _db.collection('marketplaceQuotes').doc(quote.id).update({
+      : _db.collection('marketplaceQuotations').doc(quote.id).update({
           'status': accepted
               ? QuoteStatus.quoted.name
               : QuoteStatus.rejected.name,
@@ -655,15 +734,17 @@ class MarketplaceRepository {
       return;
     }
     final reviewRef = _db.collection('marketplaceReviews').doc(order.id),
-        profileRef = _db.collection('marketplaceProfiles').doc(order.sellerId);
+        sellerRef = _db.collection('marketplaceSellers').doc(order.sellerId);
     await _db.runTransaction((tx) async {
       final existing = await tx.get(reviewRef);
       if (existing.exists) {
         throw StateError('This order has already been reviewed.');
       }
-      final profile = MarketplaceProfile.fromDoc(await tx.get(profileRef));
-      final count = profile.reviewCount + 1,
-          average = (profile.rating * profile.reviewCount + rating) / count;
+      final sellerData = (await tx.get(sellerRef)).data() ?? const {};
+      final currentRating = (sellerData['rating'] as num? ?? 0).toDouble();
+      final currentCount = (sellerData['ratingCount'] as num? ?? 0).toInt();
+      final count = currentCount + 1,
+          average = (currentRating * currentCount + rating) / count;
       tx.set(reviewRef, {
         'orderId': order.id,
         'listingId': order.listingId,
@@ -674,9 +755,9 @@ class MarketplaceRepository {
         'comment': comment.trim(),
         'createdAt': FieldValue.serverTimestamp(),
       });
-      tx.update(profileRef, {
+      tx.update(sellerRef, {
         'rating': average,
-        'reviewCount': count,
+        'ratingCount': count,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     });

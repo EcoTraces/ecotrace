@@ -8,7 +8,7 @@ import {documentJson} from "./firestore-json.js";
 
 const router = Router();
 const managers = ["administrator", "superAdministrator"] as const;
-const operators = ["administrator", "superAdministrator", "driver", "collector", "collectionCentreOperator", "recycler"] as const;
+const operators = ["administrator", "superAdministrator", "driver", "collector", "collectionCentreOperator", "recycler", "repairTechnician", "environmentalOfficer"] as const;
 const vehicleTypes = ["van", "truck", "pickupTruck", "motorcycle", "specializedHazardous"] as const;
 const availabilityStates = ["available", "dispatched", "maintenance", "breakdown", "inactive"] as const;
 

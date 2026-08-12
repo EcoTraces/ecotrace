@@ -1,8 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../../core/app_currency.dart';
+import '../../../core/media/cloudinary_upload_service.dart';
 import '../../recovery/domain/recovered_material.dart';
 import '../../repairs/domain/repair_job.dart';
 import '../data/marketplace_repository.dart';
@@ -914,6 +918,8 @@ class _CreateMarketplaceListingScreenState
       : MarketplaceListingType.recoveredMaterial;
   RepairJob? device;
   RecoveredMaterialLot? material;
+  final images = <XFile>[];
+  bool saving = false;
   final description = TextEditingController(),
       price = TextEditingController(),
       currency = TextEditingController(text: 'SLE');
@@ -1014,13 +1020,46 @@ class _CreateMarketplaceListingScreenState
             helperText: 'Sierra Leone leone (Le)',
           ),
         ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: saving || images.length >= 5
+              ? null
+              : () async {
+                  final selected = await ImagePicker().pickMultiImage(
+                    imageQuality: 75,
+                  );
+                  if (selected.isNotEmpty) {
+                    setState(() {
+                      images.addAll(selected.take(5 - images.length));
+                    });
+                  }
+                },
+          icon: const Icon(Icons.add_a_photo_outlined),
+          label: Text(
+            images.isEmpty
+                ? 'Add listing photos'
+                : 'Listing photos (${images.length}/5)',
+          ),
+        ),
         const SizedBox(height: 18),
-        FilledButton(onPressed: _save, child: const Text('Publish listing')),
+        FilledButton(
+          onPressed: saving ? null : _save,
+          child: Text(saving ? 'Publishing…' : 'Publish listing'),
+        ),
       ],
     ),
   );
   Future<void> _save() async {
+    setState(() => saving = true);
     try {
+      final imageUrls = images.isEmpty
+          ? const <String>[]
+          : await CloudinaryUploadService.instance.uploadImages(
+              await Future.wait(
+                images.map((image) async => Uint8List.fromList(await image.readAsBytes())),
+              ),
+              scope: 'marketplace',
+            );
       if (type == MarketplaceListingType.refurbishedDevice && device != null) {
         await widget.repository.listDevice(
           job: device!,
@@ -1028,6 +1067,7 @@ class _CreateMarketplaceListingScreenState
           description: description.text,
           price: double.tryParse(price.text) ?? 0,
           currency: currency.text,
+          imageUrls: imageUrls,
         );
       } else if (material != null) {
         await widget.repository.listMaterial(
@@ -1036,6 +1076,7 @@ class _CreateMarketplaceListingScreenState
           description: description.text,
           pricePerKg: double.tryParse(price.text) ?? 0,
           currency: currency.text,
+          imageUrls: imageUrls,
         );
       } else {
         throw StateError('Select an eligible asset.');
@@ -1047,6 +1088,8 @@ class _CreateMarketplaceListingScreenState
           SnackBar(content: Text('Unable to publish listing: $error')),
         );
       }
+    } finally {
+      if (mounted) setState(() => saving = false);
     }
   }
 }

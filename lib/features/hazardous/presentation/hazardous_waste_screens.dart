@@ -1,8 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../../../core/media/cloudinary_upload_service.dart';
 import '../../recycling/domain/recycling_batch.dart';
 import '../data/hazardous_waste_repository.dart';
 import '../domain/hazardous_waste.dart';
@@ -794,6 +798,7 @@ class HazardousWasteRecordScreen extends StatelessWidget {
     var severity = IncidentSeverity.moderate;
     final description = TextEditingController(),
         actions = TextEditingController();
+    final images = <XFile>[];
     final ok =
         await showDialog<bool>(
           context: context,
@@ -831,6 +836,29 @@ class HazardousWasteRecordScreen extends StatelessWidget {
                       labelText: 'Immediate emergency actions',
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: images.length >= 5
+                        ? null
+                        : () async {
+                            final selected = await ImagePicker().pickMultiImage(
+                              imageQuality: 75,
+                            );
+                            if (selected.isNotEmpty) {
+                              setLocal(() {
+                                images.addAll(
+                                  selected.take(5 - images.length),
+                                );
+                              });
+                            }
+                          },
+                    icon: const Icon(Icons.add_a_photo_outlined),
+                    label: Text(
+                      images.isEmpty
+                          ? 'Add evidence photos'
+                          : 'Evidence photos (${images.length}/5)',
+                    ),
+                  ),
                 ],
               ),
               actions: [
@@ -850,13 +878,27 @@ class HazardousWasteRecordScreen extends StatelessWidget {
     if (ok && context.mounted) {
       await _runHazard(
         context,
-        () => repository.reportIncident(
-          record,
-          severity: severity,
-          description: description.text,
-          emergencyActions: actions.text,
-          actorId: currentUserId,
-        ),
+        () async {
+          final evidenceUrls = images.isEmpty
+              ? const <String>[]
+              : await CloudinaryUploadService.instance.uploadImages(
+                  await Future.wait(
+                    images.map(
+                      (image) async =>
+                          Uint8List.fromList(await image.readAsBytes()),
+                    ),
+                  ),
+                  scope: 'hazardous',
+                );
+          await repository.reportIncident(
+            record,
+            severity: severity,
+            description: description.text,
+            emergencyActions: actions.text,
+            actorId: currentUserId,
+            evidenceUrls: evidenceUrls,
+          );
+        },
         'Incident reported and material placed on hold.',
       );
     }

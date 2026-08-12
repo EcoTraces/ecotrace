@@ -832,6 +832,8 @@ class RoleHomeScreen extends StatelessWidget {
                         builder: (_) => AdministrationDashboardScreen(
                           repository: AdminRepository(),
                           auditRepository: AuditRepository(),
+                          canChangeRoles:
+                              profile.role == AppRole.superAdministrator,
                         ),
                       ),
                     ),
@@ -1015,6 +1017,10 @@ class RoleHomeScreen extends StatelessWidget {
                             AppRole.administrator,
                             AppRole.superAdministrator,
                           ].contains(profile.role),
+                          canSchedule: [
+                            AppRole.administrator,
+                            AppRole.superAdministrator,
+                          ].contains(profile.role),
                         ),
                       ),
                     ),
@@ -1028,8 +1034,13 @@ class RoleHomeScreen extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) =>
-                            FleetScreen(repository: FleetRepository()),
+                        builder: (_) => FleetScreen(
+                          repository: FleetRepository(),
+                          isFleetManager: [
+                            AppRole.administrator,
+                            AppRole.superAdministrator,
+                          ].contains(profile.role),
+                        ),
                       ),
                     ),
                     icon: const Icon(Icons.local_shipping),

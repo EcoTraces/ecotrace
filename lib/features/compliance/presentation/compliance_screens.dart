@@ -36,13 +36,32 @@ class ComplianceDashboardScreen extends StatelessWidget {
                           StreamBuilder<List<RegulatoryBody>>(
                             stream: repository.watchRegulatoryBodies(),
                             builder: (context, bodySnapshot) {
-                              if (![
+                              final snapshots = [
                                 documentSnapshot,
                                 inspectionSnapshot,
                                 violationSnapshot,
                                 penaltySnapshot,
                                 bodySnapshot,
-                              ].every((snapshot) => snapshot.hasData)) {
+                              ];
+                              final erroredSnapshots = snapshots.where(
+                                (snapshot) => snapshot.hasError,
+                              );
+                              if (erroredSnapshots.isNotEmpty) {
+                                return Scaffold(
+                                  body: Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(24),
+                                      child: Text(
+                                        'Compliance data is unavailable: ${erroredSnapshots.first.error}',
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                              if (!snapshots.every(
+                                (snapshot) => snapshot.hasData,
+                              )) {
                                 return const Scaffold(
                                   body: Center(
                                     child: CircularProgressIndicator(),
@@ -831,6 +850,9 @@ class ComplianceDashboardScreen extends StatelessWidget {
                   if (bodies.isNotEmpty)
                     DropdownButtonFormField<RegulatoryBody>(
                       initialValue: body,
+                      decoration: const InputDecoration(
+                        labelText: 'Regulatory body',
+                      ),
                       items: bodies
                           .map(
                             (value) => DropdownMenuItem(
@@ -840,6 +862,10 @@ class ComplianceDashboardScreen extends StatelessWidget {
                           )
                           .toList(),
                       onChanged: (value) => setLocal(() => body = value),
+                    )
+                  else
+                    const Text(
+                      'Register a regulatory body before scheduling an inspection.',
                     ),
                   ListTile(
                     title: const Text('Inspection date'),
@@ -860,7 +886,9 @@ class ComplianceDashboardScreen extends StatelessWidget {
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
+                  onPressed: body != null
+                      ? () => Navigator.pop(context, true)
+                      : null,
                   child: const Text('Schedule'),
                 ),
               ],

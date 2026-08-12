@@ -305,7 +305,7 @@ router.get("/routing/reports/performance", authenticate, requireRoles(...supervi
 });
 
 router.get("/routing/service-coverage", authenticate, requireRoles(...operators), async (_request, response) => {
-  const [centres, pickups] = await Promise.all([db.collection("collectionCentres").where("status", "==", "active").limit(500).get(), db.collection("pickupRequests").limit(2000).get()]);
+  const [centres, pickups] = await Promise.all([db.collection("collectionCentres").where("active", "==", true).limit(500).get(), db.collection("pickupRequests").limit(2000).get()]);
   const points = [
     ...centres.docs.map((document) => ({id: document.id, type: "centre", name: String(document.get("name") ?? "Collection centre"), latitude: Number(document.get("latitude")), longitude: Number(document.get("longitude"))})),
     ...pickups.docs.map((document) => ({id: document.id, type: "pickup", name: String(document.get("location") ?? "Pickup"), latitude: Number(document.get("latitude")), longitude: Number(document.get("longitude"))})),

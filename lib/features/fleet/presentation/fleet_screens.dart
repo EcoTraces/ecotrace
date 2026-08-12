@@ -4,8 +4,17 @@ import '../data/fleet_repository.dart';
 import '../domain/vehicle.dart';
 
 class FleetScreen extends StatelessWidget {
-  const FleetScreen({super.key, required this.repository});
+  const FleetScreen({
+    super.key,
+    required this.repository,
+    this.isFleetManager = false,
+  });
   final FleetRepository repository;
+  // Backend gates driver assignment, inspections, and maintenance scheduling
+  // to administrator/superAdministrator; other operational roles that reach
+  // this screen (collector, driver, recycler, etc.) can still view vehicles
+  // and log fuel/mileage/location/breakdowns, which are open to `operators`.
+  final bool isFleetManager;
   @override
   Widget build(BuildContext c) => Scaffold(
     appBar: AppBar(title: const Text('Fleet management')),
@@ -74,8 +83,11 @@ class FleetScreen extends StatelessWidget {
                 onTap: () => Navigator.push(
                   c,
                   MaterialPageRoute(
-                    builder: (_) =>
-                        VehicleDetailScreen(repository: repository, vehicle: v),
+                    builder: (_) => VehicleDetailScreen(
+                      repository: repository,
+                      vehicle: v,
+                      isFleetManager: isFleetManager,
+                    ),
                   ),
                 ),
               ),
@@ -237,9 +249,11 @@ class VehicleDetailScreen extends StatelessWidget {
     super.key,
     required this.repository,
     required this.vehicle,
+    this.isFleetManager = false,
   });
   final FleetRepository repository;
   final Vehicle vehicle;
+  final bool isFleetManager;
   @override
   Widget build(BuildContext c) => Scaffold(
     appBar: AppBar(title: Text(vehicle.registrationNumber)),
@@ -274,14 +288,16 @@ class VehicleDetailScreen extends StatelessWidget {
         Wrap(
           spacing: 8,
           children: [
-            FilledButton.tonal(
-              onPressed: () => _assignDriver(c),
-              child: const Text('Assign driver'),
-            ),
-            FilledButton.tonal(
-              onPressed: () => _event(c, 'inspection'),
-              child: const Text('Inspection'),
-            ),
+            if (isFleetManager)
+              FilledButton.tonal(
+                onPressed: () => _assignDriver(c),
+                child: const Text('Assign driver'),
+              ),
+            if (isFleetManager)
+              FilledButton.tonal(
+                onPressed: () => _event(c, 'inspection'),
+                child: const Text('Inspection'),
+              ),
             FilledButton.tonal(
               onPressed: () => _event(c, 'fuel'),
               child: const Text('Fuel'),
@@ -294,10 +310,11 @@ class VehicleDetailScreen extends StatelessWidget {
               onPressed: () => _event(c, 'location'),
               child: const Text('Location'),
             ),
-            FilledButton.tonal(
-              onPressed: () => _event(c, 'maintenance'),
-              child: const Text('Maintenance'),
-            ),
+            if (isFleetManager)
+              FilledButton.tonal(
+                onPressed: () => _event(c, 'maintenance'),
+                child: const Text('Maintenance'),
+              ),
             FilledButton.tonal(
               onPressed: () => _event(c, 'breakdown'),
               child: const Text('Breakdown'),

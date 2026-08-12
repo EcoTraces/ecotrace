@@ -26,6 +26,17 @@ class IncidentDashboardScreen extends StatelessWidget {
     body: StreamBuilder<List<SafetyIncident>>(
       stream: repository.watchIncidents(),
       builder: (c, s) {
+        if (s.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Incident data is unavailable: ${s.error}',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
         if (!s.hasData) return const Center(child: CircularProgressIndicator());
         final stats = SafetyStatistics.fromIncidents(s.data!);
         return ListView(

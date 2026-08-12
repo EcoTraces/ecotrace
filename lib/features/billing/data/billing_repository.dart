@@ -28,9 +28,9 @@ class BillingRepository {
       _useApi
       ? _pollList('/api/v1/payments/transactions', BillingTransaction.fromJson)
       : (all
-                ? _db.collection('billingTransactions')
+                ? _db.collection('paymentTransactions')
                 : _db
-                      .collection('billingTransactions')
+                      .collection('paymentTransactions')
                       .where('participantIds', arrayContains: userId))
             .snapshots()
             .map((s) => s.docs.map(BillingTransaction.fromDoc).toList());
@@ -38,9 +38,9 @@ class BillingRepository {
       _useApi
       ? _pollList('/api/v1/payments/invoices', BillingInvoice.fromJson)
       : (all
-                ? _db.collection('billingInvoices')
+                ? _db.collection('invoices')
                 : _db
-                      .collection('billingInvoices')
+                      .collection('invoices')
                       .where('customerId', isEqualTo: userId))
             .snapshots()
             .map((s) => s.docs.map(BillingInvoice.fromDoc).toList());
@@ -85,7 +85,7 @@ class BillingRepository {
       return;
     }
     final duplicate = await _db
-        .collection('billingTransactions')
+        .collection('paymentTransactions')
         .where('referenceId', isEqualTo: referenceId)
         .where('purpose', isEqualTo: purpose.name)
         .limit(1)
@@ -93,7 +93,7 @@ class BillingRepository {
     if (duplicate.docs.isNotEmpty) {
       throw StateError('This reference has already been billed.');
     }
-    final document = await _db.collection('billingTransactions').add({
+    final document = await _db.collection('paymentTransactions').add({
       'transactionNumber': 'PAY-${DateTime.now().millisecondsSinceEpoch}',
       'purpose': purpose.name,
       'payerId': payerId,
@@ -151,7 +151,7 @@ class BillingRepository {
       });
       return;
     }
-    await _db.collection('billingTransactions').doc(t.id).update({
+    await _db.collection('paymentTransactions').doc(t.id).update({
       'status': BillingStatus.confirmed.name,
       'confirmedBy': actor,
       'confirmedAt': FieldValue.serverTimestamp(),
@@ -177,7 +177,7 @@ class BillingRepository {
       });
       return;
     }
-    await _db.collection('billingTransactions').doc(t.id).update({
+    await _db.collection('paymentTransactions').doc(t.id).update({
       'status': BillingStatus.failed.name,
       'failureReason': reason.trim(),
       'failedAt': FieldValue.serverTimestamp(),
@@ -205,7 +205,7 @@ class BillingRepository {
       });
       return;
     }
-    await _db.collection('billingTransactions').doc(t.id).update({
+    await _db.collection('paymentTransactions').doc(t.id).update({
       'status': BillingStatus.refunded.name,
       'refundedBy': actor,
       'refundedAt': FieldValue.serverTimestamp(),
@@ -255,7 +255,7 @@ class BillingRepository {
       });
       return;
     }
-    await _db.collection('billingInvoices').add({
+    await _db.collection('invoices').add({
       'invoiceNumber': 'INV-${DateTime.now().millisecondsSinceEpoch}',
       'customerId': customerId,
       'description': description,

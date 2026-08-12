@@ -891,14 +891,16 @@ class RoleWorkspaceScreen extends StatelessWidget {
       repository: DispatchRepository(),
       routeRepository: RouteRepository(),
       canGenerateRoutes: isAdministrator,
+      canSchedule: isAdministrator,
     ),
     WorkspaceDestination.routeNavigation => RouteDashboardScreen(
       repository: RouteRepository(),
-      canOptimize: profile.role != AppRole.driver,
+      canOptimize: isAdministrator,
       currentUserId: profile.uid,
     ),
     WorkspaceDestination.vehicleInformation => FleetScreen(
       repository: FleetRepository(),
+      isFleetManager: isAdministrator,
     ),
     WorkspaceDestination.receivedItems ||
     WorkspaceDestination.assessment ||
@@ -1001,6 +1003,7 @@ class RoleWorkspaceScreen extends StatelessWidget {
             repository: AdminRepository(),
             auditRepository: AuditRepository(),
             initialTab: 1,
+            canChangeRoles: profile.role == AppRole.superAdministrator,
           ),
         ),
         _FeatureLink(
@@ -1034,6 +1037,7 @@ class RoleWorkspaceScreen extends StatelessWidget {
       repository: AdminRepository(),
       auditRepository: AuditRepository(),
       initialTab: 3,
+      canChangeRoles: profile.role == AppRole.superAdministrator,
     ),
   };
 

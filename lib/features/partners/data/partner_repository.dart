@@ -16,7 +16,7 @@ class PartnerRepository {
   final ApiClient _api;
   final bool _useApi;
   CollectionReference<Map<String, dynamic>> get _partners =>
-      _db.collection('servicePartners');
+      _db.collection('partners');
 
   Stream<List<Partner>> watchPartners() => _useApi
       ? _pollPartners()

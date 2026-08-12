@@ -27,7 +27,7 @@ class ComplianceRepository {
   Stream<List<ComplianceViolation>> watchViolations() =>
       _useApi ? _poll('/api/v1/compliance/violations', ComplianceViolation.fromJson) : _watch('complianceViolations', ComplianceViolation.fromDoc);
   Stream<List<PenaltyRecord>> watchPenalties() =>
-      _useApi ? _poll('/api/v1/compliance/penalties', PenaltyRecord.fromJson) : _watch('compliancePenalties', PenaltyRecord.fromDoc);
+      _useApi ? _poll('/api/v1/compliance/penalties', PenaltyRecord.fromJson) : _watch('penaltyRecords', PenaltyRecord.fromDoc);
 
   Stream<List<T>> _poll<T>(String path, T Function(Map<String, dynamic>) convert) async* {
     while (true) {
@@ -322,7 +322,7 @@ class ComplianceRepository {
       return;
     }
     final write = _db.batch();
-    write.set(_db.collection('compliancePenalties').doc(), {
+    write.set(_db.collection('penaltyRecords').doc(), {
       'violationId': violation.id,
       'referenceNumber': referenceNumber.trim(),
       'amount': amount,
@@ -342,7 +342,7 @@ class ComplianceRepository {
   Future<void> updatePenaltyStatus(
     PenaltyRecord penalty,
     PenaltyStatus status,
-  ) => _useApi ? _api.patch('/api/v1/compliance/penalties/${penalty.id}/status', {'status': status.name}).then((_) {}) : _db.collection('compliancePenalties').doc(penalty.id).update({
+  ) => _useApi ? _api.patch('/api/v1/compliance/penalties/${penalty.id}/status', {'status': status.name}).then((_) {}) : _db.collection('penaltyRecords').doc(penalty.id).update({
     'status': status.name,
     'updatedAt': FieldValue.serverTimestamp(),
   });

@@ -18,7 +18,7 @@ class IncidentRepository {
   final ApiClient _api;
   final bool _useApi;
   CollectionReference<Map<String, dynamic>> get _incidents =>
-      _db.collection('safetyIncidents');
+      _db.collection('incidents');
   Stream<List<SafetyIncident>> watchIncidents() => _useApi
       ? _pollIncidents()
       : _incidents.snapshots().map(

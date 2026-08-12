@@ -23,7 +23,7 @@ class DocumentRepository {
   final ApiClient _api;
   final bool _useApi;
   CollectionReference<Map<String, dynamic>> get _docs =>
-      _db.collection('managedDocuments');
+      _db.collection('documents');
   Stream<List<ManagedDocument>> watchDocuments(String userId, bool all) =>
       _useApi
       ? _pollDocuments(userId, all)

@@ -13,10 +13,15 @@ class DispatchDashboardScreen extends StatefulWidget {
     required this.repository,
     this.routeRepository,
     this.canGenerateRoutes = false,
+    this.canSchedule = false,
   });
   final DispatchRepository repository;
   final RouteRepository? routeRepository;
   final bool canGenerateRoutes;
+  // Backend gates schedule creation (and its supporting reads) to
+  // administrator/superAdministrator; hiding the FAB for other roles
+  // (e.g. collector, driver) avoids a screen full of 403s.
+  final bool canSchedule;
   @override
   State<DispatchDashboardScreen> createState() => _DispatchDashboardState();
 }
@@ -141,16 +146,19 @@ class _DispatchDashboardState extends State<DispatchDashboardScreen> {
         );
       },
     ),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => CreateScheduleScreen(repository: widget.repository),
-        ),
-      ),
-      icon: const Icon(Icons.add),
-      label: const Text('Schedule'),
-    ),
+    floatingActionButton: widget.canSchedule
+        ? FloatingActionButton.extended(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    CreateScheduleScreen(repository: widget.repository),
+              ),
+            ),
+            icon: const Icon(Icons.add),
+            label: const Text('Schedule'),
+          )
+        : null,
   );
 
   Future<void> _action(

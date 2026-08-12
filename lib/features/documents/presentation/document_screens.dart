@@ -20,11 +20,13 @@ class DocumentDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Secure document management')),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: () => _upload(context),
-      icon: const Icon(Icons.upload_file),
-      label: const Text('Upload'),
-    ),
+    floatingActionButton: canGovern
+        ? FloatingActionButton.extended(
+            onPressed: () => _upload(context),
+            icon: const Icon(Icons.upload_file),
+            label: const Text('Upload'),
+          )
+        : null,
     body: StreamBuilder<List<ManagedDocument>>(
       stream: repository.watchDocuments(userId, canGovern),
       builder: (context, snapshot) {

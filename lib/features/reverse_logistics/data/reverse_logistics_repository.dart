@@ -22,7 +22,7 @@ class ReverseLogisticsRepository {
   final ApiClient _api;
   final bool _useApi;
   CollectionReference<Map<String, dynamic>> get _transfers =>
-      _db.collection('reverseLogisticsTransfers');
+      _db.collection('logisticsTransfers');
 
   Stream<List<ReverseLogisticsTransfer>> watchTransfers() => _useApi
       ? _pollTransfers()
