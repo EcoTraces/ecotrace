@@ -238,11 +238,21 @@ class _CreatePickupState extends State<CreatePickupScreen> {
             subtitle: Text(date.toLocal().toString()),
             trailing: const Icon(Icons.calendar_month),
             onTap: () async {
+              // Pickups are always scheduled for 9 AM local time (no
+              // time-of-day picker), so "today" can only be offered while
+              // 9 AM hasn't passed yet - otherwise the resulting
+              // scheduledAt would already be in the past and the backend
+              // would correctly reject it.
+              final now = DateTime.now();
+              final todayAtNine = DateTime(now.year, now.month, now.day, 9);
+              final earliest = now.isBefore(todayAtNine)
+                  ? now
+                  : now.add(const Duration(days: 1));
               final d = await showDatePicker(
                 context: c,
-                firstDate: DateTime.now(),
+                firstDate: earliest,
                 lastDate: DateTime.now().add(const Duration(days: 365)),
-                initialDate: date,
+                initialDate: date.isBefore(earliest) ? earliest : date,
               );
               if (d != null) {
                 setState(() => date = DateTime(d.year, d.month, d.day, 9));

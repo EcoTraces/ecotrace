@@ -68,6 +68,17 @@ class NotificationService {
     for (var attempt = 0; attempt < 3; attempt++) {
       try {
         return await operation();
+      } on ApiException catch (error) {
+        // ApiClient already retries a 401 once internally with a forced
+        // token refresh. If it still failed, the cause is server-side
+        // (e.g. this service's own Firebase credentials), not a stale
+        // client token - retrying the identical request again here
+        // cannot succeed and only multiplies failed attempts.
+        if (error.statusCode == 401 || error.statusCode == 403) rethrow;
+        lastError = error;
+        if (attempt < 2) {
+          await Future<void>.delayed(Duration(seconds: 2 << attempt));
+        }
       } catch (error) {
         lastError = error;
         if (attempt < 2) {
