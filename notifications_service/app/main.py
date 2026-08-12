@@ -69,6 +69,12 @@ Features:
 # CORS Configuration
 # ---------------------------------------------------------
 
+# Local development origins (any localhost/127.0.0.1 port, e.g. Flutter's
+# `flutter run -d chrome`) are always allowed via the regex below. Any other
+# origin — including the deployed production frontend — must be explicitly
+# listed in API_ALLOWED_ORIGINS on Render. There is no wildcard fallback:
+# an unset API_ALLOWED_ORIGINS means "no non-local origins are allowed yet",
+# not "allow everything".
 origins = [
     origin.strip()
     for origin in os.getenv("API_ALLOWED_ORIGINS", "").split(",")
@@ -77,9 +83,9 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins or ["*"],
+    allow_origins=origins,
     allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
-    allow_credentials=False if not origins else True,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

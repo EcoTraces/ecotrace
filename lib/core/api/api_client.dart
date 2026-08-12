@@ -263,7 +263,10 @@ class ApiClient {
     Future<http.Response> Function() operation,
   ) async {
     Object? lastError;
-    const delays = [2, 4, 8, 10, 10, 10];
+    // Render's free tier can take 50+ seconds to wake a sleeping instance
+    // (per its own dashboard warning). These delays sum to 69s so a cold
+    // start is retried through, not just partially waited out.
+    const delays = [2, 4, 8, 10, 15, 15, 15];
     for (var attempt = 0; attempt <= delays.length; attempt++) {
       try {
         return await operation();
