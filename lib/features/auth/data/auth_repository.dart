@@ -56,12 +56,6 @@ class AuthRepository {
       return;
     }
 
-    // Force refresh the Firebase ID token now so that subsequent API
-    // calls in the loop operate with a valid, non-expired token.
-    // Use forceRefresh: true to bypass cached token and obtain a fresh one.
-    const forceRefresh = true;
-    await currentUser.getIdToken(forceRefresh);
-
     while (_auth.currentUser != null) {
       try {
         final data = await _api.get('/api/v1/identity/profile');

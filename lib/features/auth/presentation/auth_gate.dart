@@ -9,13 +9,39 @@ import 'auth_screens.dart';
 import '../../pickups/data/notification_service.dart';
 import '../../workspace/presentation/role_workspace_screen.dart';
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key, required this.repository});
 
   final AuthRepository repository;
 
   @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  // `authStateChanges` is backed by FirebaseAuth.userChanges(), which fires
+  // on every ID token refresh in addition to real sign-in/sign-out (needed
+  // so the email-verification gate below updates after `reload()`). Calling
+  // `watchProfile` directly inside build() would therefore tear down and
+  // restart the profile-polling stream on every token refresh. Since a 401
+  // from that very stream triggers a force-refresh (see ApiClient), that
+  // recreation becomes a self-sustaining loop the UI shows as a constant
+  // restart. Caching the stream per-uid decouples it from unrelated
+  // token-refresh rebuilds.
+  String? _profileStreamUid;
+  Stream<UserProfile?>? _profileStream;
+
+  Stream<UserProfile?> _profileStreamFor(String uid) {
+    if (_profileStreamUid != uid) {
+      _profileStreamUid = uid;
+      _profileStream = widget.repository.watchProfile(uid);
+    }
+    return _profileStream!;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final repository = widget.repository;
     return StreamBuilder<User?>(
       stream: repository.authStateChanges,
       builder: (context, authSnapshot) {
@@ -23,13 +49,17 @@ class AuthGate extends StatelessWidget {
           return const LoadingScreen();
         }
         final user = authSnapshot.data;
-        if (user == null) return LoginScreen(repository: repository);
+        if (user == null) {
+          _profileStreamUid = null;
+          _profileStream = null;
+          return LoginScreen(repository: repository);
+        }
         if (!user.emailVerified) {
           return EmailVerificationScreen(repository: repository, user: user);
         }
 
         return StreamBuilder<UserProfile?>(
-          stream: repository.watchProfile(user.uid),
+          stream: _profileStreamFor(user.uid),
           builder: (context, profileSnapshot) {
             if (profileSnapshot.hasError) {
               return MessageScreen(
