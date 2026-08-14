@@ -929,6 +929,10 @@ service cloud.firestore {
       allow update: if isAdministrator() || (signedIn() && resource.data.userId == request.auth.uid && resource.data.status == 'failed' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'providerReference', 'failureReason', 'retryCount', 'updatedAt']));
       allow delete: if false;
     }
+    match /paymentTransactions/{transactionId} {
+      allow read: if isAdministrator() || (signedIn() && resource.data.payerId == request.auth.uid);
+      allow create, update, delete: if false;
+    }
     match /payouts/{payoutId} { allow read, create, update: if isAdministrator(); allow delete: if false; }
     match /financialReconciliations/{id} { allow read, create: if isAdministrator(); allow update, delete: if false; }
     match /billingTransactions/{id} { allow create: if signedIn() && request.resource.data.payerId == request.auth.uid && request.auth.uid in request.resource.data.participantIds && request.resource.data.total >= 0; allow read: if isAdministrator() || (signedIn() && request.auth.uid in resource.data.participantIds); allow update: if isAdministrator(); allow delete: if false; }
