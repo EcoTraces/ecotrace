@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/api/api_client.dart';
@@ -47,6 +49,15 @@ class _MonimePaymentScreenState extends State<MonimePaymentScreen> {
   bool _submitting = false;
   String? _error;
   String? _transactionId;
+  Timer? _pendingTimeoutTimer;
+  bool _showTimeoutHint = false;
+
+  // Monime's Payment Code API has no event for a failed attempt (e.g.
+  // insufficient balance) — a code that isn't paid just stays 'pending', so
+  // there's nothing to detect that in real time. This timeout is a fallback:
+  // if we're still waiting this long after the code was issued, it's more
+  // useful to suggest likely reasons than to spin forever.
+  static const _pendingHintDelay = Duration(minutes: 3);
 
   @override
   void initState() {
@@ -59,6 +70,7 @@ class _MonimePaymentScreenState extends State<MonimePaymentScreen> {
 
   @override
   void dispose() {
+    _pendingTimeoutTimer?.cancel();
     _referenceController.dispose();
     _amountController.dispose();
     _phoneController.dispose();
@@ -94,6 +106,11 @@ class _MonimePaymentScreenState extends State<MonimePaymentScreen> {
         provider: _provider,
         phoneNumber: phone,
       );
+      _pendingTimeoutTimer?.cancel();
+      _showTimeoutHint = false;
+      _pendingTimeoutTimer = Timer(_pendingHintDelay, () {
+        if (mounted) setState(() => _showTimeoutHint = true);
+      });
       setState(() => _transactionId = result.id);
     } on ApiException catch (error) {
       setState(() => _error = error.message);
@@ -105,9 +122,11 @@ class _MonimePaymentScreenState extends State<MonimePaymentScreen> {
   }
 
   void _retry() {
+    _pendingTimeoutTimer?.cancel();
     setState(() {
       _transactionId = null;
       _error = null;
+      _showTimeoutHint = false;
     });
   }
 
@@ -281,6 +300,46 @@ class _MonimePaymentScreenState extends State<MonimePaymentScreen> {
                 payment.ussdCode,
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
+              const SizedBox(height: 8),
+              Text(
+                'This code is provided by Monime, EcoTrace\'s secure payment '
+                "partner, and is unique to this payment — it's not your "
+                'regular mobile money menu code. Dial it exactly as shown.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+    if (_showTimeoutHint && payment.status == MonimePaymentStatus.pending) ...[
+      const SizedBox(height: 16),
+      Card(
+        color: Theme.of(context).colorScheme.errorContainer,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Text(
+                "We haven't received your payment yet.",
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'This can happen if there was not enough balance, the code '
+                'expired, or it was entered incorrectly. You can try again '
+                'below.',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(onPressed: _retry, child: const Text('Try again')),
             ],
           ),
         ),
