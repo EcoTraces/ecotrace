@@ -6,6 +6,7 @@ import {ApiError} from "./errors.js";
 import {db} from "./firebase.js";
 import {documentJson} from "./firestore-json.js";
 import {createPaymentCode, getPaymentCode, MONIME_MOMO_PROVIDERS, type MonimeMomoProviderKey} from "./monime-client.js";
+import {confirmPickupAfterPayment} from "./pickup-routes.js";
 import {publishNotificationEvent} from "./push-events.js";
 
 const router = Router();
@@ -26,6 +27,7 @@ export async function verifiedIntentAmount(purpose: string, referenceId: string,
     const pickup = await db.collection("pickupRequests").doc(referenceId).get();
     if (!pickup.exists) throw new ApiError(404, "Referenced pickup request not found.", "not_found");
     if (pickup.get("userId") !== uid) throw new ApiError(403, "You cannot pay for another user's pickup.", "forbidden");
+    if (pickup.get("status") !== "draft") throw new ApiError(409, "This pickup request is not awaiting payment.", "not_awaiting_payment");
     const expected = number(pickup.get("estimatedFee"));
     if (Math.abs(expected - amount) > 0.01) throw new ApiError(409, "The payment amount does not match the pickup's calculated fee.", "amount_mismatch");
   } else if (purpose === "marketplaceOrder") {
@@ -65,8 +67,27 @@ router.post("/payments/monime/initiate", authenticate, requireRoles(...users), a
     .where("referenceId", "==", input.referenceId)
     .where("purpose", "==", input.purpose)
     .limit(1).get();
-  if (!duplicate.empty && ["pending", "processing", "confirmed"].includes(String(duplicate.docs[0].get("status")))) {
-    throw new ApiError(409, "An active payment already exists for this reference.", "duplicate_payment");
+  if (!duplicate.empty) {
+    const existing = duplicate.docs[0];
+    const existingStatus = String(existing.get("status"));
+    if (existingStatus === "confirmed") {
+      throw new ApiError(409, "This has already been paid.", "already_paid");
+    }
+    if (["pending", "processing"].includes(existingStatus)) {
+      // A payment attempt is already in flight for this reference (e.g. a
+      // duplicate button press) — reuse it instead of creating a second
+      // Monime payment code, so retries never double-charge.
+      const monime = existing.get("monime") as {ussdCode?: string; expireTime?: string} | undefined;
+      response.status(200).json({data: {
+        id: existing.id,
+        transactionNumber: existing.get("transactionNumber"),
+        status: existingStatus,
+        ussdCode: monime?.ussdCode ?? "",
+        expiresAt: monime?.expireTime ?? null,
+      }});
+      return;
+    }
+    // existingStatus === "failed" -> fall through and create a fresh attempt.
   }
   const ref = db.collection("paymentTransactions").doc();
   const providerId = MONIME_MOMO_PROVIDERS[input.provider];
@@ -74,7 +95,6 @@ router.post("/payments/monime/initiate", authenticate, requireRoles(...users), a
     name: `EcoTrace ${input.purpose}`.slice(0, 64),
     amountMinorUnits: Math.round(input.amount * 100),
     currency: input.currency,
-    providerId,
     phoneNumber: input.phoneNumber,
     durationMinutes: 30,
     reference: ref.id,
@@ -140,6 +160,9 @@ router.post("/payments/monime/webhook", async (request, response) => {
         : `Your payment could not be processed: ${paymentCode.status === "expired" ? "the payment code expired" : "it was cancelled"}.`,
       data: {transactionId: doc.ref.id},
     });
+    if (mapped.status === "confirmed" && doc.get("purpose") === "pickupFee") {
+      await confirmPickupAfterPayment(String(doc.get("referenceId")));
+    }
   }
   response.status(200).json({received: true});
 });

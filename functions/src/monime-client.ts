@@ -58,19 +58,24 @@ export function createPaymentCode(input: {
   name: string;
   amountMinorUnits: number;
   currency: string;
-  providerId: string;
   phoneNumber: string;
   durationMinutes: number;
   reference: string;
   metadata: Record<string, string>;
 }, idempotencyKey: string): Promise<MonimePaymentCode> {
+  // Monime rejects a request that sets both `authorizedProviders` and
+  // `authorizedPhoneNumber` ("A payment provider must not be set when a
+  // paying phone number is specified.") — confirmed live against the
+  // sandbox, not documented anywhere in Monime's published schema. Sending
+  // the phone number alone works: Monime infers the mobile-money network
+  // from the MSISDN itself, so the provider the user picked in the UI is
+  // used only for our own labeling, not sent to Monime.
   return call<MonimePaymentCode>("/v1/payment-codes", {
     method: "POST",
     body: JSON.stringify({
       name: input.name,
       amount: {currency: input.currency, value: input.amountMinorUnits},
       duration: `${input.durationMinutes}m`,
-      authorizedProviders: [input.providerId],
       authorizedPhoneNumber: input.phoneNumber,
       reference: input.reference,
       metadata: input.metadata,

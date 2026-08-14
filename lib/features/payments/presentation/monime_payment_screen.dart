@@ -17,6 +17,8 @@ class MonimePaymentScreen extends StatefulWidget {
     this.referenceId,
     this.amount,
     this.currency = 'SLE',
+    this.title = 'Pay with mobile money',
+    this.submitLabel,
   });
 
   final MonimePaymentRepository repository;
@@ -24,6 +26,14 @@ class MonimePaymentScreen extends StatefulWidget {
   final String? referenceId;
   final double? amount;
   final String currency;
+  final String title;
+  final String? submitLabel;
+
+  /// True when the caller supplied a real amount/reference to pay against
+  /// (e.g. a pickup fee) rather than leaving them free for ops testing —
+  /// in that case those fields are shown read-only, since the frontend must
+  /// never be able to change what gets charged.
+  bool get _hasFixedDetails => amount != null && referenceId != null;
 
   @override
   State<MonimePaymentScreen> createState() => _MonimePaymentScreenState();
@@ -104,7 +114,7 @@ class _MonimePaymentScreenState extends State<MonimePaymentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Pay with mobile money')),
+      appBar: AppBar(title: Text(widget.title)),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: _transactionId == null ? _buildForm() : _buildStatus(_transactionId!),
@@ -129,18 +139,39 @@ class _MonimePaymentScreenState extends State<MonimePaymentScreen> {
               setState(() => _provider = selection.first),
         ),
         const SizedBox(height: 16),
-        TextField(
-          controller: _amountController,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: 'Amount (${widget.currency})',
+        if (widget._hasFixedDetails)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Amount to pay'),
+                  Text(
+                    AppCurrency.format(
+                      widget.amount!,
+                      currencyCode: widget.currency,
+                    ),
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ],
+              ),
+            ),
+          )
+        else ...[
+          TextField(
+            controller: _amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Amount (${widget.currency})',
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _referenceController,
-          decoration: const InputDecoration(labelText: 'Payment reference'),
-        ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _referenceController,
+            decoration: const InputDecoration(labelText: 'Payment reference'),
+          ),
+        ],
         const SizedBox(height: 12),
         TextField(
           controller: _phoneController,
@@ -167,7 +198,7 @@ class _MonimePaymentScreenState extends State<MonimePaymentScreen> {
                   width: 18,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Text('Pay with ${_provider.label}'),
+              : Text(widget.submitLabel ?? 'Pay with ${_provider.label}'),
         ),
       ],
     );

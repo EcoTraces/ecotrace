@@ -39,8 +39,6 @@ import '../../organizations/data/organization_repository.dart';
 import '../../organizations/presentation/organization_screens.dart';
 import '../../partners/data/partner_repository.dart';
 import '../../partners/presentation/partner_screens.dart';
-import '../../payments/data/monime_payment_repository.dart';
-import '../../payments/presentation/monime_payment_screen.dart';
 import '../../pickups/data/pickup_repository.dart';
 import '../../pickups/presentation/pickup_screens.dart';
 import '../../recovery/data/resource_recovery_repository.dart';
@@ -1027,9 +1025,6 @@ class RoleWorkspaceScreen extends StatelessWidget {
       userId: profile.uid,
       canManage: true,
     ),
-    WorkspaceDestination.walletPayments => MonimePaymentScreen(
-      repository: MonimePaymentRepository(),
-    ),
     WorkspaceDestination.compliance => ComplianceDashboardScreen(
       repository: ComplianceRepository(),
       currentUserId: profile.uid,
@@ -1055,7 +1050,6 @@ class RoleWorkspaceScreen extends StatelessWidget {
     WorkspaceDestination.collectionCentres => Icons.warehouse_outlined,
     WorkspaceDestination.rewards => Icons.emoji_events_outlined,
     WorkspaceDestination.marketplace => Icons.storefront_outlined,
-    WorkspaceDestination.walletPayments => Icons.phone_android,
     WorkspaceDestination.notifications => Icons.notifications_outlined,
     WorkspaceDestination.support => Icons.support_agent,
     WorkspaceDestination.profile => Icons.person_outline,

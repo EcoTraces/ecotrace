@@ -318,6 +318,21 @@ router.patch("/pickup-requests/:id", authenticate, async (request, response) => 
   response.json({data: {id: reference.id, status: "draft", fee}});
 });
 
+// Confirming a draft into a submitted pickup requires its pickup fee to have
+// actually been paid — see the pickupFee payment flow in payment-routes.ts,
+// which is the normal path into this state. This check exists so nothing
+// (including a direct API call) can bypass payment by hitting this endpoint.
+async function requirePickupPaid(pickupId: string): Promise<void> {
+  const paid = await db.collection("paymentTransactions")
+    .where("referenceId", "==", pickupId)
+    .where("purpose", "==", "pickupFee")
+    .where("status", "==", "confirmed")
+    .limit(1).get();
+  if (paid.empty) {
+    throw new ApiError(402, "Payment is required before this pickup request can be confirmed.", "payment_required");
+  }
+}
+
 router.post("/pickup-requests/:id/confirm", authenticate, async (request, response) => {
   const {reference, snapshot} = await customerPickup(
     idParameter(request.params.id), request.user!.uid, request.user!.role,
@@ -329,6 +344,7 @@ router.post("/pickup-requests/:id/confirm", authenticate, async (request, respon
   if (!Array.isArray(photos) || photos.length === 0) {
     throw new ApiError(409, "At least one item photo is required.", "photo_required");
   }
+  await requirePickupPaid(reference.id);
   await appendStatus(reference, "draft", "submitted", request.user!.uid, "Pickup confirmed");
   void publishNotificationEvent({
     event: "pickup_request_submitted",
@@ -336,6 +352,27 @@ router.post("/pickup-requests/:id/confirm", authenticate, async (request, respon
   });
   response.json({data: {id: reference.id, status: "submitted"}});
 });
+
+// Called from the Monime webhook handler once a pickupFee payment is
+// confirmed, to auto-advance the draft pickup it belongs to. Does not
+// re-check payment status (the caller just confirmed it) and is a no-op if
+// the pickup is missing or already past the draft stage, so a retried
+// webhook delivery can never double-submit or error.
+export async function confirmPickupAfterPayment(pickupId: string): Promise<void> {
+  const reference = db.collection("pickupRequests").doc(pickupId);
+  const snapshot = await reference.get();
+  if (!snapshot.exists || snapshot.get("status") !== "draft") return;
+  const photos = snapshot.get("photoUrls") ?? [];
+  if (!Array.isArray(photos) || photos.length === 0) {
+    console.error(`Pickup ${pickupId} was paid but has no photos; leaving it as a draft.`);
+    return;
+  }
+  await appendStatus(reference, "draft", "submitted", String(snapshot.get("userId") ?? ""), "Payment confirmed");
+  void publishNotificationEvent({
+    event: "pickup_request_submitted",
+    data: {pickupId: reference.id, customerId: String(snapshot.get("userId") ?? "")},
+  });
+}
 
 router.patch("/pickup-requests/:id/cancel", authenticate, async (request, response) => {
   const input = z.object({reason: z.string().trim().max(500).default("")}).parse(request.body);

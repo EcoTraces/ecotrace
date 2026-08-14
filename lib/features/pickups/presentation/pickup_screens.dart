@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../payments/data/monime_payment_repository.dart';
+import '../../payments/domain/monime_payment.dart';
+import '../../payments/presentation/monime_payment_screen.dart';
 import '../data/pickup_repository.dart';
 import '../domain/pickup.dart';
 
@@ -289,15 +292,15 @@ class _CreatePickupState extends State<CreatePickupScreen> {
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: busy ? null : () => _save(c, submit: false),
+                  onPressed: busy ? null : () => _save(c),
                   child: const Text('Save draft'),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton(
-                  onPressed: busy ? null : () => _save(c, submit: true),
-                  child: const Text('Confirm pickup request'),
+                  onPressed: busy ? null : () => _payAndSubmit(c),
+                  child: const Text('Continue to payment'),
                 ),
               ),
             ],
@@ -307,7 +310,7 @@ class _CreatePickupState extends State<CreatePickupScreen> {
     );
   }
 
-  Future<void> _save(BuildContext context, {required bool submit}) async {
+  bool _validate(BuildContext context) {
     final quantity = int.tryParse(q.text);
     final weight = double.tryParse(w.text);
     if (quantity == null ||
@@ -324,31 +327,44 @@ class _CreatePickupState extends State<CreatePickupScreen> {
           ),
         ),
       );
-      return;
+      return false;
     }
+    return true;
+  }
+
+  /// Creates the pickup as a draft — used both by the explicit "Save draft"
+  /// button and as the first step of "Continue to payment", since a pickup
+  /// only becomes 'submitted' once its fee is actually paid (see
+  /// _payAndSubmit).
+  Future<String?> _createDraft(BuildContext context) async {
+    final uploads = await Future.wait(
+      photos.map(
+        (photo) async =>
+            PickupPhoto(name: photo.name, bytes: await photo.readAsBytes()),
+      ),
+    );
+    return widget.repository.create(
+      uid: widget.uid,
+      category: category,
+      quantity: int.parse(q.text),
+      weight: double.parse(w.text),
+      condition: condition.text,
+      location: location.text,
+      scheduledAt: date,
+      urgent: urgent,
+      instructions: instructions.text,
+      photos: uploads,
+      latitude: latitude,
+      longitude: longitude,
+      submit: false,
+    );
+  }
+
+  Future<void> _save(BuildContext context) async {
+    if (!_validate(context)) return;
     setState(() => busy = true);
     try {
-      final uploads = await Future.wait(
-        photos.map(
-          (photo) async =>
-              PickupPhoto(name: photo.name, bytes: await photo.readAsBytes()),
-        ),
-      );
-      await widget.repository.create(
-        uid: widget.uid,
-        category: category,
-        quantity: quantity,
-        weight: weight,
-        condition: condition.text,
-        location: location.text,
-        scheduledAt: date,
-        urgent: urgent,
-        instructions: instructions.text,
-        photos: uploads,
-        latitude: latitude,
-        longitude: longitude,
-        submit: submit,
-      );
+      await _createDraft(context);
       if (context.mounted) Navigator.pop(context);
     } catch (error) {
       if (context.mounted) {
@@ -356,6 +372,50 @@ class _CreatePickupState extends State<CreatePickupScreen> {
           SnackBar(content: Text('Could not save pickup: $error')),
         );
       }
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _payAndSubmit(BuildContext context) async {
+    if (!_validate(context)) return;
+    final fee = serverFee;
+    if (fee == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Still calculating the pickup fee — try again in a moment.'),
+        ),
+      );
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      final pickupId = await _createDraft(context);
+      if (!context.mounted) return;
+      final result = await Navigator.of(context).push<MonimePayment>(
+        MaterialPageRoute(
+          builder: (_) => MonimePaymentScreen(
+            repository: MonimePaymentRepository(),
+            purpose: 'pickupFee',
+            referenceId: pickupId,
+            amount: fee.total,
+            currency: fee.currency,
+            title: 'Pickup payment',
+            submitLabel: 'Pay & submit pickup request',
+          ),
+        ),
+      );
+      // A confirmed result means the backend has already flipped the pickup
+      // from draft to submitted (via the Monime webhook). If the citizen
+      // backs out without paying, the pickup simply stays a draft — visible
+      // under "My pickups" so they can resume payment later.
+      if (result != null && context.mounted) Navigator.pop(context);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save pickup: $error')),
+        );
+      }
+    } finally {
       if (mounted) setState(() => busy = false);
     }
   }
@@ -454,12 +514,24 @@ class PickupDetailScreen extends StatelessWidget {
             FilledButton.icon(
               onPressed: pickup.photoUrls.isEmpty
                   ? null
-                  : () => repository.confirm(pickup.id),
-              icon: const Icon(Icons.send_outlined),
+                  : () => Navigator.of(c).push<MonimePayment>(
+                      MaterialPageRoute(
+                        builder: (_) => MonimePaymentScreen(
+                          repository: MonimePaymentRepository(),
+                          purpose: 'pickupFee',
+                          referenceId: pickup.id,
+                          amount: pickup.fee,
+                          currency: 'SLE',
+                          title: 'Pickup payment',
+                          submitLabel: 'Pay & submit pickup request',
+                        ),
+                      ),
+                    ),
+              icon: const Icon(Icons.payment_outlined),
               label: Text(
                 pickup.photoUrls.isEmpty
-                    ? 'Add a photo before confirming'
-                    : 'Confirm draft',
+                    ? 'Add a photo before paying'
+                    : 'Pay & submit pickup request',
               ),
             ),
           if ([
