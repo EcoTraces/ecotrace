@@ -374,6 +374,26 @@ export async function confirmPickupAfterPayment(pickupId: string): Promise<void>
   });
 }
 
+// If the cancelled pickup had already been paid, flag the payment for a
+// manual refund instead of leaving it silently 'confirmed' with no trace
+// that money is owed back. Monime's API exposes no refund endpoint, so the
+// actual money movement (a Payout) has to happen outside this app; this
+// just makes sure it shows up in the finance team's refund queue.
+async function flagRefundIfPickupPaid(pickupId: string, reason: string): Promise<void> {
+  const paid = await db.collection("paymentTransactions")
+    .where("referenceId", "==", pickupId)
+    .where("purpose", "==", "pickupFee")
+    .where("status", "==", "confirmed")
+    .limit(1).get();
+  if (paid.empty) return;
+  await paid.docs[0].ref.update({
+    status: "refundPending",
+    refundReason: reason || "Pickup was cancelled after payment.",
+    refundRequestedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+}
+
 router.patch("/pickup-requests/:id/cancel", authenticate, async (request, response) => {
   const input = z.object({reason: z.string().trim().max(500).default("")}).parse(request.body);
   const {reference, snapshot} = await customerPickup(
@@ -384,6 +404,7 @@ router.patch("/pickup-requests/:id/cancel", authenticate, async (request, respon
     cancelledAt: FieldValue.serverTimestamp(),
     cancellationReason: input.reason,
   });
+  await flagRefundIfPickupPaid(reference.id, input.reason);
   void publishNotificationEvent({
     event: "pickup_cancelled",
     recipientId: String(snapshot.get("userId")),
