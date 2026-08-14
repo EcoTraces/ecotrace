@@ -58,7 +58,7 @@ export function createPaymentCode(input: {
   name: string;
   amountMinorUnits: number;
   currency: string;
-  phoneNumber: string;
+  providerId: string;
   durationMinutes: number;
   reference: string;
   metadata: Record<string, string>;
@@ -66,17 +66,21 @@ export function createPaymentCode(input: {
   // Monime rejects a request that sets both `authorizedProviders` and
   // `authorizedPhoneNumber` ("A payment provider must not be set when a
   // paying phone number is specified.") — confirmed live against the
-  // sandbox, not documented anywhere in Monime's published schema. Sending
-  // the phone number alone works: Monime infers the mobile-money network
-  // from the MSISDN itself, so the provider the user picked in the UI is
-  // used only for our own labeling, not sent to Monime.
+  // sandbox, not documented anywhere in Monime's published schema. We
+  // restrict by provider (network) only, not by a specific phone number:
+  // besides the fields being mutually exclusive, Monime's own USSD
+  // Simulator has no way to specify an arbitrary paying number (only a
+  // network selector), so a phone-locked code can never be completed
+  // through it. The phone number the user enters is still collected and
+  // stored on our side for the payment record; it just isn't sent to
+  // Monime as a restriction.
   return call<MonimePaymentCode>("/v1/payment-codes", {
     method: "POST",
     body: JSON.stringify({
       name: input.name,
       amount: {currency: input.currency, value: input.amountMinorUnits},
       duration: `${input.durationMinutes}m`,
-      authorizedPhoneNumber: input.phoneNumber,
+      authorizedProviders: [input.providerId],
       reference: input.reference,
       metadata: input.metadata,
     }),

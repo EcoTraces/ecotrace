@@ -95,7 +95,7 @@ router.post("/payments/monime/initiate", authenticate, requireRoles(...users), a
     name: `EcoTrace ${input.purpose}`.slice(0, 64),
     amountMinorUnits: Math.round(input.amount * 100),
     currency: input.currency,
-    phoneNumber: input.phoneNumber,
+    providerId,
     durationMinutes: 30,
     reference: ref.id,
     metadata: {ecotraceTransactionId: ref.id, purpose: input.purpose, referenceId: input.referenceId},
