@@ -3,6 +3,8 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../../../core/app_currency.dart';
+import '../../payments/data/monime_payment_repository.dart';
+import '../../payments/presentation/monime_payment_screen.dart';
 import '../data/billing_repository.dart';
 import '../domain/billing.dart';
 
@@ -30,10 +32,24 @@ class BillingScreen extends StatelessWidget {
         final rec = ReconciliationSummary.from(t.data!);
         return Scaffold(
           appBar: AppBar(title: const Text('Payments and billing')),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _payment(c),
-            icon: const Icon(Icons.payment),
-            label: const Text('New payment'),
+          floatingActionButton: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              FloatingActionButton.extended(
+                heroTag: 'monimePayment',
+                onPressed: () => _monimePayment(c),
+                icon: const Icon(Icons.phone_android),
+                label: const Text('Pay with mobile money'),
+              ),
+              const SizedBox(height: 12),
+              FloatingActionButton.extended(
+                heroTag: 'manualPayment',
+                onPressed: () => _payment(c),
+                icon: const Icon(Icons.payment),
+                label: const Text('New payment'),
+              ),
+            ],
           ),
           body: ListView(
             padding: const EdgeInsets.all(16),
@@ -245,6 +261,14 @@ class BillingScreen extends StatelessWidget {
         maskedAccount: masked.text,
       );
     }
+  }
+
+  Future<void> _monimePayment(BuildContext c) async {
+    await Navigator.of(c).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MonimePaymentScreen(repository: MonimePaymentRepository()),
+      ),
+    );
   }
 
   Future<void> _invoice(BuildContext c) async {

@@ -5,6 +5,7 @@ import {authenticate, requireRoles} from "./auth.js";
 import {ApiError} from "./errors.js";
 import {db} from "./firebase.js";
 import {documentJson} from "./firestore-json.js";
+import {createPaymentCode, getPaymentCode, MONIME_MOMO_PROVIDERS, type MonimeMomoProviderKey} from "./monime-client.js";
 import {publishNotificationEvent} from "./push-events.js";
 
 const router = Router();
@@ -20,7 +21,7 @@ router.post("/payments/fees/calculate", authenticate, requireRoles(...users), as
 // Amounts for purposes with a known server-computed source of truth are
 // verified against that source rather than trusted from the client, so a
 // payer cannot under-report what they owe before a finance admin confirms it.
-async function verifiedIntentAmount(purpose: string, referenceId: string, uid: string, amount: number): Promise<void> {
+export async function verifiedIntentAmount(purpose: string, referenceId: string, uid: string, amount: number): Promise<void> {
   if (purpose === "pickupFee") {
     const pickup = await db.collection("pickupRequests").doc(referenceId).get();
     if (!pickup.exists) throw new ApiError(404, "Referenced pickup request not found.", "not_found");
@@ -37,6 +38,111 @@ async function verifiedIntentAmount(purpose: string, referenceId: string, uid: s
 }
 
 router.post("/payments/intents", authenticate, requireRoles(...users), async (request, response) => { const input = z.object({purpose: z.enum(["pickupFee", "marketplaceOrder", "partnerService", "other"]), referenceId: z.string().trim().min(1), amount: z.number().positive(), currency: z.string().trim().length(3).default("SLE"), method: z.enum(["mobileMoney", "bank", "card"]), provider: z.string().trim().min(2).max(100), payerPhoneOrReference: z.string().trim().min(2).max(200)}).parse(request.body); await verifiedIntentAmount(input.purpose, input.referenceId, request.user!.uid, input.amount); const duplicate = await db.collection("paymentTransactions").where("payerId", "==", request.user!.uid).where("referenceId", "==", input.referenceId).where("purpose", "==", input.purpose).limit(1).get(); if (!duplicate.empty && ["pending", "confirmed"].includes(String(duplicate.docs[0].get("status")))) throw new ApiError(409, "An active payment already exists for this reference.", "duplicate_payment"); const ref = db.collection("paymentTransactions").doc(); await ref.set({...input, transactionNumber: `PAY-${ref.id.substring(0, 10).toUpperCase()}`, payerId: request.user!.uid, status: "pending", providerStatus: "initiated", attempts: 1, createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp()}); response.status(201).json({data: {id: ref.id, transactionNumber: `PAY-${ref.id.substring(0, 10).toUpperCase()}`, status: "pending", providerRequest: {provider: input.provider, method: input.method}}}); });
+
+const monimeProviderLabels: Record<MonimeMomoProviderKey, string> = {orangeMoney: "Orange Money", afrimoney: "Afrimoney"};
+
+// Maps a Monime payment-code lifecycle status to this app's payment status vocabulary.
+function monimeStatusMapping(monimeStatus: string): {status: string; providerStatus: string} {
+  if (monimeStatus === "completed") return {status: "confirmed", providerStatus: "completed"};
+  if (monimeStatus === "expired") return {status: "failed", providerStatus: "expired"};
+  if (monimeStatus === "cancelled") return {status: "failed", providerStatus: "cancelled"};
+  if (monimeStatus === "processing") return {status: "processing", providerStatus: "processing"};
+  return {status: "pending", providerStatus: "pending"};
+}
+
+router.post("/payments/monime/initiate", authenticate, requireRoles(...users), async (request, response) => {
+  const input = z.object({
+    purpose: z.enum(["pickupFee", "marketplaceOrder", "partnerService", "other"]),
+    referenceId: z.string().trim().min(1),
+    amount: z.number().positive(),
+    currency: z.string().trim().length(3).default("SLE"),
+    provider: z.enum(["orangeMoney", "afrimoney"]),
+    phoneNumber: z.string().trim().regex(/^\+?[0-9]{8,15}$/, "Enter a valid mobile money phone number."),
+  }).parse(request.body);
+  await verifiedIntentAmount(input.purpose, input.referenceId, request.user!.uid, input.amount);
+  const duplicate = await db.collection("paymentTransactions")
+    .where("payerId", "==", request.user!.uid)
+    .where("referenceId", "==", input.referenceId)
+    .where("purpose", "==", input.purpose)
+    .limit(1).get();
+  if (!duplicate.empty && ["pending", "processing", "confirmed"].includes(String(duplicate.docs[0].get("status")))) {
+    throw new ApiError(409, "An active payment already exists for this reference.", "duplicate_payment");
+  }
+  const ref = db.collection("paymentTransactions").doc();
+  const providerId = MONIME_MOMO_PROVIDERS[input.provider];
+  const paymentCode = await createPaymentCode({
+    name: `EcoTrace ${input.purpose}`.slice(0, 64),
+    amountMinorUnits: Math.round(input.amount * 100),
+    currency: input.currency,
+    providerId,
+    phoneNumber: input.phoneNumber,
+    durationMinutes: 30,
+    reference: ref.id,
+    metadata: {ecotraceTransactionId: ref.id, purpose: input.purpose, referenceId: input.referenceId},
+  }, ref.id);
+  const transactionNumber = `PAY-${ref.id.substring(0, 10).toUpperCase()}`;
+  await ref.set({
+    purpose: input.purpose, referenceId: input.referenceId, amount: input.amount, currency: input.currency,
+    method: "mobileMoney", provider: monimeProviderLabels[input.provider], payerId: request.user!.uid,
+    status: "pending", providerStatus: "initiated", transactionNumber, attempts: 1, gateway: "monime",
+    monime: {paymentCodeId: paymentCode.id, ussdCode: paymentCode.ussdCode, providerId, phoneNumber: input.phoneNumber, expireTime: paymentCode.expireTime},
+    createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+  });
+  response.status(201).json({data: {id: ref.id, transactionNumber, status: "pending", ussdCode: paymentCode.ussdCode, expiresAt: paymentCode.expireTime}});
+});
+
+// Called directly by Monime, not by an app user, so this route intentionally has no Firebase
+// auth. Monime's `Monime-Signature` verification algorithm is undocumented and unconfirmed as of
+// this integration (see project notes), so instead of trusting the webhook body we treat it only
+// as a trigger to re-fetch the authoritative payment-code status from Monime's own API before
+// writing anything to Firestore. This keeps the endpoint safe against a spoofed or malformed
+// webhook call even though signature verification is not yet enforced.
+router.post("/payments/monime/webhook", async (request, response) => {
+  const signaturePresent = Boolean(request.header("monime-signature"));
+  const body = request.body as {event?: {name?: string}; object?: {id?: string; type?: string}};
+  const eventName = String(body?.event?.name ?? "");
+  const objectId = String(body?.object?.id ?? "");
+  console.log(`Monime webhook received: event=${eventName || "unknown"} object=${body?.object?.type ?? "?"}:${objectId || "?"} signature=${signaturePresent ? "present" : "MISSING"}`);
+  if (!eventName.startsWith("payment_code.") || eventName === "payment_code.created" || !objectId) {
+    response.status(200).json({received: true});
+    return;
+  }
+  const matches = await db.collection("paymentTransactions").where("monime.paymentCodeId", "==", objectId).limit(1).get();
+  if (matches.empty) {
+    console.warn(`Monime webhook referenced unknown payment code ${objectId}.`);
+    response.status(200).json({received: true});
+    return;
+  }
+  const doc = matches.docs[0];
+  if (["confirmed", "failed"].includes(String(doc.get("status")))) {
+    response.status(200).json({received: true});
+    return;
+  }
+  const paymentCode = await getPaymentCode(objectId);
+  const mapped = monimeStatusMapping(paymentCode.status);
+  const channelData = paymentCode.processedPaymentData?.channelData;
+  await doc.ref.update({
+    status: mapped.status,
+    providerStatus: mapped.providerStatus,
+    providerReference: channelData?.reference ?? paymentCode.processedPaymentData?.financialTransactionReference ?? "",
+    failureReason: mapped.status === "failed" ? (paymentCode.status === "expired" ? "The payment code expired before the customer completed payment." : "The payment was cancelled.") : "",
+    confirmedAt: mapped.status === "confirmed" ? FieldValue.serverTimestamp() : null,
+    failedAt: mapped.status === "failed" ? FieldValue.serverTimestamp() : null,
+    "monime.lastEventName": eventName,
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  if (mapped.status === "confirmed" || mapped.status === "failed") {
+    void publishNotificationEvent({
+      event: mapped.status === "confirmed" ? "payment_confirmed" : "payment_failed",
+      recipientId: String(doc.get("payerId") ?? ""),
+      body: mapped.status === "confirmed"
+        ? `Your payment of ${doc.get("amount")} ${doc.get("currency")} was confirmed.`
+        : `Your payment could not be processed: ${paymentCode.status === "expired" ? "the payment code expired" : "it was cancelled"}.`,
+      data: {transactionId: doc.ref.id},
+    });
+  }
+  response.status(200).json({received: true});
+});
 
 router.get("/payments/transactions", authenticate, requireRoles(...users), async (request, response) => { const privileged = ["administrator", "superAdministrator"].includes(request.user!.role); let query: FirebaseFirestore.Query = db.collection("paymentTransactions"); if (!privileged) query = query.where("payerId", "==", request.user!.uid); if (typeof request.query.status === "string") query = query.where("status", "==", request.query.status); const snapshot = await query.limit(500).get(); response.json({data: snapshot.docs.map((doc) => documentJson(doc.id, doc.data()))}); });
 

@@ -33,6 +33,10 @@ services:
         sync: false
       - key: NOTIFICATION_API_URL
         value: https://ecotrace-notifications.onrender.com
+      - key: MONIME_ACCESS_TOKEN
+        sync: false
+      - key: MONIME_SPACE_ID
+        sync: false
       - fromGroup: ecotrace-notification-events
   - type: web
     name: ecotrace-notifications
