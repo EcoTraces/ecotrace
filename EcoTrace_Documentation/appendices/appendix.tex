@@ -1,0 +1,196 @@
+\chapter{Selected API Endpoint Reference}
+\label{app:api}
+
+The EcoTrace backend (\texttt{ecotrace-api}) exposes several hundred REST
+endpoints across the modules summarised in
+Table~\ref{tab:module-status} (Chapter~\ref{ch:implementation}); the
+complete route definitions are available in the source repository under
+\texttt{functions/src/}. Reproducing every endpoint here would not be a
+useful reference, so this appendix lists, verbatim from the source code,
+the endpoints for the two modules discussed in the most depth in
+Chapter~\ref{ch:implementation}: pickup requests
+(Section~\ref{sec:pickup-module}) and the Monime payment integration
+(Section~\ref{sec:payment-module}). All endpoints require a valid Firebase
+Authentication ID token unless stated otherwise; \textbf{Roles} lists the
+roles permitted to call the endpoint.
+
+\section{Pickup Request Endpoints}
+
+\begin{longtable}{@{}p{1.6cm}p{5.0cm}p{2.6cm}p{5.4cm}@{}}
+\caption{Pickup Request API Endpoints (\texttt{functions/src/pickup-routes.ts})} \label{tab:api-pickup} \\
+\toprule \textbf{Method} & \textbf{Path} & \textbf{Roles} & \textbf{Description} \\ \midrule
+\endfirsthead
+\toprule \textbf{Method} & \textbf{Path} & \textbf{Roles} & \textbf{Description} \\ \midrule
+\endhead
+POST & \texttt{/pickup-requests/estimate-fee} & Authenticated & Returns a server-computed fee estimate without creating a pickup record. \\
+GET & \texttt{/pickup-requests} & Authenticated & Lists pickup requests visible to the caller (own requests, or all requests for staff roles). \\
+POST & \texttt{/pickup-requests} & Authenticated & Creates a pickup request as \texttt{draft} or \texttt{submitted}; recomputes the fee server-side and records the initial status-history event. \\
+GET & \texttt{/pickup-requests/:id} & Authenticated (owner/staff) & Retrieves a single pickup request. \\
+GET & \texttt{/pickup-requests/:id/history} & Authenticated (owner/staff) & Retrieves the status-change history of a pickup request. \\
+PATCH & \texttt{/pickup-requests/:id} & Authenticated (owner) & Updates a \texttt{draft} pickup request prior to submission. \\
+POST & \texttt{/pickup-requests/:id/confirm} & Authenticated (owner) & Advances a paid \texttt{draft} pickup to \texttt{submitted}; rejects the request if payment has not been confirmed (Section~\ref{sec:payment-module}). \\
+PATCH & \texttt{/pickup-requests/:id/cancel} & Authenticated (owner/staff) & Cancels a pickup request; triggers a \texttt{refundPending} flag if the pickup had already been paid for. \\
+PATCH & \texttt{/pickup-requests/:id/reschedule} & Authenticated (owner/staff) & Changes the scheduled collection date/time of an active pickup. \\
+PATCH & \texttt{/pickup-requests/:id/assign} & Collector, Administrator & Assigns a collector/driver to a pickup request. \\
+PATCH & \texttt{/pickup-requests/:id/status} & Collector, Driver, Administrator & Advances the operational status of a pickup (e.g., collected, in transit). \\
+PATCH & \texttt{/pickup-requests/:id/rating} & Authenticated (owner) & Records the requester's rating of a completed pickup. \\
+\bottomrule
+\end{longtable}
+
+\section{Payment (Monime) Endpoints}
+
+\begin{longtable}{@{}p{1.6cm}p{5.0cm}p{2.6cm}p{5.4cm}@{}}
+\caption{Payment API Endpoints (\texttt{functions/src/payment-routes.ts})} \label{tab:api-payment} \\
+\toprule \textbf{Method} & \textbf{Path} & \textbf{Roles} & \textbf{Description} \\ \midrule
+\endfirsthead
+\toprule \textbf{Method} & \textbf{Path} & \textbf{Roles} & \textbf{Description} \\ \midrule
+\endhead
+POST & \texttt{/payments/fees/calculate} & Authenticated & Computes a fee breakdown (service fee, tax, total) from live billing settings, without persisting anything. \\
+POST & \texttt{/payments/intents} & Authenticated & Creates a generic, provider-agnostic payment-intent record (used by non-Monime payment paths, e.g. bank/card). \\
+POST & \texttt{/payments/monime/initiate} & Authenticated & Server-recomputes the amount owed for the given purpose/reference, de-duplicates in-flight attempts, and creates a Monime Payment Code, returning its USSD activation code to the client. \\
+POST & \texttt{/payments/monime/webhook} & Unauthenticated (Monime callback) & Receives Monime's payment-status callback; re-fetches the authoritative transaction status from Monime's API rather than trusting the callback payload, then updates \texttt{paymentTransactions} and, for pickup-fee payments, auto-advances the linked pickup to \texttt{submitted}. \\
+GET & \texttt{/payments/transactions} & Authenticated & Lists the caller's own payment transactions, or all transactions for finance/admin roles. \\
+GET & \texttt{/payments/transactions/:id} & Authenticated (owner/finance) & Retrieves a single payment transaction. \\
+PATCH & \texttt{/payments/transactions/:id/confirm} & Finance, Administrator & Manually confirms or fails a pending transaction (used for non-Monime payment methods). \\
+PATCH & \texttt{/payments/transactions/:id/refund} & Finance, Administrator & Issues a refund or partial refund against a confirmed transaction; accepts transactions in \texttt{refundPending} status. \\
+POST & \texttt{/payments/payouts/:id/process} & Finance, Administrator & Marks a payout to a partner/vendor as paid or failed. \\
+POST & \texttt{/payments/reconciliation} & Finance, Administrator & Produces a reconciliation summary of confirmed, failed, and refunded amounts over a date range. \\
+GET & \texttt{/payments/reports/summary} & Finance, Administrator & Returns aggregate payment, payout, and invoice figures for reporting dashboards. \\
+\bottomrule
+\end{longtable}
+
+\chapter{Selected Cloud Firestore Schema}
+\label{app:schema}
+
+Table~\ref{tab:collections-summary} (Chapter~\ref{ch:analysis-design})
+summarises all eighteen Firestore collections used by EcoTrace. This
+appendix gives the field-level schema, taken directly from the backend
+source code, for the two collections most relevant to the pickup-payment
+workflow described in Chapter~\ref{ch:implementation}.
+
+\section{\texttt{pickupRequests}}
+
+\begin{longtable}{@{}p{3.6cm}p{9.4cm}@{}}
+\caption{Selected Fields of a \texttt{pickupRequests} Document} \label{tab:schema-pickup} \\
+\toprule \textbf{Field} & \textbf{Description} \\ \midrule
+\endfirsthead
+\toprule \textbf{Field} & \textbf{Description} \\ \midrule
+\endhead
+\texttt{userId} & UID of the requesting household/business user. \\
+\texttt{status} & One of \texttt{draft}, \texttt{submitted}, \texttt{assigned}, \texttt{collected}, \texttt{completed}, \texttt{cancelled} (Table~\ref{tab:pickup-states-impl}, Chapter~\ref{ch:implementation}). \\
+\texttt{scheduledAt} & Firestore timestamp of the requested collection date/time. \\
+\texttt{estimatedFee} & Server-computed total fee, in Leones, at the time the request was created. \\
+\texttt{feeBreakdown} & Object recording the subtotal, service fee, tax, and total used to derive \texttt{estimatedFee}. \\
+\texttt{paymentTransactionId} & Reference to the \texttt{paymentTransactions} document that must reach \texttt{confirmed} status before the pickup can leave \texttt{draft} (Section~\ref{sec:payment-module}). \\
+\texttt{statusHistory} & Array of \{\texttt{from}, \texttt{to}, \texttt{actorId}, \texttt{reason}, \texttt{changedAt}\} objects recording every status transition. \\
+\texttt{createdAt} / \texttt{updatedAt} & Server timestamps set with \texttt{FieldValue.serverTimestamp()}. \\
+\bottomrule
+\end{longtable}
+
+Each \texttt{pickupRequests} document additionally owns an \texttt{events}
+subcollection, one document per lifecycle event (draft creation,
+submission, assignment, status change), used to render the pickup history
+timeline shown to users.
+
+\section{\texttt{paymentTransactions}}
+
+\begin{longtable}{@{}p{3.6cm}p{9.4cm}@{}}
+\caption{Selected Fields of a \texttt{paymentTransactions} Document} \label{tab:schema-payment} \\
+\toprule \textbf{Field} & \textbf{Description} \\ \midrule
+\endfirsthead
+\toprule \textbf{Field} & \textbf{Description} \\ \midrule
+\endhead
+\texttt{transactionNumber} & Human-readable identifier of the form \texttt{PAY-\textit{XXXXXXXXXX}}, derived from the document ID. \\
+\texttt{payerId} & UID of the paying user. \\
+\texttt{purpose} & One of \texttt{pickupFee}, \texttt{marketplaceOrder}, \texttt{partnerService}, \texttt{other}. \\
+\texttt{referenceId} & ID of the record the payment is for (e.g. the pickup request ID). \\
+\texttt{amount} / \texttt{currency} & Amount owed and its currency (\texttt{SLE}), both re-derived server-side rather than trusted from the client. \\
+\texttt{method} & One of \texttt{mobileMoney}, \texttt{bank}, \texttt{card}. \\
+\texttt{provider} & Payment provider identifier, e.g. \texttt{monime}. \\
+\texttt{status} & One of \texttt{pending}, \texttt{confirmed}, \texttt{failed}, \texttt{refundPending}, \texttt{partiallyRefunded}, \texttt{refunded}. \\
+\texttt{providerStatus} & Raw status last reported by the payment provider (e.g. Monime Payment Code status). \\
+\texttt{attempts} & Number of payment attempts made for this transaction record, used for de-duplication. \\
+\texttt{refundedAmount} & Cumulative amount refunded against this transaction, if any. \\
+\texttt{createdAt} / \texttt{updatedAt} / \texttt{confirmedAt} / \texttt{failedAt} & Server timestamps for the corresponding lifecycle events. \\
+\bottomrule
+\end{longtable}
+
+As described in Section~\ref{sec:payment-module}, no field in
+\texttt{paymentTransactions} is ever written directly by a client; every
+write is performed by the backend using the Firebase Admin SDK, which
+bypasses Firestore Security Rules by design. The rules shown in
+Appendix~\ref{app:code} therefore only need to govern client \emph{reads}
+of this collection, plus an explicit denial of client writes as a defence
+against a compromised or misbehaving client attempting to write directly.
+
+\chapter{Selected Source Code Listings}
+\label{app:code}
+
+This appendix reproduces two short, self-contained source-code extracts
+that are discussed in Chapter~\ref{ch:implementation} and are small enough
+to include in full without disrupting the flow of that chapter.
+
+\section{Firestore Security Rule for \texttt{paymentTransactions}}
+
+Test case T-05 (Table~\ref{tab:test-cases}, Chapter~\ref{ch:implementation})
+found that the \texttt{paymentTransactions} collection had no security
+rule at all when the payment module was first wired into the Flutter
+client, so the collection fell through to the project's deny-by-default
+catch-all rule and the real-time payment-status listener failed silently
+with a permission-denied error. The fix, reproduced below from
+\texttt{firestore.rules}, restricts reads to the paying user or an
+administrator and denies all client-side writes:
+
+\begin{verbatim}
+match /paymentTransactions/{transactionId} {
+  allow read: if isAdministrator()
+    || (signedIn() && resource.data.payerId == request.auth.uid);
+  allow create, update, delete: if false;
+}
+\end{verbatim}
+
+\section{Monime Provider Mapping and the Mutual-Exclusivity Workaround}
+
+Section~\ref{sec:payment-module} describes an undocumented Monime API
+behaviour discovered during integration testing: a Payment Code request
+that sets both \texttt{authorizedProviders} and
+\texttt{authorizedPhoneNumber} is rejected. The extract below, from
+\texttt{functions/src/monime-client.ts}, shows the real provider-ID mapping
+(Table~\ref{tab:monime-providers}, Chapter~\ref{ch:implementation}) and the
+comment left in the code explaining why only \texttt{authorizedProviders}
+is ever sent:
+
+\begin{verbatim}
+export const MONIME_MOMO_PROVIDERS =
+  {orangeMoney: "m17", afrimoney: "m18"} as const;
+
+// Monime rejects a request that sets both `authorizedProviders` and
+// `authorizedPhoneNumber` ("A payment provider must not be set when a
+// paying phone number is specified.") -- confirmed live against the
+// sandbox, not documented anywhere in Monime's published schema. We
+// restrict by provider (network) only, not by a specific phone number.
+body: JSON.stringify({
+  name: input.name,
+  amount: {currency: input.currency, value: input.amountMinorUnits},
+  duration: `${input.durationMinutes}m`,
+  authorizedProviders: [input.providerId],
+  reference: input.reference,
+  metadata: input.metadata,
+})
+\end{verbatim}
+
+\chapter{Functional and Integration Test Case Log}
+\label{app:tests}
+
+The full set of functional, integration, and security test cases executed
+against the delivered system, including the real live-money payment test
+(T-06), is reported in Section~\ref{sec:testing} and
+Table~\ref{tab:test-cases} of Chapter~\ref{ch:implementation}, and is not
+duplicated here. This appendix exists as a placeholder for any additional
+raw test evidence -- screenshots of test runs, sandbox transaction logs, or
+CI output -- that the authors may wish to attach to the final submitted
+copy of this documentation.
+
+\bigskip
+\imageplaceholder{Screenshot(s) of test execution output / CI logs, if the
+authors choose to attach them to the final submission.}

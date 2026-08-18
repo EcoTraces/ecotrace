@@ -1,0 +1,1600 @@
+\chapter{Literature Review}
+\label{ch:literature}
+
+\section{Introduction}
+
+This chapter reviews the literature relevant to the design and development of the
+EcoTrace: Intelligent Electronic Waste Recovery and Circular Economy Management
+System. The review establishes the theoretical and technological foundation of the
+study by examining existing knowledge on electronic waste management, circular
+economy principles, intelligent waste management, cloud computing, artificial
+intelligence, geographic information systems, and modern software development
+technologies. Furthermore, the chapter critically reviews existing electronic waste
+management systems, identifies their strengths and limitations, and highlights the
+research gap that motivated the development of the proposed EcoTrace system.
+
+The literature review is organized into seven major sections. The first section
+discusses the conceptual foundations of electronic waste management and related
+concepts. The second examines the technologies adopted in the development of
+EcoTrace. The third reviews existing electronic waste management systems reported
+in literature. This is followed by a comparative analysis of related systems,
+identification of the research gap, and a summary of the chapter.
+
+\section{Conceptual Review}
+
+\subsection{Electronic Waste (E-Waste)}
+
+Electronic waste (e-waste), also known as Waste Electrical and Electronic Equipment
+(WEEE), refers to discarded electrical and electronic devices that have reached the
+end of their useful life, become obsolete, or are no longer required by users
+\citep{forti2024}.
+
+The increasing demand for electronic devices, coupled with rapid technological
+innovation, shorter product life cycles, and changing consumer preferences, has
+contributed significantly to the rapid growth of global electronic waste generation.
+According to the Global E-waste Monitor 2024, worldwide electronic waste
+generation continues to increase at a rate faster than formal collection and recycling
+activities, creating significant environmental, economic, and public health
+challenges \citep{forti2024}.
+
+Electronic waste contains both valuable and hazardous materials. Valuable
+components include gold, silver, copper, aluminium, platinum, and rare earth
+elements that can be recovered through appropriate recycling processes. However,
+e-waste also contains hazardous substances such as lead, mercury, cadmium,
+chromium, brominated flame retardants, and other toxic chemicals capable of
+contaminating soil, water, and air if improperly managed \citep{who2021}.
+
+Proper electronic waste management therefore requires coordinated activities
+involving waste generation, collection, transportation, sorting, repair,
+refurbishment, recycling, resource recovery, and safe disposal. Modern information
+systems increasingly support these activities through cloud computing, artificial
+intelligence, geographic information systems, and mobile technologies.
+
+As illustrated in Figure~\ref{fig:ewaste-trends}, global electronic waste generation
+has increased steadily over recent years while formal recycling rates remain
+comparatively low.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Global Electronic Waste Generation and Recycling Trends chart}
+  \caption{Global Electronic Waste Generation and Recycling Trends. Source: Adapted from the Global E-waste Monitor 2024 \citep{forti2024}.}
+  \label{fig:ewaste-trends}
+\end{figure}
+
+\subsection{Circular Economy}
+
+The circular economy is an economic model that aims to eliminate waste and
+maximize the continuous use of resources through strategies such as reuse, repair,
+refurbishment, remanufacturing, and recycling \citep{geissdoerfer2017,kirchherr2017}.
+Unlike the traditional linear economy, which follows the sequence of
+``take-make-dispose,'' the circular economy seeks to maintain the value of
+products, materials, and resources for as long as possible while minimizing
+environmental pollution and resource depletion.
+
+In recent years, the circular economy has become a key strategy for achieving
+sustainable development and responsible resource management. Governments,
+international organizations, and industries increasingly recognize circular economy
+principles as effective approaches for reducing waste generation, conserving
+natural resources, lowering carbon emissions, and promoting sustainable
+production and consumption \citep{unep2024}.
+
+Electronic waste management is one of the sectors that benefits significantly
+from circular economy practices. Instead of disposing of obsolete electronic
+devices, valuable components and materials can be recovered through systematic
+collection, repair, refurbishment, remanufacturing, and recycling processes. This
+not only reduces the volume of waste sent to landfills but also decreases the
+demand for virgin raw materials used in manufacturing new electronic products.
+
+The implementation of circular economy principles requires efficient
+coordination among multiple stakeholders, including households, businesses,
+collectors, logistics providers, technicians, recyclers, government agencies, and
+environmental organizations. Digital technologies such as cloud computing,
+artificial intelligence, Internet of Things (IoT), blockchain, and geographic
+information systems (GIS) have become important enablers of circular economy
+initiatives by improving traceability, transparency, and decision-making
+throughout the product lifecycle \citep{esmaeilian2020}.
+
+For electronic waste management, the circular economy extends beyond
+recycling. It encourages preventive maintenance, repair, refurbishment, reuse, and
+responsible redistribution of electronic devices before considering material
+recovery or disposal. These practices contribute to resource conservation while
+creating new economic opportunities and reducing environmental impacts.
+
+The EcoTrace system was designed based on circular economy principles by
+supporting electronic waste registration, collection, transportation, repair,
+refurbishment, recycling, and lifecycle tracking within a single integrated platform.
+Through these functionalities, the system promotes responsible resource recovery
+and supports sustainable electronic waste management practices.
+
+Figure~\ref{fig:circular-framework} illustrates the relationship between product
+design, consumption, collection, repair, refurbishment, recycling, and resource
+recovery within a circular economy.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Circular Economy Framework for Electronic Waste Management}
+  \caption{Circular Economy Framework for Electronic Waste Management. Source: Adapted from UNEP (2024).}
+  \label{fig:circular-framework}
+\end{figure}
+
+\subsection{Reverse Logistics}
+
+Reverse logistics refers to the planning, implementation, and control of the
+efficient movement of products, materials, and information from the point of
+consumption back to the point of origin or an appropriate recovery facility for the
+purpose of reuse, repair, refurbishment, remanufacturing, recycling, or
+environmentally responsible disposal \citep{agrawal2015,rogers1999}.
+
+Unlike traditional forward logistics, which focuses on delivering products from
+manufacturers to consumers, reverse logistics manages the flow of products after
+they have reached the end of their useful life. The primary objective is to recover
+economic value from discarded products while minimizing environmental impacts
+through sustainable resource management.
+
+Reverse logistics has become an essential component of modern electronic
+waste management because discarded electronic devices contain valuable
+materials that can be recovered and reintroduced into manufacturing processes.
+Effective reverse logistics systems facilitate the collection, transportation,
+inspection, sorting, repair, refurbishment, recycling, and final disposal of
+electronic waste in a structured and efficient manner \citep{govindan2015}.
+
+The implementation of reverse logistics requires close coordination among
+households, businesses, waste collectors, transport operators, repair technicians,
+refurbishment centres, recycling companies, and environmental regulatory
+agencies. Digital information systems play a critical role in supporting this
+coordination by enabling real-time tracking, centralized data management, route
+optimization, inventory monitoring, and performance reporting.
+
+Recent advances in cloud computing, mobile technologies, artificial intelligence,
+Internet of Things (IoT), and geographic information systems have significantly
+improved reverse logistics operations. Organizations increasingly use intelligent
+software platforms to optimize collection schedules, monitor transportation
+activities, predict waste generation patterns, and improve resource recovery
+efficiency \citep{kazancoglu2021}.
+
+Within the EcoTrace system, reverse logistics forms the operational foundation
+of the electronic waste management process. The system supports waste
+registration, pickup scheduling, collection management, transportation tracking,
+repair, refurbishment, recycling, and lifecycle monitoring through an integrated
+cloud-based platform. These functionalities improve traceability, accountability,
+operational efficiency, and stakeholder collaboration while supporting circular
+economy objectives. Figure~\ref{fig:reverse-logistics} illustrates the reverse
+logistics process adopted for electronic waste management, beginning with waste
+generation and continuing through collection, transportation, inspection, repair,
+refurbishment, recycling, and resource recovery.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Reverse Logistics Framework for Electronic Waste Management}
+  \caption{Reverse Logistics Framework for Electronic Waste Management. Source: Adapted from Rogers and Tibben-Lembke (1999) and Govindan et al. (2015).}
+  \label{fig:reverse-logistics}
+\end{figure}
+
+\subsection{Intelligent Waste Management}
+
+Intelligent waste management refers to the application of modern information and
+communication technologies to improve the planning, monitoring, collection,
+transportation, processing, and disposal of waste materials. It integrates
+technologies such as artificial intelligence, cloud computing, Internet of Things
+(IoT), geographic information systems (GIS), mobile computing, data analytics, and
+automation to enhance operational efficiency, decision-making, and environmental
+sustainability \citep{belhadi2021,sharma2023}.
+
+Traditional waste management systems largely depend on manual record
+keeping, fixed collection schedules, and limited communication among
+stakeholders. These approaches often result in inefficient resource utilization,
+delayed waste collection, poor monitoring, and increased operational costs. In
+contrast, intelligent waste management systems utilize digital technologies to
+provide real-time monitoring, automated decision support, optimized route
+planning, predictive analytics, and centralized information management.
+
+The increasing availability of cloud computing and mobile technologies has
+significantly accelerated the development of intelligent waste management
+systems. Cloud platforms provide scalable storage and processing capabilities,
+while mobile applications enable users to report waste, request collection services,
+monitor collection progress, and receive real-time notifications. These
+technologies improve communication between citizens, waste collectors, recycling
+companies, and environmental authorities.
+
+Artificial intelligence has further enhanced intelligent waste management
+through automated waste classification, object detection, predictive analytics, and
+decision support systems. Machine learning algorithms can analyse images of
+waste materials, identify waste categories, estimate recyclable content, and
+support automated sorting processes, thereby improving both efficiency and
+accuracy \citep{abdallah2022}.
+
+Geographic Information Systems (GIS) and Global Positioning System (GPS)
+technologies also play important roles in intelligent waste management. These
+technologies enable route optimization, location tracking, collection planning, and
+spatial analysis, allowing organizations to reduce transportation costs while
+improving service delivery and environmental performance.
+
+Recent research indicates that integrating artificial intelligence, cloud
+computing, GIS, and mobile technologies significantly improves waste collection
+efficiency, operational transparency, resource utilization, and environmental
+monitoring. These intelligent systems also support data-driven policy formulation
+and sustainable urban development \citep{kaza2018,sharma2023}.
+
+The EcoTrace system adopts the principles of intelligent waste management by
+integrating cloud-based information management, artificial-intelligence-assisted
+electronic waste classification, cross-platform mobile, web, and desktop
+applications, Google Maps Platform for location services, Firebase Cloud
+Messaging for real-time notifications, and centralized reporting dashboards.
+Through these integrated technologies, the system improves electronic waste
+traceability, operational efficiency, stakeholder collaboration, and decision-making
+across the electronic waste management lifecycle. Figure~\ref{fig:intelligent-waste}
+presents the major components of an intelligent waste management ecosystem and
+illustrates how modern digital technologies support efficient waste management
+operations.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Intelligent Waste Management Framework (AI, Cloud Computing, GIS, IoT, Mobile, Data Analytics)}
+  \caption{Intelligent Waste Management Framework showing the integration of Artificial Intelligence, Cloud Computing, GIS, IoT, Mobile Applications, and Data Analytics in modern waste management. Source: Adapted from recent smart waste management literature \citep{sharma2023}.}
+  \label{fig:intelligent-waste}
+\end{figure}
+
+\subsection{Cloud Computing}
+
+Cloud computing is a computing paradigm that enables on-demand access to
+configurable computing resources, including servers, storage, databases,
+networking, software, and processing power, over the Internet. Instead of relying
+on local infrastructure, cloud computing allows organizations to access scalable
+computing services that can be provisioned rapidly with minimal management
+effort \citep{armbrust2010,mell2011}.
+
+Cloud computing has transformed the development and deployment of modern
+information systems by providing scalable, flexible, and cost-effective computing
+environments. Organizations increasingly adopt cloud technologies because they
+reduce infrastructure costs, improve system availability, simplify maintenance, and
+support collaboration through centralized data management.
+
+The National Institute of Standards and Technology (NIST) identifies five
+essential characteristics of cloud computing: on-demand self-service, broad
+network access, resource pooling, rapid elasticity, and measured service
+\citep{mell2011}. These characteristics enable cloud platforms to dynamically
+allocate computing resources according to user demand while ensuring efficient
+resource utilization.
+
+Cloud computing services are commonly classified into three service models:
+
+\begin{itemize}
+  \item \textbf{Infrastructure as a Service (IaaS)}, which provides virtualized
+    computing resources such as servers, storage, and networking.
+  \item \textbf{Platform as a Service (PaaS)}, which provides software
+    development platforms and deployment environments without requiring
+    developers to manage the underlying infrastructure.
+  \item \textbf{Software as a Service (SaaS)}, which delivers complete software
+    applications over the Internet for end users.
+\end{itemize}
+
+Cloud computing also supports different deployment models, including public
+cloud, private cloud, hybrid cloud, and community cloud. Public cloud services are
+the most widely adopted because they offer scalability, accessibility, and lower
+operational costs for organizations of different sizes.
+
+Recent advances in cloud computing have enabled the integration of mobile
+computing, artificial intelligence, Internet of Things (IoT), big data analytics, and
+geographic information systems into modern software solutions. These
+technologies facilitate real-time data processing, secure information sharing,
+centralized storage, and intelligent decision support, making cloud computing an
+essential component of smart environmental management systems
+\citep{marinescu2022}.
+
+The EcoTrace system extensively utilizes cloud computing to provide a secure,
+scalable, and reliable electronic waste management platform. Cloud Firestore is
+used as the primary cloud database for storing and synchronizing application data
+in real time, Firebase Authentication provides secure user identity management,
+Firebase Cloud Messaging delivers push notifications, Cloudinary manages
+cloud-based image storage, and the FastAPI backend is deployed on the Render
+cloud platform. Together, these cloud services enable centralized data
+management, cross-platform accessibility, real-time communication, and high
+system availability.
+
+The adoption of cloud computing within EcoTrace enhances scalability, improves
+data accessibility, supports collaboration among multiple stakeholders, and
+simplifies system maintenance while reducing the need for organizations to
+manage their own physical server infrastructure. Figure~\ref{fig:cloud-arch}
+illustrates the role of cloud computing in supporting centralized data management
+and communication between multiple client applications and cloud services.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Cloud Computing Architecture for Intelligent Electronic Waste Management}
+  \caption{Cloud Computing Architecture for Intelligent Electronic Waste Management. Source: Adapted from Mell and Grance (2011) and recent cloud computing literature.}
+  \label{fig:cloud-arch}
+\end{figure}
+
+\subsection{Artificial Intelligence}
+
+Artificial Intelligence (AI) refers to the branch of computer science concerned with
+developing computer systems capable of performing tasks that normally require
+human intelligence. Such tasks include learning, reasoning, problem-solving,
+pattern recognition, decision-making, speech recognition, natural language
+processing, and computer vision \citep{russell2021}.
+
+Artificial intelligence has become one of the most transformative technologies
+of the Fourth Industrial Revolution. Advances in computing power, cloud
+computing, big data, and machine learning algorithms have enabled AI systems to
+solve complex real-world problems across numerous domains, including
+healthcare, agriculture, transportation, manufacturing, education, finance, and
+environmental management.
+
+Machine Learning (ML), a major subfield of artificial intelligence, enables
+computer systems to learn patterns directly from data without being explicitly
+programmed for every possible scenario. Instead, machine learning algorithms
+improve their performance by analysing historical data and identifying
+relationships that support accurate predictions and classifications.
+
+Deep Learning, a specialized branch of machine learning, utilizes Artificial
+Neural Networks (ANNs) with multiple hidden layers to learn complex
+representations from large datasets. Deep learning has achieved remarkable
+success in image classification, object detection, speech recognition, autonomous
+vehicles, and medical diagnosis due to its ability to automatically extract
+meaningful features from raw data \citep{goodfellow2016}.
+
+Computer vision, another important area of artificial intelligence, focuses on
+enabling computers to interpret and analyse digital images and videos. Modern
+computer vision systems employ deep learning models to identify objects, classify
+images, detect anomalies, and perform image segmentation with high accuracy.
+These capabilities have made computer vision an essential technology for
+intelligent waste management, where waste materials can be automatically
+identified and classified based on uploaded images.
+
+Recent studies demonstrate that artificial intelligence significantly improves
+waste management by automating waste classification, supporting smart
+recycling, optimizing collection operations, predicting waste generation, and
+enhancing environmental monitoring \citep{abdallah2022,sharma2023}. AI-assisted
+systems reduce manual sorting errors, improve operational efficiency, and
+increase the recovery of recyclable materials.
+
+The effectiveness of artificial intelligence systems largely depends on the
+quality and diversity of training datasets. Well-labelled and representative
+datasets improve the ability of machine learning models to generalize effectively
+when presented with previously unseen data. Conversely, poor-quality datasets
+may reduce model accuracy and introduce classification bias.
+
+Within the EcoTrace system, artificial intelligence is employed to support the
+automatic classification of electronic waste images uploaded by users. The AI
+component assists users in identifying the category of electronic waste before
+collection, thereby improving data quality and supporting more efficient
+collection, repair, refurbishment, and recycling processes. PyTorch was selected as
+the machine learning framework because of its flexibility, extensive deep learning
+support, active research community, and suitability for computer vision
+applications.
+
+The integration of artificial intelligence into EcoTrace demonstrates how
+intelligent software systems can improve environmental management by
+supporting faster decision-making, increasing classification accuracy, and
+promoting sustainable electronic waste recovery practices. Figure~\ref{fig:ai-framework}
+illustrates the general workflow of an artificial intelligence image classification
+system used for electronic waste management.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Artificial Intelligence Framework for Electronic Waste Image Classification}
+  \caption{Artificial Intelligence Framework for Electronic Waste Image Classification. Source: Adapted from Goodfellow et al. (2016) and Russell and Norvig (2021).}
+  \label{fig:ai-framework}
+\end{figure}
+
+\subsection{Geographic Information Systems (GIS)}
+
+Geographic Information Systems (GIS) are computer-based systems used for
+capturing, storing, managing, analysing, and visualizing geographically referenced
+data. GIS integrates spatial information with attribute data to support
+decision-making through digital maps, spatial analysis, and location-based
+services \citep{longley2021}.
+
+The increasing adoption of GIS technologies has transformed numerous
+industries, including urban planning, transportation, agriculture, healthcare,
+disaster management, environmental monitoring, and waste management. By
+combining geographic coordinates with real-time data, GIS enables organizations
+to monitor assets, analyse spatial patterns, optimize operations, and improve
+resource allocation.
+
+Within waste management, GIS plays an important role in planning waste
+collection routes, identifying waste generation hotspots, locating collection
+centres, monitoring vehicle movement, and supporting environmental planning.
+Spatial analysis enables waste management organizations to improve operational
+efficiency while reducing fuel consumption, travel distance, collection time, and
+operational costs \citep{ananth2022}.
+
+Modern GIS applications are frequently integrated with Global Positioning
+System (GPS) technologies to provide real-time location tracking. GPS enables
+mobile devices and vehicles to determine their geographic positions accurately,
+while GIS visualizes and analyses these locations to support intelligent
+decision-making. The integration of GIS and GPS has become essential for smart
+cities and intelligent waste management systems.
+
+Cloud computing has further enhanced GIS capabilities by enabling cloud-based
+map services, real-time spatial data synchronization, and cross-platform
+accessibility. Cloud GIS solutions allow multiple users to access and update
+geographic information simultaneously from mobile, web, and desktop
+applications, thereby improving collaboration among stakeholders.
+
+The Google Maps Platform is one of the most widely adopted cloud-based GIS
+solutions for software development. It provides Application Programming
+Interfaces (APIs) and software development kits (SDKs) that support interactive
+maps, geocoding, reverse geocoding, route planning, distance calculation, place
+search, and navigation services \citep{google2026maps}. These capabilities have
+made Google Maps Platform a preferred solution for location-aware applications.
+
+Several recent studies have demonstrated that integrating GIS into waste
+management systems significantly improves collection efficiency, route
+optimization, environmental monitoring, and service delivery
+\citep{ananth2022,belhadi2021}. GIS also supports evidence-based decision-making
+by enabling administrators to visualize operational activities and identify areas
+requiring intervention.
+
+Within the EcoTrace system, GIS functionality is implemented through the
+Google Maps Platform to support electronic waste collection and transportation.
+Users can register the geographic location of electronic waste, view nearby
+collection centres, visualize collection routes, and track collection activities.
+Environmental officers and administrators can monitor collection operations using
+interactive maps, thereby improving operational coordination and
+decision-making.
+
+The integration of GIS within EcoTrace enhances route planning, reduces
+transportation costs, improves service delivery, strengthens electronic waste
+traceability, and contributes to more efficient and sustainable electronic waste
+management. Figure~\ref{fig:gis-framework} illustrates how Geographic
+Information Systems support location-based electronic waste management
+through mapping, GPS tracking, route optimization, and spatial analytics.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{GIS Framework for Intelligent Electronic Waste Management}
+  \caption{Geographic Information System (GIS) Framework for Intelligent Electronic Waste Management. Source: Adapted from Longley et al. (2021) and Google Maps Platform documentation.}
+  \label{fig:gis-framework}
+\end{figure}
+
+\section{Review of Relevant Technologies}
+
+The successful development of modern intelligent information systems depends
+on selecting technologies that provide reliability, scalability, security,
+maintainability, and high performance. The development of EcoTrace required the
+integration of several modern software technologies to support cross-platform
+application development, cloud computing, secure authentication, image
+management, real-time notifications, geographic information systems, and
+artificial intelligence.
+
+This section reviews the major technologies adopted in the implementation of
+EcoTrace. For each technology, its features, advantages, limitations, and relevance
+to the proposed system are discussed. The review provides the technological
+justification for the selection of Flutter, FastAPI, Cloud Firestore, Firebase
+Authentication, Firebase Cloud Messaging, Cloudinary, Google Maps Platform,
+Render, and PyTorch.
+
+\subsection{Flutter Framework}
+
+Flutter is Google's open-source software development framework for building
+cross-platform applications from a single codebase \citep{google2025flutter}. Since
+its introduction in 2018, Flutter has become one of the most widely adopted
+cross-platform development frameworks because it enables developers to build
+applications for Android, iOS, Web, Windows, macOS, and Linux while
+maintaining a consistent user interface and user experience.
+
+Flutter is built on the Dart programming language and utilizes its own
+high-performance rendering engine known as Skia. Unlike many cross-platform
+frameworks that rely on native user interface widgets, Flutter renders its own
+widgets, enabling consistent application appearance across different operating
+systems.
+
+One of Flutter's major advantages is the concept of a single codebase.
+Developers write the application once and deploy it to multiple platforms with
+minimal platform-specific modifications. This approach reduces development time,
+maintenance costs, and software complexity while improving consistency across
+supported devices.
+
+Flutter also provides Hot Reload functionality, allowing developers to view code
+changes almost instantly without restarting the application. This significantly
+improves productivity during software development and debugging.
+
+The framework includes an extensive collection of customizable widgets,
+responsive layouts, animation libraries, navigation components, and integration
+support for cloud services, RESTful APIs, databases, mapping services, and
+artificial intelligence frameworks. These capabilities make Flutter suitable for
+developing enterprise-scale applications.
+
+Several comparative studies have reported that Flutter provides better
+development productivity, faster application performance, and improved
+maintainability compared to many traditional cross-platform frameworks
+\citep{biswas2023}.
+
+For the EcoTrace project, Flutter was selected because it supports the
+development of Android mobile applications, Web applications, and Windows
+desktop applications using a unified codebase. This approach ensures feature
+consistency across all supported platforms while reducing development effort and
+simplifying future system maintenance. Flutter also integrates seamlessly with
+Firebase services, Google Maps Platform, Cloudinary, and RESTful APIs
+developed using FastAPI, making it well suited to the requirements of the
+proposed system. Figure~\ref{fig:flutter-arch} illustrates Flutter's cross-platform
+architecture and its integration with the major cloud services used by EcoTrace.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Flutter Cross-Platform Architecture for EcoTrace}
+  \caption{Flutter Cross-Platform Architecture for EcoTrace. Source: Adapted from the official Flutter documentation \citep{google2025flutter}.}
+  \label{fig:flutter-arch}
+\end{figure}
+
+\subsection{FastAPI}
+
+FastAPI is a modern, high-performance Python web framework used for building
+Application Programming Interfaces (APIs). Developed by Sebasti\'an Ram\'irez in
+2018, FastAPI is designed to simplify backend development while providing
+exceptional performance, automatic API documentation, asynchronous request
+handling, and built-in data validation \citep{ramirez2025}.
+
+FastAPI is built on the ASGI (Asynchronous Server Gateway Interface) standard
+and utilizes Starlette for web functionality and Pydantic for data validation. This
+architecture enables FastAPI applications to handle multiple client requests
+efficiently while maintaining excellent performance and scalability. Benchmark
+studies have shown that FastAPI achieves performance levels comparable to
+Node.js and Go for many web service workloads while offering the simplicity and
+readability of the Python programming language \citep{ramirez2023}.
+
+One of the major advantages of FastAPI is its automatic generation of
+interactive API documentation using the OpenAPI Specification. As soon as an API
+is implemented, FastAPI automatically generates Swagger UI and ReDoc
+documentation, allowing developers to visualize endpoints, test API requests, and
+simplify integration between frontend and backend systems.
+
+FastAPI also provides robust support for asynchronous programming using
+Python's async and await keywords. Asynchronous request processing allows the
+server to handle numerous simultaneous client requests efficiently without
+blocking execution, thereby improving system responsiveness and resource
+utilization.
+
+Another important feature of FastAPI is its integration with Pydantic models for
+request validation and serialization. Incoming data is validated automatically
+against predefined schemas before being processed by the application, reducing
+programming errors and improving overall system reliability.
+
+Security is also an important consideration in FastAPI applications. The
+framework supports OAuth2 authentication, JSON Web Tokens (JWT), API key
+authentication, Cross-Origin Resource Sharing (CORS), dependency injection,
+request validation, and middleware integration, making it suitable for
+enterprise-level web applications.
+
+FastAPI integrates effectively with cloud services, databases, machine learning
+frameworks, and third-party APIs. These capabilities have made it increasingly
+popular for developing backend services supporting artificial intelligence,
+cloud-native applications, Internet of Things (IoT), and microservice architectures.
+
+Within the EcoTrace system, FastAPI serves as the primary backend framework
+responsible for implementing RESTful API services that facilitate communication
+between Flutter client applications and cloud services. The backend manages user
+authentication requests, electronic waste registration, collection scheduling, image
+processing, notification services, reporting, and communication with Cloud
+Firestore, Cloudinary, Google Maps Platform, Firebase Cloud Messaging, and the AI
+image classification module.
+
+The FastAPI backend is deployed on the Render cloud platform, enabling
+secure, scalable, and reliable API hosting. This deployment supports cross-platform
+communication between Android, Web, and Windows applications while providing
+centralized business logic and secure access to cloud resources.
+
+Overall, FastAPI provides the performance, scalability, maintainability, and
+developer productivity required for implementing a modern cloud-based
+electronic waste management platform such as EcoTrace. Figure~\ref{fig:fastapi-arch}
+illustrates the architecture of the FastAPI backend and its interaction with the
+various cloud services and client applications used by EcoTrace.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{FastAPI Backend Architecture for EcoTrace}
+  \caption{FastAPI Backend Architecture for EcoTrace. Source: Adapted from the official FastAPI documentation \citep{ramirez2025}.}
+  \label{fig:fastapi-arch}
+\end{figure}
+
+\subsection{Cloud Firestore}
+
+Cloud Firestore is a fully managed, cloud-hosted NoSQL document database
+provided by Google as part of the Firebase platform. It is designed to store,
+synchronize, and retrieve application data in real-time while providing high
+scalability, reliability, and security \citep{firebase2025firestore}.
+
+Unlike traditional relational databases that organize information into tables
+consisting of rows and columns, Cloud Firestore stores data as collections of
+documents. Each document contains fields represented as key-value pairs and can
+itself contain nested collections. This document-oriented architecture provides
+greater flexibility for representing complex and hierarchical application data.
+
+One of the major advantages of Cloud Firestore is its real-time data
+synchronization capability. Whenever data is added, modified, or deleted, changes
+are automatically synchronized across all connected client applications without
+requiring manual refresh operations. This feature is particularly useful for
+applications that require multiple users to access current information
+simultaneously.
+
+Cloud Firestore also supports offline data persistence. Client applications can
+continue reading and writing data while temporarily disconnected from the
+Internet. Once connectivity is restored, local changes are automatically
+synchronized with the cloud database, improving reliability and user experience in
+environments with unstable network connections.
+
+Another important characteristic of Cloud Firestore is its automatic horizontal
+scalability. Google manages infrastructure provisioning, load balancing,
+replication, backup, and disaster recovery, allowing developers to focus on
+application development instead of database administration. This makes Cloud
+Firestore suitable for applications expected to grow in both user base and data
+volume.
+
+Security within Cloud Firestore is enforced through Firebase Security Rules,
+which allow developers to define fine-grained access policies based on
+authenticated users, user roles, document ownership, and other conditions. These
+rules ensure that only authorized users can access or modify sensitive application
+data.
+
+Cloud Firestore integrates seamlessly with other Firebase services, including
+Firebase Authentication, Firebase Cloud Messaging, Cloud Functions, Firebase
+Storage, Analytics, and Google Cloud services. This close integration simplifies the
+development of cloud-native applications while improving maintainability and
+interoperability.
+
+Several recent studies have identified cloud-hosted NoSQL databases as
+effective solutions for scalable mobile and web applications because they support
+flexible data structures, real-time synchronization, and distributed cloud
+architectures \citep{li2022,nayak2021}.
+
+Within the EcoTrace system, Cloud Firestore serves as the primary cloud
+database responsible for storing user profiles, electronic waste records, pickup
+requests, collection schedules, recycling information, notifications, reports, and
+administrative data. Because Android, Web, and Windows applications access the
+same centralized database, authorized users can retrieve consistent information
+regardless of the platform being used.
+
+The adoption of Cloud Firestore contributes significantly to the scalability,
+reliability, availability, and real-time communication capabilities of EcoTrace while
+simplifying database administration and supporting future system expansion.
+Figure~\ref{fig:firestore-arch} illustrates the Cloud Firestore architecture adopted
+by EcoTrace for centralized data storage and real-time synchronization.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Cloud Firestore Architecture for EcoTrace}
+  \caption{Cloud Firestore Architecture for EcoTrace. Source: Adapted from Firebase Documentation \citep{firebase2025firestore}.}
+  \label{fig:firestore-arch}
+\end{figure}
+
+\subsection{Firebase Authentication}
+
+Firebase Authentication is a cloud-based identity management service provided by
+Google as part of the Firebase platform. It simplifies user authentication by
+providing secure mechanisms for user registration, login, password management,
+email verification, and session management without requiring developers to
+implement complex authentication infrastructure \citep{firebase2025auth}.
+
+Authentication is a fundamental security requirement for modern information
+systems because it ensures that only authorized users can access protected
+resources and perform system operations. Firebase Authentication supports
+multiple authentication methods, including email and password authentication,
+phone number authentication, Google Sign-In, Apple Sign-In, Facebook Login,
+GitHub authentication, Microsoft authentication, anonymous authentication, and
+custom authentication providers.
+
+One of the major advantages of Firebase Authentication is its seamless
+integration with other Firebase services, including Cloud Firestore, Firebase Cloud
+Messaging, Cloud Functions, Firebase Storage, and Google Cloud services. This
+integration simplifies user identity management while maintaining secure
+communication across cloud-based applications.
+
+Firebase Authentication implements modern security standards, including
+encrypted communication using HTTPS, secure password storage, token-based
+authentication, session management, and JSON Web Tokens (JWT). These
+mechanisms protect user identities and reduce the risk of unauthorized system
+access.
+
+Role-Based Access Control (RBAC) is commonly implemented alongside
+Firebase Authentication to restrict user access according to assigned roles and
+responsibilities. Under the RBAC model, users are granted permissions based on
+predefined roles rather than individual user accounts. This approach simplifies
+security administration and ensures that users can only access functionalities
+relevant to their assigned responsibilities \citep{sandhu1996}.
+
+The EcoTrace system adopts Firebase Authentication together with Role-Based
+Access Control to manage multiple categories of users, including households,
+businesses, waste collectors, technicians, recyclers, environmental officers,
+administrators, and super administrators. Each authenticated user is granted
+specific permissions according to their assigned role, thereby protecting sensitive
+information and preventing unauthorized access to system resources.
+
+Firebase Authentication also supports persistent user sessions, allowing users
+to remain logged in across application restarts while maintaining secure
+authentication tokens. Password reset, email verification, and account recovery
+mechanisms further improve system security and usability.
+
+The adoption of Firebase Authentication significantly improves the security,
+reliability, and maintainability of EcoTrace by providing a trusted cloud-based
+authentication infrastructure while reducing the development effort required to
+implement secure user identity management. Figure~\ref{fig:firebase-auth-arch}
+illustrates the authentication workflow implemented within the EcoTrace system.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Firebase Authentication Architecture for EcoTrace}
+  \caption{Firebase Authentication Architecture for EcoTrace. Source: Adapted from the official Firebase Authentication documentation \citep{firebase2025auth}.}
+  \label{fig:firebase-auth-arch}
+\end{figure}
+
+\subsection{Firebase Cloud Messaging (FCM)}
+
+Firebase Cloud Messaging (FCM) is Google's cloud-based messaging service that
+enables developers to send real-time notifications and data messages to Android,
+Web, and other supported client applications. It provides a reliable
+communication channel between backend services and client devices without
+requiring developers to manage their own notification servers \citep{firebase2025fcm}.
+
+Modern information systems increasingly depend on real-time communication
+to improve user engagement, operational efficiency, and service delivery. Push
+notification services enable organizations to instantly communicate important
+events, reminders, alerts, and system updates to users regardless of whether the
+application is currently active.
+
+Firebase Cloud Messaging supports two primary message types: notification
+messages and data messages. Notification messages are displayed directly by the
+operating system, while data messages are processed by the application itself,
+allowing developers to implement custom notification behaviour and business
+logic.
+
+One of the major advantages of Firebase Cloud Messaging is its seamless
+integration with Firebase Authentication, Cloud Firestore, Cloud Functions, and
+mobile application frameworks such as Flutter. This integration simplifies the
+implementation of cloud-based notification systems while ensuring secure and
+reliable message delivery.
+
+FCM provides several features that improve communication efficiency,
+including topic messaging, device group messaging, targeted user notifications,
+scheduled notifications, and message prioritization. These capabilities enable
+organizations to deliver personalized messages to individual users, specific user
+groups, or all users of an application.
+
+Cloud-based notification services have become increasingly important for
+intelligent environmental management systems because they improve coordination
+among stakeholders and facilitate timely decision-making. Real-time alerts help
+reduce operational delays, improve user participation, and enhance service quality.
+
+Within the EcoTrace system, Firebase Cloud Messaging is used to send
+real-time notifications throughout the electronic waste management process.
+Users receive notifications when pickup requests are submitted, approved,
+scheduled, completed, or cancelled. Additional notifications inform users about
+recycling progress, collection reminders, environmental campaigns, system
+announcements, and account activities.
+
+Environmental officers, collectors, recyclers, technicians, and administrators
+also receive operational notifications regarding new assignments, collection
+requests, schedule updates, and system activities. These notifications improve
+coordination among system stakeholders while reducing communication delays.
+
+The integration of Firebase Cloud Messaging significantly enhances the overall
+usability of EcoTrace by improving user engagement, strengthening
+communication, supporting timely service delivery, and providing a responsive
+user experience across Android, Web, and Windows platforms.
+Figure~\ref{fig:fcm-arch} illustrates the notification workflow implemented in
+EcoTrace using Firebase Cloud Messaging.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Firebase Cloud Messaging Architecture for EcoTrace}
+  \caption{Firebase Cloud Messaging Architecture for EcoTrace. Source: Adapted from the official Firebase Cloud Messaging documentation \citep{firebase2025fcm}.}
+  \label{fig:fcm-arch}
+\end{figure}
+
+\subsection{Cloudinary}
+
+Cloudinary is a cloud-based media management platform that provides services for
+storing, managing, optimizing, transforming, and delivering images and videos
+through cloud infrastructure. It enables developers to upload media files securely
+while automatically optimizing them for different devices, browsers, and network
+conditions \citep{cloudinary2025}.
+
+Modern software applications increasingly depend on cloud-based media
+management services because digital images constitute a significant portion of
+application data. Traditional file storage approaches often require developers to
+manually implement image compression, resizing, format conversion, caching,
+and content delivery mechanisms. Cloudinary automates these processes, thereby
+improving application performance while reducing development complexity.
+
+One of Cloudinary's major strengths is its automatic image optimization
+capability. Uploaded images are automatically compressed, resized, cropped, and
+converted into modern formats such as WebP or AVIF where supported, reducing
+bandwidth consumption while maintaining high visual quality. These
+optimizations contribute to faster page loading times and improved user
+experience.
+
+Cloudinary also integrates a global Content Delivery Network (CDN), allowing
+media assets to be served from geographically distributed servers. This reduces
+image loading latency by delivering media from servers located closer to end
+users. Such capabilities are especially important for cloud-based applications that
+serve users across different geographic regions.
+
+Another important feature of Cloudinary is its support for secure media
+management. Developers can configure authenticated uploads, signed URLs,
+access control policies, and transformation restrictions to protect media assets
+from unauthorized access. Cloudinary also provides automatic backups, version
+control, and high availability through its managed cloud infrastructure.
+
+Cloudinary offers comprehensive Application Programming Interfaces (APIs)
+and Software Development Kits (SDKs) for numerous programming languages and
+frameworks, including Python, JavaScript, Flutter, and Node.js. These APIs
+simplify media upload, retrieval, transformation, and deletion while supporting
+integration with cloud-native applications.
+
+Within the EcoTrace system, Cloudinary is responsible for storing electronic
+waste images uploaded by users during waste registration. Each uploaded image
+is securely stored in the cloud, optimized for delivery, and linked to the
+corresponding waste record stored in Cloud Firestore. This separation of
+structured data and media storage improves scalability and reduces database
+storage requirements.
+
+The backend manages communication with the Cloudinary API, performing
+secure image uploads and storing the returned image URLs in Cloud Firestore.
+Flutter client applications subsequently retrieve these optimized image URLs
+when displaying electronic waste records, thereby reducing application size and
+improving loading performance.
+
+The adoption of Cloudinary significantly enhances EcoTrace by providing
+reliable cloud-based image hosting, automatic media optimization, secure storage,
+high availability, and efficient image delivery across Android, Web, and Windows
+applications. Figure~\ref{fig:cloudinary-arch} illustrates how Cloudinary integrates
+with the EcoTrace architecture to manage electronic waste images.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Cloudinary Architecture for Image Management in EcoTrace}
+  \caption{Cloudinary Architecture for Image Management in EcoTrace. Source: Adapted from the official Cloudinary documentation \citep{cloudinary2025}.}
+  \label{fig:cloudinary-arch}
+\end{figure}
+
+\subsection{Google Maps Platform}
+
+Google Maps Platform is a collection of cloud-based mapping, geospatial, routing,
+navigation, and location services provided by Google. It offers Application
+Programming Interfaces (APIs) and Software Development Kits (SDKs) that enable
+developers to integrate interactive maps and location-aware functionality into
+mobile, web, desktop, and server-side applications \citep{google2026maps}.
+
+Location-based services are important components of modern logistics,
+transportation, environmental monitoring, and waste management applications.
+They enable organizations to record geographic coordinates, display operational
+locations, calculate travel distances, plan routes, locate nearby facilities, and
+monitor the spatial distribution of activities.
+
+The Google Maps Platform includes several services that are relevant to the
+EcoTrace system. The Maps services support the display of interactive maps,
+markers, routes, and geographic features. The Geocoding API converts
+human-readable addresses into latitude and longitude coordinates, while reverse
+geocoding converts geographic coordinates into readable addresses
+\citep{google2026geocoding}.
+
+The Places API provides information about geographic locations and facilities.
+It supports place search, place details, autocomplete, nearby search, and the use
+of unique place identifiers. These capabilities can assist users in finding electronic
+waste collection centres and identifying relevant facilities near their current
+locations \citep{google2026places}.
+
+The Routes API supports route planning between origins, destinations, and
+intermediate waypoints. Its Compute Routes operation determines an appropriate
+route between locations, while Compute Route Matrix calculates travel distances
+and estimated journey times for multiple origins and destinations
+\citep{google2026routes}.
+
+Google Maps Platform also provides route optimization capabilities. Waypoint
+optimization can rearrange intermediate stops to improve travel efficiency, while
+the Route Optimization API can assign collection tasks and construct efficient
+routes for vehicle fleets according to objectives and operational constraints
+\citep{google2026optway,google2026routeopt}.
+
+These routing services are particularly relevant to electronic waste
+management because collection requests may originate from multiple geographic
+locations. Efficient route planning can reduce unnecessary travel, fuel
+consumption, collection delays, and transportation costs while improving service
+coverage.
+
+Within EcoTrace, Google Maps Platform is used to display electronic waste
+locations, collection centres, pickup routes, and transportation activities.
+Geographic coordinates associated with pickup requests are processed through
+the backend and stored with the relevant records in Cloud Firestore.
+
+Collectors and drivers can use the generated route information to navigate
+between waste collection locations and processing facilities. Administrators and
+environmental officers can also use map-based dashboards to monitor collection
+coverage, operational locations, and transportation activities.
+
+Google Maps Platform requires authenticated API access and careful credential
+management. API keys should be restricted to the specific applications and
+services that require them to reduce unauthorized use and unexpected billing
+\citep{google2026bestpractices}. The platform also operates primarily under
+usage-based pricing, which means that API consumption should be monitored
+and controlled through quotas and budget alerts \citep{google2026pricing}.
+
+The adoption of Google Maps Platform improves EcoTrace by providing
+accurate location visualization, route planning, proximity analysis,
+collection-centre discovery, and route optimization. These capabilities strengthen
+operational coordination and support more efficient and sustainable electronic
+waste collection. Figure~\ref{fig:maps-arch} illustrates how Google Maps Platform
+supports location registration, collection-centre discovery, route calculation, and
+route optimization within EcoTrace.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Google Maps Platform Architecture for EcoTrace}
+  \caption{Google Maps Platform Architecture for EcoTrace. Source: Adapted from Google Maps Platform documentation \citep{google2026maps,google2026routes}.}
+  \label{fig:maps-arch}
+\end{figure}
+
+\subsection{Render Cloud Platform}
+
+Render is a cloud application hosting platform that enables developers to deploy,
+operate, and monitor web applications, backend services, Application
+Programming Interfaces (APIs), static websites, databases, and other cloud
+resources. The platform supports several programming languages and
+frameworks, including Python and FastAPI, and provides managed infrastructure
+that reduces the need for developers to configure and maintain physical servers
+\citep{render2026webservices}.
+
+Modern software applications require reliable hosting environments that
+support deployment automation, secure communication, configuration
+management, monitoring, and scalability. Render addresses these requirements by
+allowing developers to connect application repositories hosted on GitHub, GitLab,
+or Bitbucket and deploy them as cloud services.
+
+A Render Web Service is suitable for applications that execute server-side code
+and respond to HTTP requests. Each deployed service receives a publicly
+accessible \texttt{onrender.com} address, while custom domains can also be
+configured. Render automatically manages HTTPS connections and redirects
+incoming HTTP traffic to HTTPS, supporting secure communication between client
+applications and backend services \citep{render2026webservices}.
+
+Render supports automatic deployment from a linked Git branch. Whenever
+new code is pushed to the configured branch, the platform can build and deploy
+the updated application automatically. This capability supports continuous
+deployment and reduces the manual effort required to publish software updates.
+
+For Python applications, Render executes a build command to install project
+dependencies and a start command to launch the application. A FastAPI service
+can be deployed using a build command such as \texttt{pip install -r
+requirements.txt} and started with \texttt{uvicorn main:app --host 0.0.0.0
+--port \$PORT}. The application must listen on the host \texttt{0.0.0.0} and use
+the port supplied through Render's \texttt{PORT} environment variable
+\citep{render2026fastapi}.
+
+Render provides environment-variable and secret-file management for
+protecting sensitive configuration information. API credentials, Firebase
+service-account settings, Cloudinary credentials, application configuration values,
+and other secrets can therefore be stored outside the source code and supplied
+securely to the running service \citep{render2026envvars}.
+
+The platform also supports health checks for monitoring application
+availability. Render can periodically test a configured endpoint to confirm that a
+service is ready to receive traffic. Unresponsive instances can be identified and
+restarted, while newly deployed versions are verified before receiving production
+traffic \citep{render2026healthchecks}.
+
+Application and deployment logs are available through the Render Dashboard.
+These logs assist developers in identifying startup errors, dependency problems,
+failed requests, configuration issues, and other runtime events during
+development and maintenance.
+
+Within EcoTrace, Render hosts the backend that provides the central business
+logic and RESTful API services. Flutter applications running on Android, Web, and
+Windows communicate with the deployed API through secure HTTPS requests.
+
+The Render-hosted backend processes electronic waste registration, image
+upload, AI classification, pickup scheduling, notification requests, reporting, and
+administrative operations. It also coordinates communication with Cloud
+Firestore, Firebase Authentication, Firebase Cloud Messaging, Cloudinary, Google
+Maps Platform, and the PyTorch AI component.
+
+The EcoTrace backend currently uses the Render Free Web Service tier. This
+tier is suitable for development, academic demonstration, and limited testing;
+however, it introduces operational constraints. A free service is suspended after
+fifteen minutes without inbound traffic and must restart when a new request is
+received. The restart process may produce an initial response delay
+\citep{render2026free}.
+
+Free Web Services also use an ephemeral local filesystem. Files created or
+uploaded directly to the server may be lost when the service restarts, redeploys, or
+spins down. EcoTrace therefore stores structured application data in Cloud
+Firestore and hosts uploaded images in Cloudinary rather than relying on the
+Render filesystem.
+
+The free tier also provides limited compute resources and does not support
+horizontal scaling beyond a single service instance. These limitations may affect
+response time when processing computationally intensive AI inference requests or
+handling a large number of simultaneous users. A paid or dedicated hosting
+configuration would therefore be more appropriate for large-scale production
+deployment.
+
+Despite these limitations, Render was selected because it provides a
+straightforward deployment process, Git-based automation, managed HTTPS,
+environment-variable management, logging, health checks, and direct support for
+Python and FastAPI. These capabilities make it suitable for hosting the EcoTrace
+backend during development, testing, demonstration, and initial deployment.
+Figure~\ref{fig:render-arch} illustrates the deployment of the EcoTrace backend on
+the Render cloud platform and its connections to the client applications and
+external cloud services.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Render Deployment Architecture for EcoTrace}
+  \caption{Render Deployment Architecture for EcoTrace. Source: Adapted from the official Render documentation \citep{render2026fastapi,render2026webservices}.}
+  \label{fig:render-arch}
+\end{figure}
+
+\subsection{PyTorch Framework}
+
+PyTorch is an open-source machine learning framework used for building,
+training, evaluating, and deploying artificial intelligence models. It provides
+optimized tensor operations for Central Processing Units (CPUs) and Graphics
+Processing Units (GPUs), making it suitable for computationally intensive deep
+learning applications \citep{paszke2019,pytorch2026docs}.
+
+PyTorch follows an imperative and Python-oriented programming approach.
+Operations are executed immediately, allowing developers to inspect intermediate
+results, identify errors, and modify model behaviour during development. This
+approach improves experimentation and debugging while maintaining support for
+efficient computation and hardware acceleration \citep{paszke2019}.
+
+A major component of PyTorch is its automatic differentiation system, known
+as autograd. During model training, autograd records tensor operations and
+automatically calculates gradients during backpropagation. These gradients are
+used by optimization algorithms to update model parameters and progressively
+reduce prediction error \citep{pytorch2026autograd}.
+
+PyTorch provides several modules that support the machine learning
+development lifecycle. The \texttt{torch.nn} module contains layers, activation
+functions, loss functions, and other components used to construct neural
+networks. The \texttt{torch.optim} module provides optimization algorithms,
+while \texttt{Dataset} and \texttt{DataLoader} utilities support structured loading,
+batching, and shuffling of training data.
+
+For computer vision applications, PyTorch provides the TorchVision library.
+TorchVision contains common image datasets, model architectures, pretrained
+weights, and image transformation utilities. These resources support image
+resizing, cropping, normalization, augmentation, training, validation, and
+inference \citep{pytorch2026torchvision}.
+
+Convolutional Neural Networks (CNNs) are widely used for image classification
+because they learn spatial patterns such as edges, textures, shapes, and object
+structures directly from images. Within an electronic waste classification system,
+a CNN can analyse an uploaded image and predict whether it represents a mobile
+phone, laptop, television, printer, battery, circuit board, or another supported
+electronic waste category.
+
+The performance of an image classification model depends on the quality,
+quantity, diversity, and correctness of the training data. Images should represent
+different device conditions, orientations, backgrounds, lighting conditions, camera
+qualities, and levels of physical damage. Data augmentation can improve model
+generalization by introducing controlled transformations such as rotation,
+cropping, resizing, flipping, and brightness adjustment.
+
+Transfer learning is particularly useful when the available project dataset is
+not large enough to train a deep neural network completely from random
+initialization. Under this approach, a model previously trained on a large image
+dataset is adapted to the electronic waste classification task. The earlier layers
+retain general visual features, while selected layers are fine-tuned to recognize
+the required electronic waste categories \citep{chilamkurthy2025}.
+
+A typical PyTorch image classification workflow consists of the following
+stages: (1)~collection and labelling of electronic waste images; (2)~separation of
+the dataset into training, validation, and testing subsets; (3)~image preprocessing
+and augmentation; (4)~loading the images using datasets and data loaders;
+(5)~selection and configuration of a suitable neural network; (6)~model training
+and optimization; (7)~validation and hyperparameter adjustment; (8)~final testing
+using previously unseen images; (9)~saving the trained model parameters; and
+(10)~deployment of the trained model for inference.
+
+Model performance may be evaluated using accuracy, precision, recall,
+F1-score, a confusion matrix, and inference time. Accuracy measures the overall
+proportion of correct predictions, while precision and recall provide more
+detailed information about performance for individual electronic waste
+categories. The confusion matrix helps identify categories that are frequently
+misclassified.
+
+PyTorch supports saving and restoring trained model parameters. The
+recommended approach is to store the model's \texttt{state\_dict}, which contains
+the learned parameters and can later be loaded into the same model architecture
+for evaluation or inference \citep{pytorch2026saving}.
+
+Within EcoTrace, PyTorch provides the artificial intelligence component
+responsible for analysing electronic waste images. Images uploaded from the
+Flutter applications are transmitted to the backend, which validates and
+preprocesses them before passing them to the trained PyTorch model.
+
+The model returns a predicted electronic waste category and a confidence
+score. The backend formats the prediction as a JSON response, stores relevant
+classification information in Cloud Firestore, and returns the result to the
+Android, Web, or Windows application. Firebase Cloud Messaging may
+subsequently notify the user when classification processing has been completed.
+
+The exact neural network architecture for EcoTrace had not been finalized at
+the time this chapter was written. Candidate architectures were to be evaluated
+according to classification accuracy, precision, recall, F1-score, model size,
+memory consumption, and inference time. This evaluation was considered
+necessary because the selected model would need to provide acceptable
+classification performance while operating within the computing constraints of
+the deployed backend service. \textit{Chapter~\ref{ch:implementation} reports the
+classification approach that was actually delivered.}
+
+PyTorch was selected for EcoTrace because it provides a flexible Python-based
+development environment, automatic differentiation, computer vision support,
+pretrained model resources, hardware acceleration, and effective integration with
+FastAPI. These capabilities make it suitable for developing and deploying the
+electronic waste image classification component of the system.
+Figure~\ref{fig:pytorch-arch} illustrates the training and inference workflows of
+the PyTorch electronic waste classification component integrated into EcoTrace.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{PyTorch Training and Inference Architecture for Electronic Waste Classification}
+  \caption{PyTorch Training and Inference Architecture for Electronic Waste Classification in EcoTrace. Source: Adapted from PyTorch and TorchVision documentation \citep{pytorch2026docs,pytorch2026torchvision}.}
+  \label{fig:pytorch-arch}
+\end{figure}
+
+\section{Review of Related and Existing Systems}
+
+This section reviews selected electronic waste management systems and digital
+platforms that demonstrate different approaches to electronic waste collection,
+recycling, regulatory compliance, resource recovery, and circular economy
+management. The systems were selected because their objectives or features are
+related to one or more components of EcoTrace.
+
+The review examines the Central Pollution Control Board E-Waste EPR Portal,
+Recykal, ecoATM, E-Tadweer, and Green Grid. Each system is evaluated according
+to its purpose, target users, principal functionalities, technological approach,
+strengths, and limitations. The findings provide a foundation for the comparative
+analysis presented in the next section.
+
+\subsection{Central Pollution Control Board E-Waste EPR Portal}
+
+The Central Pollution Control Board (CPCB) E-Waste Extended Producer
+Responsibility (EPR) Portal is an online regulatory information system developed
+to support the implementation of India's E-Waste Management Rules. The portal
+provides a centralized environment in which producers, manufacturers, recyclers,
+and refurbishers can register and manage their regulatory obligations
+\citep{cpcb2026}.
+
+The system supports producer registration, recycler registration, refurbisher
+registration, submission of sales data, allocation of recycling targets, generation
+and transfer of EPR certificates, annual returns, profile amendments, and
+compliance monitoring. Through these features, the portal improves
+documentation and accountability among stakeholders participating in the formal
+electronic waste management sector.
+
+A major strength of the CPCB portal is its regulatory orientation. It provides a
+structured digital mechanism for monitoring compliance with national electronic
+waste legislation and maintaining records of authorized stakeholders. It also
+supports the implementation of EPR by linking producers' obligations with
+recycling activities and certificates.
+
+However, the publicly documented functions of the portal are primarily
+focused on regulatory registration, certificates, targets, and returns. It is not
+principally designed as a citizen-facing platform for electronic waste image
+classification, household pickup scheduling, route optimization, repair
+management, marketplace activities, or real-time lifecycle tracking.
+
+EcoTrace differs from the CPCB portal by combining operational and
+regulatory functions within a user-oriented cross-platform system. In addition to
+administrative monitoring, EcoTrace supports households, businesses, collectors,
+drivers, technicians, recyclers, and environmental officers throughout the
+electronic waste recovery lifecycle.
+
+\subsection{Recykal}
+
+Recykal is a digital circular economy platform developed to connect waste
+generators, aggregators, processors, recyclers, brands, and other stakeholders
+involved in material recovery. The platform provides digital solutions for waste
+transactions, Extended Producer Responsibility compliance, collection
+management, traceability, and recycling operations \citep{recykal2026b}.
+
+Its electronic waste disposal solution enables organizations to manage
+obsolete information technology assets and arrange secure, sustainable, and
+documented disposal. The platform emphasizes authorized processing,
+traceability, compliance, data protection, and resource recovery
+\citep{recykal2026a}.
+
+A major strength of Recykal is its broad ecosystem approach. Rather than
+supporting only one category of stakeholder, the platform connects multiple
+participants across the circular economy value chain. Its digital records and
+transaction mechanisms improve transparency and support organizations seeking
+evidence of responsible waste processing.
+
+Recykal is primarily a commercial circularity and compliance platform
+designed for established waste and recycling markets. Its publicly documented
+e-waste services place substantial emphasis on enterprise asset disposal,
+compliance, traceability, and certified recycling. Consequently, it does not directly
+reflect every feature required for the Sierra Leonean context, such as a unified
+household application, collector and driver dashboards, repair workflow
+management, integrated environmental-officer interfaces, and locally adaptable
+operational roles.
+
+EcoTrace adopts a similarly integrated circular-economy perspective but
+extends the operational scope to include AI-assisted classification, pickup
+scheduling, reverse logistics, repair, refurbishment, recycling, notifications,
+location services, marketplace management, and environmental reporting across
+Android, Web, and Windows applications.
+
+\subsection{ecoATM}
+
+ecoATM is an automated electronic device collection system that enables
+consumers to sell eligible used devices through self-service kiosks. The kiosks are
+placed in retail and other publicly accessible locations, providing a convenient
+channel through which users can return unwanted mobile devices
+\citep{ecoatm2026a}.
+
+During a transaction, the user presents an eligible device and the required
+identification. The kiosk examines the device, assesses its condition, generates a
+price offer, and provides payment when the offer is accepted. Devices collected
+through the system may subsequently be reused, resold, refurbished, or recycled
+\citep{ecoatm2026b}.
+
+The principal strength of ecoATM is convenience. Its automated kiosks reduce
+the effort required for consumers to return unwanted devices and provide an
+immediate financial incentive. The system also demonstrates the practical use of
+automated inspection and valuation technologies in electronic device recovery.
+
+Nevertheless, ecoATM concentrates primarily on selected consumer devices,
+especially mobile phones and tablets, and depends on the availability of physical
+kiosks. Its purpose is device acquisition and resale or recycling rather than
+comprehensive management of multiple electronic waste categories.
+
+The system does not provide the same broad operational workflow proposed
+for EcoTrace, which includes household and business registration, pickup
+scheduling, collector assignment, route management, repair, refurbishment,
+recycling records, environmental monitoring, reporting, and role-specific
+dashboards.
+
+EcoTrace therefore extends beyond automated take-back by coordinating the
+complete electronic waste recovery process through mobile, web, and Windows
+applications while remaining adaptable to locations where specialized collection
+kiosks are unavailable.
+
+\subsection{E-Tadweer}
+
+E-Tadweer is an electronic waste recycling application developed in Egypt to
+encourage citizens to dispose of unwanted electrical and electronic equipment
+through approved channels. The platform combines digital waste reporting,
+collection-point information, and consumer incentives to improve participation in
+formal electronic waste recycling \citep{etadweer2026}.
+
+Users can submit information and images relating to electronic waste, identify
+participating drop-off locations, and receive electronic vouchers or other rewards
+from partner organizations. This incentive model encourages citizens to redirect
+obsolete electronic devices away from informal or unsafe disposal channels.
+
+A major strength of E-Tadweer is its focus on citizen participation. The
+platform uses rewards to make responsible electronic waste disposal more
+attractive while connecting users with formal collection arrangements. It also
+demonstrates how mobile technology can improve public awareness and
+participation in recycling programmes.
+
+However, its publicly documented workflow concentrates mainly on consumer
+submission, drop-off locations, rewards, and recycling participation. The available
+information does not indicate the same level of integration for collector route
+optimization, driver transportation records, repair and refurbishment
+management, AI-assisted waste classification, environmental-officer monitoring,
+or multi-platform administrative operations.
+
+EcoTrace incorporates citizen participation but expands the lifecycle coverage
+by supporting electronic waste registration, pickup requests, collection
+assignments, transportation, repair, refurbishment, recycling, marketplace
+operations, notifications, analytics, and environmental monitoring within one
+integrated platform.
+
+\subsection{Green Grid}
+
+Green Grid is a recently proposed web-based electronic waste recycling platform
+intended to improve public participation, awareness, collection access, and
+recycling transparency. The system was developed as a full-stack web application
+integrating several features associated with responsible electronic waste disposal
+\citep{jagtap2026}.
+
+Its reported functions include an electronic waste collection-point locator,
+scheduled pickup services, a rewards mechanism, an awareness and educational
+hub, a recycling-impact calculator, an AI assistant, and an eco-marketplace. The
+platform uses web technologies, a relational database, mapping services, and
+token-based authentication.
+
+A major strength of Green Grid is its integrated user-engagement model. It
+combines convenience, education, incentives, pickup scheduling, and
+marketplace functionality rather than treating recycling as an isolated
+transaction. The inclusion of mapping and AI-assisted features also demonstrates
+the growing role of intelligent technologies in electronic waste management.
+
+However, Green Grid is described primarily as a web-based platform and a
+recent academic prototype. The available publication does not demonstrate a
+fully deployed multi-platform operational system covering specialized
+stakeholders such as drivers, technicians, recyclers, environmental officers,
+administrators, and super administrators.
+
+Its documented architecture also does not provide the same explicit
+integration of mobile, web, and Windows applications with Cloud Firestore,
+Firebase Authentication, Firebase Cloud Messaging, Cloudinary, Render-hosted
+FastAPI services, and PyTorch-based image classification.
+
+EcoTrace shares several objectives with Green Grid, including pickup services,
+mapping, user engagement, AI support, and marketplace functionality. It extends
+these concepts through role-specific applications, reverse-logistics tracking,
+repair and refurbishment management, recycling records, notification services,
+environmental analytics, and cross-platform deployment.
+Figure~\ref{fig:related-systems} summarizes the principal orientation of the
+electronic waste systems reviewed in this section and highlights the different
+problems addressed by each platform.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Overview of Related Electronic Waste Management Systems}
+  \caption{Overview of Related Electronic Waste Management Systems. Source: Author's compilation based on the reviewed systems.}
+  \label{fig:related-systems}
+\end{figure}
+
+\section{Comparative Analysis of Existing Systems}
+
+A comparative analysis was conducted to evaluate the functions, strengths, and
+limitations of the electronic waste management systems reviewed in the
+preceding section.
+
+The analysis is based on publicly documented features. Therefore, the
+expression \emph{Not documented} indicates that the reviewed sources did not
+provide sufficient evidence that the relevant capability is available.
+
+Table~\ref{tab:comparative-analysis} presents the comparative analysis of the
+reviewed systems.
+
+\begin{table}[H]
+\centering
+\caption{Comparative Analysis of Existing Electronic Waste Management Systems}
+\label{tab:comparative-analysis}
+\begin{tabular}{@{}p{2.6cm}p{2.6cm}p{1.6cm}p{1.6cm}p{2.2cm}p{2.6cm}@{}}
+\toprule
+\textbf{System} & \textbf{Primary Orientation} & \textbf{Pickup Sched.} & \textbf{AI Support} & \textbf{Location \& Routing} & \textbf{Repair, Marketplace, Compliance} \\
+\midrule
+CPCB EPR Portal & Regulatory compliance & Not doc. & Not doc. & Not doc. & Compliance only \\
+Recykal & Enterprise circularity & Not doc. & Not doc. & Not doc. & Compliance, trading \\
+ecoATM & Automated device take-back & Kiosk-based & Not doc. & Kiosk locations & Not doc. \\
+E-Tadweer & Citizen participation \& rewards & Drop-off & Not doc. & Drop-off points & Rewards \\
+Green Grid & Integrated web platform & Yes & AI assistant & Mapping & Marketplace \\
+\textbf{EcoTrace} & \textbf{Integrated lifecycle platform} & \textbf{Yes} & \textbf{Yes (planned)} & \textbf{Yes (planned)} & \textbf{Repair, marketplace, reporting} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Discussion of the Comparison}
+
+The comparison demonstrates that the reviewed systems address important
+components of electronic waste management, but they differ considerably in their
+objectives and functional coverage. The CPCB E-Waste EPR Portal has the
+strongest regulatory orientation because it focuses on producer, manufacturer,
+recycler, and refurbisher registration, EPR targets, certificates, returns, and
+compliance monitoring. However, its public functions are not primarily designed
+to coordinate household collection, transportation, repair, or user-facing
+electronic waste classification.
+
+Recykal provides broader circular economy and enterprise disposal services.
+Its strengths include traceability, certified processing, compliance documentation,
+recyclable-material transactions, and value recovery. Nevertheless, its
+documented services primarily target organizations operating within an
+established commercial recycling ecosystem and do not clearly provide the
+complete set of role-specific workflows proposed for EcoTrace.
+
+ecoATM demonstrates the practical value of automation and financial
+incentives in encouraging device recovery. Its kiosks provide convenient device
+assessment and immediate compensation, but the system is mainly limited to
+eligible consumer devices and requires users to visit physical kiosk locations. It
+does not provide a general-purpose electronic waste lifecycle platform for
+households, businesses, collectors, drivers, technicians, recyclers, and
+environmental authorities.
+
+E-Tadweer demonstrates how mobile technology and rewards can increase
+citizen participation in formal electronic waste recycling. Its drop-off-location and
+voucher model is valuable for public engagement, but the reviewed information
+does not describe complete reverse logistics, route optimization, repair,
+refurbishment, or environmental monitoring workflows.
+
+Green Grid provides the closest conceptual comparison to EcoTrace because it
+combines pickup scheduling, mapping, rewards, educational content, AI
+assistance, impact calculation, and marketplace functionality. However, it is
+presented as a web-based academic prototype, and the publication does not
+demonstrate the complete cross-platform and role-specific operational
+architecture proposed for EcoTrace.
+
+EcoTrace combines capabilities that are distributed across the reviewed
+systems. Its design integrates electronic waste registration, AI-assisted image
+classification, pickup scheduling, location and route services, reverse logistics,
+repair, refurbishment, recycling, marketplace management, notifications,
+reporting, and environmental monitoring within a single system.
+
+The proposed system also supports Android, Web, and Windows applications
+through Flutter, while the backend coordinates Cloud Firestore, Firebase
+Authentication, Firebase Cloud Messaging, Cloudinary, Google Maps Platform,
+Render, and PyTorch. This integrated architecture is intended to improve
+accessibility, traceability, stakeholder coordination, and lifecycle visibility.
+
+It is important to distinguish the proposed scope of EcoTrace from empirically
+validated implementation results. The comparison in Table~\ref{tab:comparative-analysis}
+reflects the approved system design and intended functional coverage.
+Chapter~\ref{ch:implementation} documents which functions were fully
+implemented, tested, partially implemented, or reserved for future development.
+
+\section{Summary and Gaps in Literature}
+
+\subsection{Summary of the Reviewed Literature}
+
+This chapter reviewed the conceptual, technological, and practical foundations
+relevant to the development of the EcoTrace system. The review established that
+electronic waste is a rapidly increasing environmental and public health challenge
+requiring coordinated collection, transportation, recovery, recycling, and
+monitoring mechanisms.
+
+The circular economy literature emphasizes extending product lifecycles
+through reuse, repair, refurbishment, remanufacturing, and recycling rather than
+relying on the traditional linear model of production, consumption, and disposal.
+Reverse logistics complements this approach by coordinating the return of
+end-of-life electronic products from consumers to collection centres, repair
+facilities, refurbishment centres, recyclers, and manufacturers.
+
+The reviewed literature also demonstrates that intelligent waste management
+systems increasingly rely on cloud computing, artificial intelligence, geographic
+information systems, mobile applications, data analytics, and real-time
+communication. These technologies improve traceability, operational efficiency,
+waste classification, collection planning, route optimization, stakeholder
+coordination, and environmental decision-making.
+
+The technology review examined Flutter, FastAPI, Cloud Firestore, Firebase
+Authentication, Firebase Cloud Messaging, Cloudinary, Google Maps Platform,
+Render, and PyTorch. Flutter supports the development of Android, Web, and
+Windows applications from a single codebase. FastAPI provides high-performance
+backend services, while Render supports cloud-based deployment of the backend
+API. Cloud Firestore provides scalable document-based data storage and
+real-time synchronization. Firebase Authentication supports secure user identity
+management, while Firebase Cloud Messaging enables real-time notifications.
+Cloudinary provides managed image storage and delivery, Google Maps Platform
+supports location and route services, and PyTorch provides the artificial
+intelligence framework required for electronic waste image classification.
+
+The review of existing systems showed that the CPCB E-Waste EPR Portal,
+Recykal, ecoATM, E-Tadweer, and Green Grid each address significant aspects of
+electronic waste management. CPCB primarily emphasizes regulation and
+compliance, Recykal focuses on commercial circularity and traceability, ecoATM
+provides automated device take-back, E-Tadweer promotes citizen participation
+through incentives, and Green Grid combines pickup services, mapping, rewards,
+AI assistance, and marketplace functionality
+\citep{cpcb2026,ecoatm2026a,etadweer2026,jagtap2026,recykal2026b}.
+
+However, the reviewed systems differ considerably in purpose, target users,
+geographical context, platform coverage, and lifecycle functionality. The publicly
+documented evidence does not demonstrate that any single reviewed platform
+integrates all the operational, technical, environmental, and stakeholder-management
+capabilities proposed for EcoTrace.
+
+\subsection{Identified Gaps in Literature and Existing Systems}
+
+Based on the reviewed literature and systems, the following gaps were identified.
+
+\textbf{Fragmented Electronic Waste Lifecycle Management.} Many reviewed
+systems focus on a specific stage of electronic waste management, such as
+regulatory compliance, device collection, recycling, or consumer incentives. The
+public documentation generally does not demonstrate a unified platform covering
+electronic waste registration, collection, transportation, repair, refurbishment,
+recycling, marketplace operations, and environmental reporting as connected
+lifecycle processes. EcoTrace addresses this gap by integrating the major
+electronic waste recovery activities within a single information system.
+
+\textbf{Limited Cross-Platform Accessibility.} Some existing solutions are
+primarily web-based, mobile-oriented, or dependent on physical kiosks. This limits
+accessibility for stakeholders whose operational requirements differ across
+mobile, browser, and desktop environments. EcoTrace addresses this limitation
+through Flutter applications designed for Android, Web, and Windows platforms
+using a shared codebase.
+
+\textbf{Limited AI-Based Waste Image Classification.} Although some
+reviewed systems incorporate automated assessment or AI assistance, the
+available documentation does not consistently demonstrate image-based
+classification of multiple electronic waste categories as an integrated user-facing
+service. EcoTrace proposed a PyTorch-based image classification component that
+would analyse uploaded electronic waste images and return a predicted category
+and confidence score. The final model architecture and measured performance
+were to be documented after implementation and evaluation.
+
+\textbf{Inadequate Role-Specific Operational Workflows.} The reviewed
+systems generally target selected stakeholders such as producers, recyclers,
+enterprises, consumers, or regulatory authorities. There is limited evidence of
+integrated workflows designed specifically for households, businesses, collectors,
+drivers, technicians, recyclers, environmental officers, administrators, and super
+administrators within one platform. EcoTrace addresses this gap through
+role-based interfaces, permissions, dashboards, and operational workflows for its
+different actor categories.
+
+\textbf{Limited Integration of Repair and Refurbishment.} Recycling receives
+considerable attention in electronic waste systems, but repair and refurbishment
+are not always implemented as detailed operational workflows. This limits the
+ability of systems to support product-life extension before devices are dismantled
+for material recovery. EcoTrace includes repair diagnosis, repair status tracking,
+refurbishment records, inspection, quality assessment, and reusable device
+management to support circular economy principles.
+
+\textbf{Limited Route Optimization and Logistics Coordination.} Several
+systems provide collection-point information or basic mapping, but the reviewed
+public sources do not consistently demonstrate integrated route optimization,
+collector assignment, driver coordination, transportation tracking, and
+processing-facility delivery. EcoTrace proposed integrating Google Maps Platform
+with pickup requests, collection locations, route visualization, and route
+optimization to support reverse logistics operations.
+
+\textbf{Limited Environmental Monitoring and Analytics.} Existing solutions
+may provide regulatory reports, impact calculators, or transaction records, but
+there is limited evidence of unified environmental monitoring dashboards
+combining collection activities, recycling statistics, recovered materials,
+operational performance, and environmental indicators. EcoTrace provides
+reporting and analytics functions for administrators and environmental officers to
+support monitoring, planning, compliance, and decision-making.
+
+\textbf{Insufficient Integration of Cloud Services.} The literature demonstrates
+the individual value of cloud databases, authentication services, messaging
+platforms, media hosting, mapping services, and artificial intelligence. However,
+the reviewed electronic waste systems do not consistently demonstrate the same
+unified cloud architecture proposed for EcoTrace. EcoTrace integrates a cloud
+backend, Render, Cloud Firestore, Firebase Authentication, Firebase Cloud
+Messaging, Cloudinary, and a mobile-money payment gateway within one
+coordinated architecture -- the exact composition of which is documented, and
+reconciled against this chapter's original technology proposal, in
+Chapter~\ref{ch:implementation}.
+
+\textbf{Limited Adaptation to the Sierra Leonean Context.} Most reviewed
+electronic waste platforms were developed for countries with different regulatory
+environments, digital infrastructure, commercial recycling ecosystems, and
+institutional arrangements. Their features may therefore not directly address the
+operational conditions and stakeholder requirements of Sierra Leone. EcoTrace is
+designed with Sierra Leone as its primary application context while maintaining
+an architecture that can be adapted to other regions -- most concretely realised in
+its mobile-money payment integration built specifically against Sierra Leone's
+Orange Money and Afrimoney networks (Section~\ref{sec:payment-module}, Chapter~\ref{ch:implementation}).
+
+\textbf{Limited Evidence of Complete End-to-End Validation.} Some reviewed
+systems are commercial services, government portals, or academic prototypes.
+Their public sources provide different levels of technical detail, and several do not
+present complete evidence covering implementation, integration testing,
+performance evaluation, user acceptance testing, and deployment across all
+proposed functions. The EcoTrace study documents the implemented modules,
+test cases, results, and limitations in Chapter~\ref{ch:implementation}. Features
+that remained incomplete, or that took a different technical path from what is
+proposed in this chapter, are identified explicitly rather than reported as fully
+operational.
+
+\subsection{Justification for the Proposed EcoTrace System}
+
+The identified gaps justify the development of EcoTrace as an integrated,
+intelligent, and cross-platform electronic waste recovery and circular economy
+management system. The proposed system combines electronic waste
+registration, AI-assisted classification, pickup scheduling, reverse logistics,
+repair, refurbishment, recycling, marketplace management, notifications,
+environmental monitoring, and reporting within one platform.
+
+The system also integrates mobile, web, and Windows applications with a
+cloud backend. Cloud Firestore provides centralized data management, Firebase
+Authentication manages user identity, Firebase Cloud Messaging supports
+real-time notifications, and Cloudinary hosts electronic waste images. This
+integrated approach is intended to improve electronic waste traceability,
+stakeholder coordination, operational efficiency, resource recovery,
+environmental monitoring, and circular economy participation. It therefore
+provides the conceptual and technical basis for the system analysis and design
+presented in Chapter~\ref{ch:analysis-design}.
+
+\subsection{Chapter Summary}
+
+This chapter reviewed the concepts, technologies, and existing systems relevant
+to intelligent electronic waste management. It examined electronic waste,
+circular economy principles, reverse logistics, intelligent waste management,
+cloud computing, artificial intelligence, and geographic information systems.
+
+The chapter also reviewed the technologies proposed for EcoTrace and
+compared five related electronic waste management systems. The analysis
+identified gaps relating to lifecycle integration, cross-platform accessibility, AI
+classification, role-specific workflows, repair and refurbishment, route
+optimization, environmental analytics, cloud integration, local adaptation, and
+implementation validation.
+
+The next chapter presents the methodology, analysis, requirements, and design
+of the proposed EcoTrace system.

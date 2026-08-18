@@ -1,0 +1,3042 @@
+\chapter{System Analysis and Design}
+\label{ch:analysis-design}
+
+\section{Introduction}
+
+This chapter presents the system analysis and design of the EcoTrace: Intelligent
+Electronic Waste Recovery and Circular Economy Management System. It
+explains the methodology adopted during the development process, examines the
+existing electronic waste management practices, identifies their major
+weaknesses, and describes the proposed system developed to address those
+weaknesses.
+
+The chapter also presents the functional and non-functional requirements of
+EcoTrace, the high-level system architecture, use case model, data flow and
+sequence models, database design, and user interface design. Furthermore, the
+programming languages, frameworks, cloud services, development tools, and
+platform requirements used in the development of the system are discussed.
+
+The analysis and design presented in this chapter provide the technical
+foundation for the implementation and testing activities described in
+Chapter~\ref{ch:implementation}.
+
+\section{Methodology}
+
+\subsection{Adopted Software Development Methodology}
+
+The development of EcoTrace followed an adapted Agile Software Development
+Methodology. Agile development is an iterative and incremental approach in
+which a software system is developed through a series of manageable cycles
+rather than being implemented as a single large process. It emphasizes continuous
+improvement, frequent testing, responsiveness to changing requirements, and the
+delivery of usable software components throughout the development lifecycle
+\citep{agile2001,sommerville2016}.
+
+The Agile methodology was selected because EcoTrace consists of several
+interdependent modules, including authentication, electronic waste registration,
+artificial intelligence classification, pickup scheduling, reverse logistics, repair,
+refurbishment, recycling, notifications, mapping, marketplace management,
+reporting, and administration. Developing these modules incrementally made it
+possible to implement, test, review, and improve each component before
+integrating it into the complete system.
+
+The methodology was adapted to suit an individual final-year software
+development project. Therefore, the project did not implement every formal
+Scrum role or ceremony. Instead, Agile principles were applied through iterative
+planning, incremental implementation, continuous testing, regular review, and
+progressive integration of the system modules.
+
+\subsection{Justification for the Agile Methodology}
+
+The Agile methodology was considered suitable for EcoTrace for several reasons.
+
+\begin{enumerate}[leftmargin=1.4cm]
+  \item \textbf{Support for changing requirements}: The requirements of EcoTrace
+    evolved during development as additional services such as Render
+    deployment, Cloudinary image hosting, Firebase Cloud Messaging, and route
+    optimization were integrated. Agile enabled these changes to be incorporated
+    without restarting the entire development process.
+  \item \textbf{Incremental module development}: The system contains multiple
+    modules that could be designed, implemented, and tested independently
+    before being integrated into the complete platform.
+  \item \textbf{Early identification of defects}: Continuous testing during each
+    development iteration helped identify interface, authentication, API,
+    database, and deployment problems before they affected the complete
+    system.
+  \item \textbf{Improved risk management}: Technically complex components,
+    including cloud integration, image upload, location services, and artificial
+    intelligence, could be evaluated progressively rather than being postponed
+    until the final stage.
+  \item \textbf{Cross-platform development support}: The Android, Web, and
+    Windows applications could be developed and reviewed incrementally while
+    sharing a common Flutter codebase.
+  \item \textbf{Continuous improvement}: Feedback obtained during
+    implementation and testing could be used to refine the user interfaces,
+    workflows, database structure, and backend services.
+  \item \textbf{Faster delivery of functional components}: Usable modules such
+    as registration, login, waste submission, image upload, and pickup
+    scheduling could be completed before every advanced feature was finalized.
+\end{enumerate}
+
+\subsection{Application of Agile to the EcoTrace Project}
+
+The adapted Agile development process used for EcoTrace consisted of the
+following iterative activities.
+
+\textbf{Requirements Identification and Planning.} The first activity involved
+identifying the electronic waste management problem, reviewing existing
+systems, defining the project objectives, and determining the major system users
+and functional modules. The identified user categories included household users,
+business users, collectors, drivers, technicians, recyclers, environmental officers,
+administrators, and super administrators. Their expected responsibilities were
+analysed and translated into functional and non-functional requirements. The
+requirements were prioritized according to their importance, technical
+complexity, dependencies, and contribution to the main electronic waste
+management workflow.
+
+\textbf{System Analysis.} Existing electronic waste management practices were
+examined to understand how electronic waste is generated, reported, collected,
+transported, repaired, refurbished, recycled, and monitored. The analysis
+identified weaknesses such as manual documentation, fragmented
+communication, poor lifecycle traceability, inefficient collection planning, limited
+environmental reporting, and the absence of an integrated cross-platform system.
+The results of the analysis were used to define the responsibilities, workflows,
+data requirements, and system boundaries of EcoTrace.
+
+\textbf{System Design.} The design activity translated the identified
+requirements into technical models and implementation specifications. The
+system architecture, user roles, use cases, data flows, database collections,
+interfaces, and external service integrations were designed before the
+corresponding modules were implemented. EcoTrace was designed as a
+cross-platform client-server system. Flutter provides the Android, Web, and
+Windows interfaces, while FastAPI provides the central backend services. Cloud
+Firestore stores structured system data, Cloudinary hosts uploaded images,
+Firebase Authentication manages user identity, Firebase Cloud Messaging
+provides notifications, Google Maps Platform provides location and routing
+services, and PyTorch supports electronic waste image classification.
+
+\textbf{Incremental Implementation.} Implementation was divided into
+manageable iterations. Core services were implemented before dependent and
+advanced modules. The initial iterations focused on project configuration,
+authentication, user profiles, role management, and navigation. Subsequent
+iterations implemented electronic waste registration, image upload, Cloud
+Firestore integration, pickup requests, location services, and notification
+functions. Additional iterations addressed reverse logistics, repair, refurbishment,
+recycling, reporting, administrative dashboards, Render deployment, and
+artificial intelligence integration. This incremental approach reduced development
+complexity and enabled completed features to be tested before additional
+modules were added.
+
+\textbf{Testing and Validation.} Testing was performed continuously throughout
+development rather than being postponed until the entire system was complete.
+Individual functions and interface components were tested during unit testing.
+Interactions between Flutter, FastAPI, Firebase, Cloudinary, Google Maps
+Platform, Render, and PyTorch were examined during integration testing. Complete workflows were
+subsequently evaluated through system testing. The results of each test cycle were
+used to correct defects, improve validation rules, refine interfaces, and strengthen
+system reliability. Detailed testing procedures and results are presented in
+Chapter~\ref{ch:implementation}.
+
+\textbf{Review and Refinement.} At the end of each iteration, the implemented
+features were reviewed against the corresponding requirements. Incomplete,
+inconsistent, or inefficient functions were revised before the next iteration began.
+The review process also considered user-interface consistency, data integrity,
+authentication security, API responses, navigation, cross-platform behaviour, and
+the accuracy of information displayed to users.
+
+\textbf{Deployment.} The backend was deployed on the Render Free Web Service
+after its main endpoints and external integrations were configured. Sensitive
+credentials were managed through environment variables rather than being
+stored directly in the source code. Cloud Firestore, Firebase Authentication,
+Firebase Cloud Messaging, Cloudinary, and Google Maps Platform remained
+externally managed cloud services integrated with the deployed backend and
+Flutter applications. The
+free Render service was suitable for academic demonstration and testing, although
+its cold-start behaviour and limited computing resources were recognized as
+deployment constraints.
+
+\textbf{Maintenance and Future Improvement.} The iterative methodology allows
+EcoTrace to be maintained and expanded after the initial implementation. New
+modules, user roles, AI models, reports, integrations, and environmental
+indicators can be introduced without redesigning the complete system. Future
+development iterations may improve offline functionality, large-scale deployment,
+advanced route optimization, payment integration, IoT sensor support, and the
+accuracy and efficiency of the electronic waste classification model.
+Figure~\ref{fig:agile-methodology} illustrates the
+iterative development process adopted for the design, implementation, testing,
+and refinement of the EcoTrace system.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Adapted Agile Software Development Methodology used for EcoTrace}
+  \caption{Adapted Agile Software Development Methodology used for EcoTrace. Source: Author's design based on Agile software development principles \citep{agile2001,sommerville2016}.}
+  \label{fig:agile-methodology}
+\end{figure}
+
+\section{Analysis of the Existing System}
+
+The existing electronic waste management process in Sierra Leone is largely
+manual, fragmented, and informal. Electronic waste is generated by households,
+businesses, educational institutions, healthcare facilities, government offices,
+repair centres, and other organizations. However, there is no widely adopted
+integrated digital platform for registering, collecting, transporting, repairing,
+refurbishing, recycling, and monitoring electronic waste throughout its lifecycle.
+
+In the existing process, individuals and organizations commonly store
+obsolete electronic devices, dispose of them together with general household
+waste, sell them to informal collectors, donate them, or deliver them to repair
+technicians. Devices that cannot be repaired may be dismantled manually to
+recover selected components or materials. Residual waste may then be discarded
+through uncontrolled channels.
+
+The major activities within the existing system are described in the following
+subsections.
+
+\subsection{Electronic Waste Generation}
+Electronic waste is generated when electrical or electronic equipment becomes
+obsolete, damaged, unwanted, or uneconomical to repair. Common examples
+include mobile phones, laptops, desktop computers, televisions, printers,
+batteries, household appliances, cables, circuit boards, and accessories.
+Households and organizations often keep obsolete devices for long periods
+because they lack reliable information about authorized collection centres,
+recycling facilities, or environmentally safe disposal methods. Consequently,
+significant quantities of electronic waste remain unreported and untracked.
+
+\subsection{Waste Identification and Classification}
+Electronic waste is generally identified manually by its owner, collector,
+technician, or recycler. Classification depends on personal knowledge and visual
+inspection rather than a standardized digital process. There is limited support for
+automatically identifying electronic waste categories from images. Incorrect or
+incomplete classification can affect collection planning, repair decisions,
+recycling procedures, and the accuracy of environmental reports.
+
+\subsection{Collection Requests}
+The existing process does not provide a centralized digital mechanism through
+which households and businesses can register electronic waste and request
+collection. Collection arrangements may be made through telephone calls,
+personal contacts, informal agreements, or direct delivery to repairers and
+recyclers. These methods provide limited documentation and make it difficult to
+confirm when a request was submitted, accepted, assigned, collected, or
+completed.
+
+\subsection{Pickup Scheduling}
+Pickup schedules are commonly arranged manually between waste owners and
+collectors. Information such as the waste category, quantity, pickup location,
+preferred date, collector assignment, and current status may not be recorded in a
+structured format. Manual scheduling increases the possibility of missed
+appointments, delayed collections, duplicate assignments, and communication
+failures.
+
+\subsection{Collection and Transportation}
+Collectors and transport personnel may receive collection information through
+telephone calls, written notes, or verbal instructions. Routes are often selected
+based on personal experience rather than systematic distance calculations or
+route optimization. The absence of integrated location and routing services may
+result in longer travel distances, inefficient fuel consumption, delayed pickups,
+and limited visibility into transportation activities. There is also limited digital
+evidence showing when an item was collected, who collected it, which vehicle
+transported it, and the facility to which it was delivered.
+
+\subsection{Repair and Refurbishment}
+Repair technicians assess devices manually to determine whether they can be
+restored to working condition. Repair records, replaced components, estimated
+costs, diagnostic findings, and final outcomes may be kept in personal notebooks
+or not documented at all. Refurbished devices may be returned to their owners,
+sold informally, or stored for future use. The absence of centralized records limits
+traceability and makes it difficult to determine how many devices were
+successfully repaired, refurbished, reused, or rejected.
+
+\subsection{Recycling and Material Recovery}
+Devices that cannot be repaired may be dismantled to recover reusable
+components and valuable materials. In informal environments, dismantling may
+involve unsafe manual techniques, open burning, or uncontrolled disposal of
+hazardous components. Recycling records are often incomplete or unavailable.
+Therefore, it is difficult to determine the quantity of electronic waste received,
+the materials recovered, the residual waste produced, or the final disposal
+method used.
+
+\subsection{Marketplace and Redistribution}
+Reusable devices, repaired equipment, spare parts, and recovered materials may
+be sold through informal markets, social networks, repair shops, or direct
+personal contacts. The existing process does not provide a centralized
+marketplace linked to verified electronic waste recovery records. As a result,
+buyers may have limited information about the condition, origin, inspection
+status, or refurbishment history of an item.
+
+\subsection{Communication and Notifications}
+Communication among waste owners, collectors, drivers, technicians, recyclers,
+and administrators is mainly conducted through telephone calls, text messages,
+or face-to-face interaction. These communication methods are not integrated with
+operational records. Users may therefore fail to receive timely information about
+pickup approval, collector assignment, schedule changes, transportation status,
+repair progress, recycling completion, or system announcements.
+
+\subsection{Record Keeping and Reporting}
+Existing records are commonly stored in notebooks, spreadsheets, individual files,
+or separate organizational systems. Such records may be incomplete, duplicated,
+inaccessible, or difficult to verify. The lack of centralized data prevents
+administrators and environmental officers from generating accurate reports on
+the amount and categories of electronic waste generated, collection requests and
+completed pickups, collection locations and operational coverage, repaired and
+refurbished devices, recycled materials and recovery outcomes, processing
+facilities and responsible personnel, environmental performance indicators, and
+unresolved or delayed electronic waste cases. Without reliable data, planning,
+monitoring, compliance assessment, and policy development become difficult.
+
+\subsection{Environmental Monitoring}
+Environmental officers require accurate and timely information to monitor
+electronic waste collection, transportation, processing, and disposal. Under the
+existing process, monitoring often depends on physical inspections, manually
+submitted records, and reports from individual organizations. This fragmented
+approach limits real-time visibility and makes it difficult to identify collection
+gaps, unsafe processing activities, waste hotspots, delayed cases, and trends in
+electronic waste generation.
+
+\subsection{Existing System Workflow}
+The general workflow of the existing electronic waste management process can
+be summarized as follows:
+
+\begin{enumerate}[leftmargin=1.4cm]
+  \item A household or organization identifies an obsolete or damaged electronic
+    device.
+  \item The owner stores the device, disposes of it with general waste, contacts an
+    informal collector, or takes it to a technician.
+  \item The collector or technician visually examines the device.
+  \item Collection and transportation arrangements are made manually.
+  \item Repairable devices are repaired or resold.
+  \item Non-repairable devices are dismantled for components or materials.
+  \item Remaining waste is recycled, stored, burned, dumped, or otherwise
+    discarded.
+  \item Records, where available, are maintained separately by individual
+    participants.
+\end{enumerate}
+
+This workflow lacks a centralized mechanism for registration, classification,
+assignment, tracking, reporting, and environmental monitoring.
+Figure~\ref{fig:existing-workflow} illustrates the fragmented workflow associated
+with the existing electronic waste management process.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Existing Electronic Waste Management Workflow}
+  \caption{Existing Electronic Waste Management Workflow. Source: Author's analysis of the existing process.}
+  \label{fig:existing-workflow}
+\end{figure}
+
+\section{Problems of the Existing System}
+
+The analysis of the existing electronic waste management process revealed
+several operational, technical, environmental, and administrative weaknesses.
+These problems reduce the efficiency, traceability, safety, and sustainability of
+electronic waste management activities. The major problems identified are
+discussed in the following subsections.
+
+\subsection{Lack of a Centralized Information System}
+The existing process does not provide a centralized platform for registering,
+storing, updating, and retrieving electronic waste information. Records may be
+maintained separately by households, businesses, collectors, technicians,
+recyclers, and public institutions. This fragmentation makes it difficult to obtain a
+complete and consistent view of electronic waste activities. The absence of
+centralized data also increases the likelihood of duplicated records, missing
+information, inconsistent waste status updates, inaccurate reporting, and poor
+coordination among stakeholders.
+
+\subsection{Manual and Unstructured Record Keeping}
+Electronic waste records are frequently maintained using notebooks, paper forms,
+spreadsheets, telephone messages, or informal verbal communication. Manual
+record keeping is vulnerable to human error, loss, damage, unauthorized
+alteration, and incomplete documentation. It also makes searching, updating,
+validating, and analysing records difficult. As the volume of electronic waste
+increases, manual documentation becomes increasingly inefficient and unsuitable
+for large-scale management.
+
+\subsection{Poor Electronic Waste Traceability}
+The existing system provides limited ability to track an electronic waste item
+from the point of generation to its final outcome. It may be difficult to determine
+who registered or owned the item, when and where it was collected, which
+collector or driver handled it, the facility to which it was transported, whether it
+was repaired, refurbished, recycled, or disposed of, which materials were
+recovered, and whether the item was processed safely. This lack of traceability
+reduces transparency and accountability across the electronic waste lifecycle.
+
+\subsection{Absence of Standardized Waste Classification}
+Electronic waste is commonly classified through manual visual inspection. The
+accuracy of this process depends on the knowledge and experience of the
+individual performing the assessment. Different users may describe similar
+devices using different names or categories. Such inconsistencies affect collection
+planning, storage, repair decisions, recycling procedures, data analysis, and
+reporting. The absence of an AI-assisted classification tool also places the full
+burden of identification on users and waste-management personnel.
+
+\subsection{Inefficient Pickup Scheduling}
+Pickup requests and schedules are commonly arranged through telephone calls,
+personal contacts, or informal agreements. This approach does not provide a
+reliable mechanism for recording the date and time of the request, the preferred
+collection date, the waste category and quantity, the pickup location, the assigned
+collector or driver, the current request status, and reasons for cancellation or
+delay. As a result, pickups may be delayed, forgotten, duplicated, or assigned
+inefficiently.
+
+\subsection{Limited Route Planning and Optimization}
+Collectors and drivers often select collection routes using personal judgement
+rather than calculated distance, travel time, traffic conditions, and the location of
+multiple pickup requests. The absence of route optimization may result in longer
+travel distances, higher fuel consumption, increased transportation costs, delayed
+pickups, inefficient vehicle utilization, and increased environmental emissions.
+There is also limited real-time visibility into collector and driver activities.
+
+\subsection{Weak Coordination Among Stakeholders}
+Households, businesses, collectors, drivers, technicians, recyclers, environmental
+officers, and administrators often operate independently. Information is
+exchanged through telephone calls, messages, and verbal communication rather
+than through a shared operational system. This weak coordination may cause
+delays, misunderstandings, incomplete handover records, duplicated activities,
+and uncertainty regarding responsibility for specific electronic waste items.
+
+\subsection{Inadequate Communication and Notification Mechanisms}
+The existing process does not provide automated notifications for important
+events. Users may not receive timely information when a pickup request is
+submitted, a request is approved or rejected, a collector is assigned, a pickup date
+changes, an item is collected, repair or refurbishment is completed, recycling is
+completed, or an environmental announcement is issued. This communication
+gap reduces user confidence and operational responsiveness.
+
+\subsection{Poor Repair and Refurbishment Documentation}
+Repair and refurbishment activities are not consistently recorded in a centralized
+system. Important information may be missing, including diagnostic findings,
+device condition, replaced components, repair cost, assigned technician, repair
+status, quality-assurance results, and final refurbishment outcome. The lack of
+documentation limits accountability and makes it difficult to verify the condition
+and history of refurbished devices.
+
+\subsection{Limited Recycling and Material-Recovery Records}
+Recycling activities may not be documented in sufficient detail. The existing
+process provides limited information about the quantity of electronic waste
+received, categories of devices processed, recovered metals, plastics, glass, and
+components, hazardous materials identified, residual waste generated,
+responsible recycling personnel, and final disposal methods. Without reliable
+records, environmental officers and administrators cannot accurately evaluate
+recycling performance or resource recovery.
+
+\subsection{Unsafe Handling and Disposal Practices}
+Informal dismantling and disposal may expose workers and communities to
+hazardous substances. Unsafe practices may include open burning of wires and
+components, manual breaking of devices without protective equipment,
+uncontrolled disposal of batteries, dumping of circuit boards and hazardous parts,
+mixing electronic waste with municipal waste, and disposal near residential areas
+or water sources. These practices may contribute to soil, air, and water pollution
+and may create health risks for workers and surrounding communities.
+
+\subsection{Limited Environmental Monitoring}
+Environmental officers have limited access to real-time or centralized information
+about electronic waste generation, collection, processing, and disposal.
+Monitoring often depends on physical inspections and manually submitted
+reports. This makes it difficult to identify electronic waste hotspots, uncollected
+waste, delayed pickups, unauthorized processing activities, unsafe disposal
+locations, poorly performing collection areas, and trends in waste generation and
+recovery. The absence of data-driven monitoring reduces the effectiveness of
+environmental decision-making.
+
+\subsection{Inadequate Reporting and Analytics}
+The existing process does not provide integrated dashboards and automated
+reports. Administrators may find it difficult to generate accurate information on
+registered users, electronic waste categories, monthly or annual waste volumes,
+pickup-request performance, collection coverage, repaired and refurbished
+devices, recycled waste and recovered materials, unresolved cases, and
+environmental impact indicators. The absence of analytics limits strategic
+planning, resource allocation, policy formulation, and performance evaluation.
+
+\subsection{Limited User Accessibility}
+The existing process does not provide consistent access through mobile, web, and
+desktop platforms. Stakeholders with different operational responsibilities may
+require different interfaces. For example, households may prefer mobile access,
+administrators may require web dashboards, and operational staff may use
+desktop systems. The absence of a cross-platform system restricts accessibility
+and reduces stakeholder participation.
+
+\subsection{Weak Security and Access Control}
+Manual records and informal communication provide limited protection for
+personal, operational, and environmental data. The existing process may not
+provide secure authentication, user-role verification, permission-based access,
+session management, audit trails, secure password recovery, or controlled access
+to sensitive records. This weakness increases the risk of unauthorized access,
+data exposure, record manipulation, and misuse of administrative functions.
+
+\subsection{Limited Scalability}
+Manual and fragmented processes are difficult to expand as the number of users,
+collection requests, electronic waste records, facilities, and geographical locations
+increases. The existing system does not provide cloud-based infrastructure
+capable of supporting real-time synchronization, centralized data access,
+automated deployment, and multi-platform growth.
+
+\subsection{Limited Support for Circular Economy Activities}
+The existing process often emphasizes disposal or material recovery without fully
+coordinating reuse, repair, refurbishment, resale, and recycling. The lack of an
+integrated circular economy platform reduces the ability to extend device
+lifecycles, redistribute usable products, manage refurbished items, and recover
+maximum economic value from electronic waste.
+
+\subsection{Summary of Identified Problems}
+The major weaknesses of the existing system can be summarized as follows:
+(1)~absence of a centralized electronic waste management platform;
+(2)~dependence on manual and fragmented records; (3)~limited lifecycle
+traceability; (4)~inconsistent electronic waste classification; (5)~inefficient
+pickup scheduling; (6)~lack of route optimization; (7)~weak coordination among
+stakeholders; (8)~inadequate notification mechanisms; (9)~poor repair and
+refurbishment documentation; (10)~incomplete recycling and resource-recovery
+records; (11)~unsafe handling and disposal practices; (12)~limited environmental
+monitoring; (13)~inadequate reporting and analytics; (14)~limited cross-platform
+accessibility; (15)~weak security and access control; (16)~poor scalability; and
+(17)~insufficient support for circular economy workflows.
+
+These identified problems provide the basis for the analysis of the proposed
+EcoTrace system presented in the next section. Figure~\ref{fig:existing-problems}
+summarizes the major operational, technical, environmental, and administrative
+weaknesses of the existing electronic waste management process.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Problems of the Existing Electronic Waste Management System}
+  \caption{Problems of the Existing Electronic Waste Management System. Source: Author's analysis.}
+  \label{fig:existing-problems}
+\end{figure}
+
+\section{Analysis of the Proposed System}
+
+The proposed system is the EcoTrace: Intelligent Electronic Waste Recovery and
+Circular Economy Management System. It is designed to address the
+operational, technical, environmental, and administrative problems identified in
+the existing electronic waste management process.
+
+EcoTrace provides a centralized cross-platform environment for managing
+electronic waste from the point of registration to its final outcome. The system
+supports Android mobile applications, web applications, and Windows desktop
+applications through Flutter. A FastAPI backend deployed on Render coordinates the
+system's business logic and communication with external cloud services.
+
+Cloud Firestore stores structured application data, Firebase Authentication
+manages user identities, Firebase Cloud Messaging delivers notifications,
+Cloudinary hosts electronic waste images, Google Maps Platform provides
+location and route services, and PyTorch supports artificial-intelligence-based
+image classification.
+
+The proposed system supports households, businesses, collectors, drivers,
+technicians, recyclers, environmental officers, administrators, and super
+administrators. Each user category is assigned specific responsibilities and access
+permissions.
+
+\subsection{Objectives of the Proposed System}
+The proposed system is designed to achieve the following objectives:
+
+\begin{enumerate}[leftmargin=1.4cm]
+  \item provide a centralized platform for electronic waste registration, collection,
+    transportation, repair, refurbishment, recycling, and reporting
+  \item improve electronic waste traceability throughout its lifecycle
+  \item support AI-assisted classification of electronic waste images
+  \item provide structured pickup scheduling and collector assignment
+  \item improve location management and route planning using Google Maps
+    Platform
+  \item support secure authentication and role-based access control
+  \item improve coordination among electronic waste stakeholders
+  \item provide real-time notifications and status updates
+  \item maintain repair, refurbishment, and recycling records
+  \item support environmental monitoring and data-driven decision-making
+  \item provide reports and analytics for operational and administrative use
+  \item promote repair, reuse, refurbishment, recycling, and resource recovery in
+    accordance with circular economy principles
+\end{enumerate}
+
+\subsection{Major Users of the Proposed System}
+EcoTrace supports several user categories. Each user interacts with the system
+according to assigned responsibilities.
+
+\textbf{Guest User.} A guest user is an unauthenticated person who can access
+public information and initiate account registration. The guest user may view
+general information about EcoTrace, read electronic waste awareness content,
+view publicly available collection-centre information, register a new account, and
+access the login and password-recovery interfaces.
+
+\textbf{Household User.} A household user represents an individual or family
+generating electronic waste. The household user may create and manage a
+personal profile, register electronic waste items, upload electronic waste images,
+request AI-based waste classification, schedule pickup requests, select or record
+pickup locations, monitor collection status, receive notifications, view repair,
+refurbishment, and recycling outcomes, browse refurbished products, and
+generate personal waste-management records.
+
+\textbf{Business User.} A business user represents an organization, institution,
+enterprise, or office that generates electronic waste. The business user may
+maintain an organizational profile, register multiple electronic waste items,
+upload asset images and supporting information, submit bulk pickup requests,
+track organizational waste collections, monitor recycling and disposal outcomes,
+download reports and certificates where available, and maintain disposal records
+for accountability and compliance.
+
+\textbf{Collector.} A collector is responsible for receiving, accepting, and
+completing electronic waste pickup assignments. The collector may view assigned
+pickup requests, review waste details and pickup locations, accept or reject
+assignments, update collection status, confirm item collection, upload collection
+evidence, communicate delays or exceptions, and transfer collected items to
+drivers, centres, technicians, or recyclers.
+
+\textbf{Driver.} A driver transports electronic waste between pickup locations,
+collection centres, technicians, recyclers, and other processing facilities. The
+driver may view assigned transportation tasks, access pickup and destination
+locations, view suggested routes, update departure, transit, and delivery status,
+record vehicle and delivery information, report transportation incidents, and
+confirm delivery to the receiving facility.
+
+\textbf{Technician.} A technician examines, diagnoses, repairs, and refurbishes
+recoverable electronic devices. The technician may view assigned electronic
+waste items, record inspection and diagnostic results, determine whether an item
+is repairable, record required components and repair costs, update repair
+progress, complete repair records, perform refurbishment assessments, record
+quality-assurance results, and recommend recycling where repair is not practical.
+
+\textbf{Recycler.} A recycler manages the dismantling, processing, material
+recovery, and safe disposal of non-repairable electronic waste. The recycler may
+receive electronic waste items for recycling, record waste category, quantity, and
+condition, document dismantling activities, record recovered materials and
+components, identify hazardous materials, record residual waste, update
+recycling progress, confirm recycling completion, and generate recycling and
+recovery reports.
+
+\textbf{Environmental Officer.} An environmental officer monitors electronic
+waste activities and environmental performance. The environmental officer may
+view electronic waste locations and collection coverage, monitor collection,
+transportation, repair, and recycling activities, inspect environmental reports,
+identify delayed or unresolved cases, monitor recycling outcomes and recovered
+materials, review potentially unsafe activities, analyse operational trends,
+generate environmental reports, and support compliance monitoring and
+decision-making.
+
+\textbf{Administrator.} An administrator manages operational users, system
+data, assignments, content, reports, and general system activities. The
+administrator may manage user accounts and roles, verify organizations and
+operational personnel, manage electronic waste categories, review pickup
+requests, assign collectors and drivers, manage collection centres and facilities,
+monitor repair, refurbishment, and recycling operations, manage marketplace
+listings, send announcements and notifications, generate system reports, and
+review audit and operational records.
+
+\textbf{Super Administrator.} The super administrator has the highest level of
+system authority and is responsible for security, configuration, high-level
+administration, and oversight. The super administrator may create and manage
+administrator accounts, configure global system settings, manage roles and
+permissions, monitor security activities, review audit logs, manage API and
+cloud-service configurations, suspend or restore critical accounts, manage
+system-wide categories and policies, review system performance, and control
+high-risk administrative operations.
+
+\subsection{Major Modules of the Proposed System}
+The proposed EcoTrace system consists of several interconnected modules.
+
+\textbf{Authentication and User Management Module.} This module manages
+account registration, login, logout, password recovery, email verification, user
+profiles, roles, permissions, and account status. Firebase Authentication provides
+identity management, while role and profile information is stored in Cloud
+Firestore.
+
+\textbf{Electronic Waste Registration Module.} This module enables households
+and businesses to register electronic waste items. The user provides information
+such as waste category, device name, brand and model where available,
+condition, quantity, description, image, location, and preferred recovery option.
+A unique record is created for each registered item to support lifecycle tracking.
+
+\textbf{AI Classification Module.} This module analyses uploaded electronic
+waste images using a PyTorch model. The image is transmitted to the FastAPI
+backend, validated, preprocessed, and passed to the trained model. The system returns a
+predicted waste category and confidence score. The final AI architecture remains
+subject to model selection, training, testing, and performance evaluation.
+
+\textbf{Pickup Scheduling Module.} This module enables users to request
+collection services. The module records the electronic waste items included in
+the request, preferred pickup date and time, pickup address and coordinates,
+contact information, collection instructions, assigned collector or driver, and
+request status.
+
+\textbf{Collection and Assignment Module.} This module enables administrators
+to review pickup requests and assign collectors and drivers. Collectors can accept
+tasks, confirm collection, upload evidence, and update statuses. Administrators
+can monitor pending, assigned, active, completed, delayed, and cancelled
+requests.
+
+\textbf{Transportation and Route Management Module.} This module supports
+the transportation of electronic waste between users, collection centres,
+technicians, recyclers, and processing facilities. Google Maps Platform provides
+location display, distance calculation, route visualization, and route optimization.
+Drivers can access assigned routes and update transportation status.
+
+\textbf{Repair Management Module.} This module supports inspection,
+diagnosis, repair planning, component replacement, cost recording,
+repair-status updates, and final repair outcomes. Items that cannot be repaired
+may be transferred to refurbishment or recycling workflows.
+
+\textbf{Refurbishment Management Module.} This module supports the
+restoration of recoverable devices to usable condition. It records refurbishment
+activities, replaced components, testing results, quality grade, final condition,
+availability for reuse or resale, and responsible technician.
+
+\textbf{Recycling Management Module.} This module records electronic waste
+received for recycling, dismantling activities, recovered materials, hazardous
+components, residual waste, processing status, and final recycling outcomes. It
+supports traceability and environmental reporting.
+
+\textbf{Marketplace Module.} This module provides a controlled environment
+for displaying refurbished devices, reusable components, and recovered
+materials. Listings may contain product information, condition and quality
+grade, images, availability, price, seller or facility details, and inspection or
+refurbishment records.
+
+\textbf{Notification Module.} This module delivers real-time alerts using
+Firebase Cloud Messaging. Notifications may be generated for account
+verification, pickup submission, request approval or rejection, collector
+assignment, pickup reminders, collection completion, repair and refurbishment
+updates, recycling completion, marketplace activity, environmental campaigns,
+and system announcements.
+
+\textbf{Reporting and Analytics Module.} This module generates operational,
+administrative, and environmental reports. Reports may cover electronic waste
+categories and quantities, pickup-request performance, collection coverage,
+transportation activities, repair and refurbishment outcomes, recycling and
+material recovery, marketplace activities, user activities, delayed or unresolved
+cases, and environmental performance indicators.
+
+\textbf{Environmental Monitoring Module.} This module provides dashboards
+and map-based information for environmental officers. It supports the
+monitoring of waste locations, collection coverage, facility activity, recycling
+performance, recovery trends, and potential environmental concerns.
+
+\textbf{Administration and System Configuration Module.} This module
+supports user management, role configuration, waste categories, collection
+centres, facilities, assignments, announcements, security controls, audit records,
+integrations, and global system settings.
+
+\subsection{Proposed System Workflow}
+The general operational workflow of EcoTrace is as follows:
+
+\begin{enumerate}[leftmargin=1.4cm]
+  \item A household or business user creates an account and signs in.
+  \item The user registers an electronic waste item and uploads an image.
+  \item The AI module may classify the item and return a predicted category.
+  \item The user submits a pickup request and records the pickup location.
+  \item The administrator reviews the request and assigns a collector or driver.
+  \item The collector receives the assignment and collects the electronic waste.
+  \item The driver transports the item to an appropriate facility.
+  \item The item is inspected and routed to repair, refurbishment, or recycling.
+  \item Repairable devices are repaired or refurbished.
+  \item Non-repairable items are dismantled and recycled.
+  \item Recovered materials and reusable devices may be listed through the
+    marketplace.
+  \item Notifications are delivered during important workflow changes.
+  \item Cloud Firestore maintains the lifecycle record.
+  \item Administrators and environmental officers review reports, analytics, and
+    operational activities.
+\end{enumerate}
+
+Figure~\ref{fig:proposed-workflow} illustrates the integrated electronic waste
+management workflow proposed for EcoTrace.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Proposed EcoTrace Electronic Waste Management Workflow}
+  \caption{Proposed EcoTrace Electronic Waste Management Workflow. Source: Author's design.}
+  \label{fig:proposed-workflow}
+\end{figure}
+
+\section{Functional Requirements}
+\label{sec:functional-requirements}
+
+Functional requirements describe the services, operations, and behaviours that
+the EcoTrace system shall provide. They define how the system shall respond to
+user actions, process data, enforce workflows, communicate with external
+services, and support the electronic waste management lifecycle.
+
+The functional requirements are grouped according to the major modules and
+user responsibilities of the system.
+
+\subsection{Authentication and Account Management Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Authentication and Account Management Requirements} \label{tab:fr-auth} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-AUTH-1 & The system shall allow a guest user to create an account using a valid email address and password. \\
+FR-AUTH-2 & The system shall validate required registration information before creating a user account. \\
+FR-AUTH-3 & The system shall prevent the registration of duplicate email addresses. \\
+FR-AUTH-4 & The system shall authenticate registered users using Firebase Authentication. \\
+FR-AUTH-5 & The system shall reject invalid login credentials. \\
+FR-AUTH-6 & The system shall allow authenticated users to log out securely. \\
+FR-AUTH-7 & The system shall allow users to request password-reset instructions. \\
+FR-AUTH-8 & The system shall support email-verification procedures where enabled. \\
+FR-AUTH-9 & The system shall maintain an authenticated session until the user logs out or the session becomes invalid. \\
+FR-AUTH-10 & The system shall redirect authenticated users to dashboards appropriate to their assigned roles. \\
+FR-AUTH-11 & The system shall allow users to update permitted profile information. \\
+FR-AUTH-12 & The system shall allow users to upload or update profile images where supported. \\
+FR-AUTH-13 & The system shall allow administrators to activate, suspend, or restore user accounts. \\
+FR-AUTH-14 & The system shall record the creation date and current status of each user account. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Role-Based Access Control Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Role-Based Access Control Requirements} \label{tab:fr-rbac} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-RBAC-1 & The system shall assign one or more approved roles to each registered user. \\
+FR-RBAC-2 & The system shall restrict access to functions according to the authenticated user's role. \\
+FR-RBAC-3 & The system shall prevent household users from accessing administrative functions. \\
+FR-RBAC-4 & The system shall prevent collectors from accessing technician-only or recycler-only operations unless explicitly authorized. \\
+FR-RBAC-5 & The system shall allow administrators to manage standard user roles. \\
+FR-RBAC-6 & The system shall allow the super administrator to manage administrator accounts and high-level permissions. \\
+FR-RBAC-7 & The system shall verify the user's role before processing protected backend requests. \\
+FR-RBAC-8 & The system shall deny unauthorized operations and return an appropriate error response. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Electronic Waste Registration Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Electronic Waste Registration Requirements} \label{tab:fr-ew} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-EW-1 & The system shall allow household and business users to register electronic waste items. \\
+FR-EW-2 & The system shall require the user to provide the electronic waste category, condition, quantity, and description. \\
+FR-EW-3 & The system shall allow users to provide the brand and model where available. \\
+FR-EW-4 & The system shall allow users to upload one or more electronic waste images where supported. \\
+FR-EW-5 & The system shall upload electronic waste images through the FastAPI backend to Cloudinary. \\
+FR-EW-6 & The system shall store the returned Cloudinary image URL with the corresponding electronic waste record. \\
+FR-EW-7 & The system shall generate a unique identifier for each registered electronic waste item. \\
+FR-EW-8 & The system shall record the user who registered the item. \\
+FR-EW-9 & The system shall record the date and time of registration. \\
+FR-EW-10 & The system shall record the current lifecycle status of the item. \\
+FR-EW-11 & The system shall allow authorized users to view registered electronic waste details. \\
+FR-EW-12 & The system shall allow the owner to update editable details before the item enters a restricted processing stage. \\
+FR-EW-13 & The system shall prevent unauthorized users from modifying another user's electronic waste record. \\
+FR-EW-14 & The system shall allow administrators to manage electronic waste categories. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Artificial Intelligence Classification Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Artificial Intelligence Classification Requirements} \label{tab:fr-ai} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-AI-1 & The system shall allow a user to submit an electronic waste image for classification. \\
+FR-AI-2 & The FastAPI backend shall validate the submitted image format and size before processing. \\
+FR-AI-3 & The system shall reject invalid, unsupported, or corrupted image files. \\
+FR-AI-4 & The system shall preprocess the image according to the requirements of the selected PyTorch model. \\
+FR-AI-5 & The system shall pass the preprocessed image to the trained PyTorch classification model. \\
+FR-AI-6 & The system shall return a predicted electronic waste category. \\
+FR-AI-7 & The system shall return a confidence score with the prediction where supported by the selected model. \\
+FR-AI-8 & The system shall store the classification result with the relevant electronic waste record where the user accepts the result. \\
+FR-AI-9 & The system shall allow the user or authorized staff to correct an incorrect classification. \\
+FR-AI-10 & The system shall record whether a classification was generated by AI or entered manually. \\
+FR-AI-11 & The system shall notify the user when asynchronous classification processing is completed. \\
+FR-AI-12 & The system shall record classification errors for administrative review. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Pickup Request Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Pickup Request Requirements} \label{tab:fr-pick} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-PICK-1 & The system shall allow household and business users to create pickup requests. \\
+FR-PICK-2 & The system shall allow one or more eligible electronic waste items to be included in a pickup request. \\
+FR-PICK-3 & The system shall require a pickup address or geographic location. \\
+FR-PICK-4 & The system shall allow the user to select a preferred pickup date and time. \\
+FR-PICK-5 & The system shall allow the user to provide collection instructions. \\
+FR-PICK-6 & The system shall record the requester's contact information. \\
+FR-PICK-7 & The system shall generate a unique pickup-request identifier. \\
+FR-PICK-8 & The system shall assign an initial status to each newly submitted request. \\
+FR-PICK-9 & The system shall allow users to view the status of their pickup requests. \\
+FR-PICK-10 & The system shall allow users to cancel eligible pickup requests before collection begins. \\
+FR-PICK-11 & The system shall record the reason for cancellation where required. \\
+FR-PICK-12 & The system shall prevent users from submitting invalid or incomplete pickup requests. \\
+FR-PICK-13 & The system shall notify administrators when a new pickup request is submitted. \\
+FR-PICK-14 & The system shall notify users when a pickup request is approved, rejected, scheduled, assigned, delayed, cancelled, or completed. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Collector and Driver Assignment Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Collector and Driver Assignment Requirements} \label{tab:fr-asgn} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-ASGN-1 & The system shall allow administrators to view unassigned pickup requests. \\
+FR-ASGN-2 & The system shall allow administrators to assign a collector to an approved pickup request. \\
+FR-ASGN-3 & The system shall allow administrators to assign a driver where transportation is required. \\
+FR-ASGN-4 & The system shall record the date and time of each assignment. \\
+FR-ASGN-5 & The system shall notify the assigned collector or driver. \\
+FR-ASGN-6 & The system shall allow collectors to accept or reject assigned tasks. \\
+FR-ASGN-7 & The system shall record the reason for task rejection where required. \\
+FR-ASGN-8 & The system shall allow administrators to reassign rejected, cancelled, or delayed tasks. \\
+FR-ASGN-9 & The system shall prevent the assignment of inactive or unauthorized operational users. \\
+FR-ASGN-10 & The system shall display assignment history to authorized users. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Collection Management Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Collection Management Requirements} \label{tab:fr-coll} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-COLL-1 & The system shall allow collectors to view assigned pickup tasks. \\
+FR-COLL-2 & The system shall display the waste details, requester information, pickup location, and schedule for each task. \\
+FR-COLL-3 & The system shall allow collectors to update task status. \\
+FR-COLL-4 & The system shall support statuses such as assigned, accepted, en route, arrived, collected, delayed, failed, and completed. \\
+FR-COLL-5 & The system shall allow collectors to record the actual collection date and time. \\
+FR-COLL-6 & The system shall allow collectors to confirm the quantity and condition of collected items. \\
+FR-COLL-7 & The system shall allow collectors to upload collection evidence where required. \\
+FR-COLL-8 & The system shall allow collectors to report missing, unavailable, or incorrectly described waste items. \\
+FR-COLL-9 & The system shall update the lifecycle status of collected electronic waste items. \\
+FR-COLL-10 & The system shall notify the requester after successful collection. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Transportation and Route Management Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Transportation and Route Management Requirements} \label{tab:fr-route} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-ROUTE-1 & The system shall capture or store geographic coordinates for pickup and destination locations. \\
+FR-ROUTE-2 & The system shall display pickup locations using Google Maps Platform. \\
+FR-ROUTE-3 & The system shall allow users to search for relevant collection centres where supported. \\
+FR-ROUTE-4 & The system shall calculate route distance and estimated travel time where supported by the selected Google Maps service. \\
+FR-ROUTE-5 & The system shall display suggested routes to authorized collectors and drivers. \\
+FR-ROUTE-6 & The system shall support route optimization for multiple collection locations where enabled. \\
+FR-ROUTE-7 & The system shall allow drivers to view assigned transportation tasks. \\
+FR-ROUTE-8 & The system shall allow drivers to update departure, transit, arrival, and delivery statuses. \\
+FR-ROUTE-9 & The system shall record the origin and destination of each transportation task. \\
+FR-ROUTE-10 & The system shall allow drivers to report delays, incidents, or route exceptions. \\
+FR-ROUTE-11 & The system shall record delivery confirmation at the receiving facility. \\
+FR-ROUTE-12 & The system shall update the electronic waste lifecycle record after delivery. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Repair Management Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Repair Management Requirements} \label{tab:fr-rep} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-REP-1 & The system shall allow authorized personnel to assign an item to a technician. \\
+FR-REP-2 & The system shall allow technicians to view assigned items. \\
+FR-REP-3 & The system shall allow technicians to record inspection and diagnostic findings. \\
+FR-REP-4 & The system shall allow technicians to indicate whether an item is repairable. \\
+FR-REP-5 & The system shall allow technicians to record required parts, estimated cost, and expected completion date. \\
+FR-REP-6 & The system shall allow technicians to update repair status. \\
+FR-REP-7 & The system shall allow technicians to record replaced components. \\
+FR-REP-8 & The system shall allow technicians to record testing results after repair. \\
+FR-REP-9 & The system shall allow technicians to mark a repair as successful, unsuccessful, cancelled, or transferred. \\
+FR-REP-10 & The system shall transfer non-repairable items to refurbishment or recycling workflows where appropriate. \\
+FR-REP-11 & The system shall maintain the repair history of each item. \\
+FR-REP-12 & The system shall notify relevant users when repair status changes. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Refurbishment Management Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Refurbishment Management Requirements} \label{tab:fr-ref} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-REF-1 & The system shall allow eligible items to enter the refurbishment workflow. \\
+FR-REF-2 & The system shall allow technicians to record refurbishment activities. \\
+FR-REF-3 & The system shall allow technicians to record replaced or upgraded components. \\
+FR-REF-4 & The system shall allow technicians to record functional testing results. \\
+FR-REF-5 & The system shall allow technicians to assign a quality grade. \\
+FR-REF-6 & The system shall allow technicians to record the final condition of the refurbished item. \\
+FR-REF-7 & The system shall allow authorized users to approve or reject a refurbished item for reuse or resale. \\
+FR-REF-8 & The system shall store the refurbishment history of each item. \\
+FR-REF-9 & The system shall allow approved refurbished items to be listed in the marketplace. \\
+FR-REF-10 & The system shall notify relevant users when refurbishment is completed. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Recycling Management Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Recycling Management Requirements} \label{tab:fr-rec} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-REC-1 & The system shall allow authorized users to assign non-repairable items to a recycler. \\
+FR-REC-2 & The system shall allow recyclers to view assigned items. \\
+FR-REC-3 & The system shall allow recyclers to record the date and quantity of waste received. \\
+FR-REC-4 & The system shall allow recyclers to record dismantling activities. \\
+FR-REC-5 & The system shall allow recyclers to record recovered materials and components. \\
+FR-REC-6 & The system shall allow recyclers to identify hazardous materials. \\
+FR-REC-7 & The system shall allow recyclers to record residual waste. \\
+FR-REC-8 & The system shall allow recyclers to record the final disposal method. \\
+FR-REC-9 & The system shall allow recyclers to update recycling status. \\
+FR-REC-10 & The system shall record the date and responsible personnel when recycling is completed. \\
+FR-REC-11 & The system shall update the electronic waste lifecycle status after recycling. \\
+FR-REC-12 & The system shall generate recycling records and reports. \\
+FR-REC-13 & The system shall notify relevant users when recycling is completed. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Marketplace Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Marketplace Requirements} \label{tab:fr-mkt} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-MKT-1 & The system shall allow authorized users to create marketplace listings for approved refurbished devices, reusable parts, or recovered materials. \\
+FR-MKT-2 & The system shall require a title, description, category, condition, price, availability, and image for each listing. \\
+FR-MKT-3 & The system shall link a listing to its refurbishment or recovery record where applicable. \\
+FR-MKT-4 & The system shall allow users to browse available listings. \\
+FR-MKT-5 & The system shall allow users to search and filter listings. \\
+FR-MKT-6 & The system shall display product condition and quality information. \\
+FR-MKT-7 & The system shall allow administrators to review, approve, suspend, or remove listings. \\
+FR-MKT-8 & The system shall prevent inactive or rejected listings from being displayed publicly. \\
+FR-MKT-9 & The system shall record listing status and creation date. \\
+FR-MKT-10 & The system shall support purchase or enquiry workflows according to the implemented marketplace scope. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Notification Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Notification Requirements} \label{tab:fr-not} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-NOT-1 & The system shall send notifications through Firebase Cloud Messaging where supported. \\
+FR-NOT-2 & The system shall send notifications to specific users based on account identifiers or registered device tokens. \\
+FR-NOT-3 & The system shall support notifications for pickup, collection, transportation, repair, refurbishment, recycling, marketplace, security, and administrative events. \\
+FR-NOT-4 & The system shall store notification records in Cloud Firestore. \\
+FR-NOT-5 & The system shall display unread and read notification status. \\
+FR-NOT-6 & The system shall allow users to open a notification and view the related record where applicable. \\
+FR-NOT-7 & The system shall allow authorized administrators to send system announcements. \\
+FR-NOT-8 & The system shall prevent unauthorized users from sending global notifications. \\
+FR-NOT-9 & The system shall record notification creation and delivery information where available. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Reporting and Analytics Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Reporting and Analytics Requirements} \label{tab:fr-rpt} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-RPT-1 & The system shall generate reports based on authorized user roles. \\
+FR-RPT-2 & The system shall provide summary statistics for registered electronic waste. \\
+FR-RPT-3 & The system shall provide statistics on pickup requests and collection performance. \\
+FR-RPT-4 & The system shall provide reports on repair and refurbishment outcomes. \\
+FR-RPT-5 & The system shall provide reports on recycling activities and recovered materials. \\
+FR-RPT-6 & The system shall provide reports on users, roles, and operational activities. \\
+FR-RPT-7 & The system shall allow authorized users to filter reports by date, status, category, location, or responsible personnel where applicable. \\
+FR-RPT-8 & The system shall display analytical information using tables, charts, indicators, and maps where appropriate. \\
+FR-RPT-9 & The system shall allow authorized users to export reports in PDF or other supported formats. \\
+FR-RPT-10 & The system shall prevent unauthorized users from viewing restricted reports. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Environmental Monitoring Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Environmental Monitoring Requirements} \label{tab:fr-env} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-ENV-1 & The system shall provide environmental officers with a dedicated dashboard. \\
+FR-ENV-2 & The system shall display electronic waste collection locations on a map. \\
+FR-ENV-3 & The system shall allow environmental officers to monitor collection, repair, refurbishment, and recycling activities. \\
+FR-ENV-4 & The system shall display unresolved, delayed, or potentially unsafe cases. \\
+FR-ENV-5 & The system shall provide statistics on electronic waste categories and quantities. \\
+FR-ENV-6 & The system shall provide statistics on recovered materials and recycling outcomes. \\
+FR-ENV-7 & The system shall allow environmental officers to generate environmental reports. \\
+FR-ENV-8 & The system shall allow environmental officers to review facility and operational records. \\
+FR-ENV-9 & The system shall allow authorized officers to record observations, inspection notes, or compliance findings where implemented. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Administration Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Administration Requirements} \label{tab:fr-adm} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-ADM-1 & The system shall provide administrators with an operational dashboard. \\
+FR-ADM-2 & The system shall allow administrators to manage users and account statuses. \\
+FR-ADM-3 & The system shall allow administrators to manage user roles within their authority. \\
+FR-ADM-4 & The system shall allow administrators to manage electronic waste categories. \\
+FR-ADM-5 & The system shall allow administrators to manage collection centres, repair facilities, and recycling facilities. \\
+FR-ADM-6 & The system shall allow administrators to review pickup requests. \\
+FR-ADM-7 & The system shall allow administrators to assign collectors and drivers. \\
+FR-ADM-8 & The system shall allow administrators to monitor active workflows. \\
+FR-ADM-9 & The system shall allow administrators to manage marketplace listings. \\
+FR-ADM-10 & The system shall allow administrators to publish announcements. \\
+FR-ADM-11 & The system shall allow administrators to generate operational reports. \\
+FR-ADM-12 & The system shall record significant administrative actions. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Super Administration and Security Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Super Administration and Security Requirements} \label{tab:fr-sadm} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-SADM-1 & The system shall provide the super administrator with access to high-level configuration functions. \\
+FR-SADM-2 & The system shall allow the super administrator to create, update, suspend, and restore administrator accounts. \\
+FR-SADM-3 & The system shall allow the super administrator to manage roles and permissions. \\
+FR-SADM-4 & The system shall allow the super administrator to review audit records. \\
+FR-SADM-5 & The system shall allow the super administrator to configure system-wide settings. \\
+FR-SADM-6 & The system shall allow the super administrator to manage external service configuration values through secure deployment mechanisms. \\
+FR-SADM-7 & The system shall prevent standard administrators from performing restricted super-administrator operations. \\
+FR-SADM-8 & The system shall record high-risk administrative actions. \\
+FR-SADM-9 & The system shall allow the super administrator to review system health and integration status where implemented. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Audit and Activity Tracking Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{Audit and Activity Tracking Requirements} \label{tab:fr-aud} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-AUD-1 & The system shall record significant user and administrative activities. \\
+FR-AUD-2 & The system shall record the actor, action, affected record, and timestamp where applicable. \\
+FR-AUD-3 & The system shall maintain status histories for electronic waste, pickup, transportation, repair, refurbishment, and recycling records. \\
+FR-AUD-4 & The system shall restrict access to audit information. \\
+FR-AUD-5 & The system shall prevent standard users from modifying audit records. \\
+FR-AUD-6 & The system shall allow authorized administrators to search or filter audit records. \\
+\bottomrule
+\end{longtable}
+
+\subsection{External Service Integration Requirements}
+\begin{longtable}{@{}p{2.4cm}p{11cm}@{}}
+\caption{External Service Integration Requirements} \label{tab:fr-int} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+FR-INT-1 & The system shall communicate with the FastAPI backend using secure HTTP requests. \\
+FR-INT-2 & The system shall exchange structured data using JSON. \\
+FR-INT-3 & The system shall integrate with Firebase Authentication for user identity management. \\
+FR-INT-4 & The system shall integrate with Cloud Firestore for structured application data. \\
+FR-INT-5 & The system shall integrate with Cloudinary for electronic waste image hosting. \\
+FR-INT-6 & The system shall integrate with Firebase Cloud Messaging for push notifications. \\
+FR-INT-7 & The system shall integrate with Google Maps Platform for mapping and routing services. \\
+FR-INT-8 & The system shall integrate with PyTorch for AI-based image classification. \\
+FR-INT-9 & The FastAPI backend shall be deployable on the Render cloud platform. \\
+FR-INT-10 & The system shall handle unavailable or failed external-service responses without exposing sensitive technical details to standard users. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Functional Requirements Summary}
+The functional requirements define the operations that EcoTrace shall perform
+across authentication, waste registration, artificial intelligence, pickup
+scheduling, collection, transportation, repair, refurbishment, recycling,
+marketplace management, notifications, reporting, environmental monitoring,
+administration, security, audit tracking, and external service integration.
+
+These requirements provide the basis for the system models, database design,
+interface design, implementation, and test cases described in the remaining
+sections of this chapter and in Chapter~\ref{ch:implementation}.
+
+\section{Non-Functional Requirements}
+\label{sec:nfr}
+
+Non-functional requirements describe the quality attributes, constraints, and
+operational standards that the EcoTrace system shall satisfy. Unlike functional
+requirements, which define what the system does, non-functional requirements
+specify how effectively, securely, reliably, and efficiently the system shall perform
+its functions.
+
+The non-functional requirements of EcoTrace cover performance, availability,
+reliability, security, privacy, usability, accessibility, scalability, maintainability,
+compatibility, data integrity, backup, recovery, auditability, portability, and
+external-service resilience.
+
+\subsection{Performance Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Performance Requirements} \label{tab:nfr-perf} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-PERF-1 & The system shall provide acceptable response times for normal user operations under the expected academic demonstration workload. \\
+NFR-PERF-2 & Standard interface actions such as navigation, record retrieval, and form submission should complete without unnecessary delay when network connectivity and external services are available. \\
+NFR-PERF-3 & The FastAPI backend shall process valid API requests efficiently and return structured responses. \\
+NFR-PERF-4 & The system shall avoid blocking the user interface during image upload, notification processing, route calculation, report generation, or AI inference. \\
+NFR-PERF-5 & Long-running operations shall display progress indicators, loading states, or processing messages. \\
+NFR-PERF-6 & The system shall minimize unnecessary network requests and repeated database reads. \\
+NFR-PERF-7 & Images shall be compressed or optimized before or during cloud delivery where appropriate. \\
+NFR-PERF-8 & Database queries shall use suitable filters and indexes to reduce unnecessary data retrieval. \\
+NFR-PERF-9 & The AI classification service shall return a result within a reasonable period based on the selected model and available Render compute resources. \\
+NFR-PERF-10 & Performance measurements such as API response time, page-loading time, image-upload time, and AI inference time shall be evaluated during system testing. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Availability Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Availability Requirements} \label{tab:nfr-avl} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-AVL-1 & The system shall remain accessible whenever the Flutter applications, backend service, Internet connection, and required third-party services are available. \\
+NFR-AVL-2 & The system shall provide informative feedback when the backend or an external service is temporarily unavailable. \\
+NFR-AVL-3 & The system shall not display a successful operation when the corresponding backend request has failed. \\
+NFR-AVL-4 & The system shall support recovery after temporary network disconnection. \\
+NFR-AVL-5 & The system shall preserve valid unsent form data where practical when a temporary connection failure occurs. \\
+NFR-AVL-6 & The deployed FastAPI service shall expose a health-check endpoint where implemented. \\
+NFR-AVL-7 & The system shall recognize that the Render Free Web Service may enter an inactive state and produce an initial cold-start delay. \\
+NFR-AVL-8 & Production deployment should use hosting resources appropriate to the expected availability requirements. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Reliability Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Reliability Requirements} \label{tab:nfr-rel} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-REL-1 & The system shall process valid operations consistently and produce predictable results. \\
+NFR-REL-2 & The system shall validate input before saving or processing data. \\
+NFR-REL-3 & The system shall prevent incomplete records from being treated as completed operations. \\
+NFR-REL-4 & The system shall preserve the consistency of related electronic waste, pickup, assignment, transportation, repair, refurbishment, and recycling records. \\
+NFR-REL-5 & The system shall handle failed requests without corrupting existing data. \\
+NFR-REL-6 & The system shall display clear error messages when an operation cannot be completed. \\
+NFR-REL-7 & The system shall avoid duplicate record creation when a user submits the same operation repeatedly due to network delay. \\
+NFR-REL-8 & Critical status transitions shall be validated before being saved. \\
+NFR-REL-9 & The system shall record failed integration operations where administrative review is required. \\
+NFR-REL-10 & Reliability shall be assessed through repeated functional, integration, and system tests. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Security Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Security Requirements} \label{tab:nfr-sec} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-SEC-1 & The system shall require authentication before granting access to protected functions. \\
+NFR-SEC-2 & The system shall enforce role-based access control for all restricted operations. \\
+NFR-SEC-3 & The backend shall verify authorization independently of the client interface. \\
+NFR-SEC-4 & The system shall transmit sensitive data through HTTPS. \\
+NFR-SEC-5 & Passwords shall be managed through Firebase Authentication rather than stored directly in Cloud Firestore. \\
+NFR-SEC-6 & The system shall not expose passwords, private keys, service credentials, API secrets, or authentication tokens in source code, client logs, or error messages. \\
+NFR-SEC-7 & Backend credentials and external-service secrets shall be stored using environment variables or equivalent secure configuration mechanisms. \\
+NFR-SEC-8 & Google Maps API keys shall be restricted according to the authorized application and enabled APIs. \\
+NFR-SEC-9 & The system shall validate and sanitize data received by backend endpoints. \\
+NFR-SEC-10 & Uploaded files shall be checked for allowed format, size, and content type before processing. \\
+NFR-SEC-11 & The system shall prevent unauthorized modification of another user's records. \\
+NFR-SEC-12 & Administrative and super-administrative functions shall require appropriate privileges. \\
+NFR-SEC-13 & The system shall record significant security-sensitive actions. \\
+NFR-SEC-14 & User sessions shall become invalid when authentication tokens expire, are revoked, or the user logs out. \\
+NFR-SEC-15 & The system shall avoid exposing internal stack traces and technical configuration details to standard users. \\
+NFR-SEC-16 & Firestore Security Rules shall restrict direct database access according to authentication status, ownership, and role. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Privacy Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Privacy Requirements} \label{tab:nfr-priv} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-PRIV-1 & The system shall collect only personal and operational information required for electronic waste management activities. \\
+NFR-PRIV-2 & Personal information shall be accessible only to authorized users. \\
+NFR-PRIV-3 & Users shall not be able to view private profiles or records belonging to unrelated users. \\
+NFR-PRIV-4 & Location information shall be used only for authorized pickup, transportation, mapping, and monitoring functions. \\
+NFR-PRIV-5 & Uploaded electronic waste images shall be linked only to the relevant authorized records. \\
+NFR-PRIV-6 & Reports intended for general viewing shall avoid exposing unnecessary personal information. \\
+NFR-PRIV-7 & Administrative exports shall be restricted to authorized roles. \\
+NFR-PRIV-8 & The system shall support account deactivation or deletion procedures according to the implemented policy. \\
+NFR-PRIV-9 & Audit records shall not expose confidential information beyond what is required for accountability. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Usability Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Usability Requirements} \label{tab:nfr-usa} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-USA-1 & The system shall provide a clear and consistent user interface across Android, Web, and Windows platforms. \\
+NFR-USA-2 & Navigation labels, buttons, forms, icons, and status indicators shall use understandable terminology. \\
+NFR-USA-3 & The system shall display dashboard content relevant to the user's role. \\
+NFR-USA-4 & Forms shall identify required fields clearly. \\
+NFR-USA-5 & Validation messages shall explain how the user can correct invalid input. \\
+NFR-USA-6 & Destructive operations shall require confirmation where appropriate. \\
+NFR-USA-7 & The system shall provide visible feedback after successful or failed operations. \\
+NFR-USA-8 & Status values shall use consistent names and visual indicators throughout the system. \\
+NFR-USA-9 & Common operations shall require a reasonable number of user steps. \\
+NFR-USA-10 & The system shall maintain consistent layout, typography, spacing, and component behaviour. \\
+NFR-USA-11 & User interfaces shall be designed for users with different levels of technical experience. \\
+NFR-USA-12 & The system shall provide helpful empty-state messages when no data is available. \\
+NFR-USA-13 & Loading indicators shall be displayed while data is being retrieved or processed. \\
+NFR-USA-14 & Date, time, currency, quantity, and location information shall be presented in understandable formats. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Accessibility Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Accessibility Requirements} \label{tab:nfr-acc} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-ACC-1 & The system should use readable font sizes and sufficient visual contrast. \\
+NFR-ACC-2 & Important information shall not be communicated through colour alone. \\
+NFR-ACC-3 & Interactive elements should provide clear labels or tooltips. \\
+NFR-ACC-4 & Touch targets on mobile interfaces should be large enough for reliable interaction. \\
+NFR-ACC-5 & Forms should follow a logical focus and reading order. \\
+NFR-ACC-6 & Images that communicate essential information should have descriptive alternatives where supported. \\
+NFR-ACC-7 & The Web application should support keyboard navigation for major operations where practical. \\
+NFR-ACC-8 & Error and status messages shall be visible and understandable. \\
+NFR-ACC-9 & Interfaces should adapt to different screen sizes and display scaling settings. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Scalability Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Scalability Requirements} \label{tab:nfr-scal} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-SCAL-1 & The system architecture shall support growth in users, electronic waste records, pickup requests, images, notifications, and reports. \\
+NFR-SCAL-2 & Cloud Firestore collections shall be structured to support future data expansion. \\
+NFR-SCAL-3 & Backend services shall use modular components that can be scaled or deployed independently where necessary. \\
+NFR-SCAL-4 & The system shall avoid design decisions that require all records to be loaded into memory simultaneously. \\
+NFR-SCAL-5 & Reports and dashboards shall support filtered or paginated data retrieval where large datasets are expected. \\
+NFR-SCAL-6 & Image files shall be stored in Cloudinary rather than in the Render local filesystem. \\
+NFR-SCAL-7 & The architecture shall support migration from the Render Free tier to paid or dedicated infrastructure. \\
+NFR-SCAL-8 & The AI service shall allow replacement or upgrading of the selected model without redesigning the complete client application. \\
+NFR-SCAL-9 & New locations, collection centres, facilities, user roles, and electronic waste categories shall be addable without major architectural changes. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Maintainability Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Maintainability Requirements} \label{tab:nfr-main} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-MAIN-1 & The system source code shall be organized into logical modules. \\
+NFR-MAIN-2 & Business logic shall be separated from user-interface components where practical. \\
+NFR-MAIN-3 & Backend routes, services, schemas, and integration components shall be structured clearly. \\
+NFR-MAIN-4 & Repeated logic should be implemented through reusable functions or components. \\
+NFR-MAIN-5 & Configuration values shall be separated from application logic. \\
+NFR-MAIN-6 & Source code shall use clear and consistent naming conventions. \\
+NFR-MAIN-7 & Complex functions and modules shall include useful documentation or comments. \\
+NFR-MAIN-8 & The project shall use version control through Git and GitHub. \\
+NFR-MAIN-9 & Changes shall be tested before deployment to the main environment. \\
+NFR-MAIN-10 & Database fields, API responses, and status values shall follow consistent naming conventions. \\
+NFR-MAIN-11 & External-service integrations shall be isolated sufficiently to allow replacement or modification. \\
+NFR-MAIN-12 & The system shall support future correction, extension, and module replacement without requiring complete redevelopment. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Compatibility Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Compatibility Requirements} \label{tab:nfr-comp} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-COMP-1 & The mobile application shall support the targeted Android versions defined during implementation. \\
+NFR-COMP-2 & The Web application shall operate in current mainstream browsers used during testing. \\
+NFR-COMP-3 & The Windows application shall operate on the targeted Windows versions defined during implementation. \\
+NFR-COMP-4 & Client applications shall communicate with the FastAPI backend through standard HTTP or HTTPS requests. \\
+NFR-COMP-5 & API data shall use JSON unless another documented format is required. \\
+NFR-COMP-6 & Images shall use supported formats such as JPEG, JPG, PNG, or other approved formats. \\
+NFR-COMP-7 & The system shall use platform-responsive layouts to reduce interface overflow and display errors. \\
+NFR-COMP-8 & Platform-specific features shall provide suitable alternatives where they are unavailable on another platform. \\
+NFR-COMP-9 & The system shall maintain consistent core workflows across Android, Web, and Windows. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Data Integrity Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Data Integrity Requirements} \label{tab:nfr-data} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-DATA-1 & Each important record shall have a unique identifier. \\
+NFR-DATA-2 & Required fields shall be validated before data is stored. \\
+NFR-DATA-3 & Relationships between user, waste, pickup, assignment, transport, repair, refurbishment, recycling, and marketplace records shall be maintained correctly. \\
+NFR-DATA-4 & Status transitions shall follow approved workflow rules. \\
+NFR-DATA-5 & Timestamps shall be recorded for significant record creation and update activities. \\
+NFR-DATA-6 & The system shall avoid orphaned records where practical. \\
+NFR-DATA-7 & Deleted or deactivated records shall be handled according to the implemented retention policy. \\
+NFR-DATA-8 & Audit and history records shall preserve evidence of important changes. \\
+NFR-DATA-9 & The system shall not overwrite important historical information without authorization. \\
+NFR-DATA-10 & Data retrieved by different platforms shall remain consistent after successful synchronization. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Backup and Recovery Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Backup and Recovery Requirements} \label{tab:nfr-back} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-BACK-1 & Important system data shall be stored in managed cloud services rather than only on local client devices. \\
+NFR-BACK-2 & Structured data shall be stored in Cloud Firestore. \\
+NFR-BACK-3 & Uploaded images shall be stored in Cloudinary. \\
+NFR-BACK-4 & The system shall not depend on the ephemeral Render filesystem for permanent data storage. \\
+NFR-BACK-5 & Configuration and source code shall be maintained in version control. \\
+NFR-BACK-6 & Production deployment should provide documented backup and restoration procedures. \\
+NFR-BACK-7 & The system shall support recovery from temporary client or network failure without corrupting saved cloud data. \\
+NFR-BACK-8 & Critical records should include timestamps and status histories to support reconstruction of operational events. \\
+NFR-BACK-9 & Backup and restoration procedures shall be tested before large-scale production deployment. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Auditability Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Auditability Requirements} \label{tab:nfr-aud} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-AUD-1 & The system shall maintain records of significant administrative and operational activities. \\
+NFR-AUD-2 & Audit records shall identify the actor, action, affected record, and timestamp where applicable. \\
+NFR-AUD-3 & Audit records shall be accessible only to authorized roles. \\
+NFR-AUD-4 & Standard users shall not be able to edit or delete protected audit records. \\
+NFR-AUD-5 & The system shall preserve status histories for major workflow entities. \\
+NFR-AUD-6 & Audit information shall support investigation of failed, unauthorized, delayed, or disputed operations. \\
+NFR-AUD-7 & Administrative reports should allow filtering of relevant activity records. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Portability Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Portability Requirements} \label{tab:nfr-port} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-PORT-1 & The client application architecture shall support deployment on Android, Web, and Windows through Flutter. \\
+NFR-PORT-2 & Shared application logic shall be reused across supported platforms where practical. \\
+NFR-PORT-3 & Backend services shall remain independent of a single client platform. \\
+NFR-PORT-4 & External services shall be accessed through documented APIs. \\
+NFR-PORT-5 & The FastAPI backend shall be deployable to another compatible cloud provider if migration becomes necessary. \\
+NFR-PORT-6 & Configuration values shall be externalized to simplify deployment across development, testing, and production environments. \\
+NFR-PORT-7 & The AI model shall be stored and loaded in a format compatible with the selected deployment approach. \\
+\bottomrule
+\end{longtable}
+
+\subsection{External-Service Resilience Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{External-Service Resilience Requirements} \label{tab:nfr-ext} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-EXT-1 & The system shall handle temporary failure of Firebase, Cloudinary, Google Maps Platform, Render, or other external services. \\
+NFR-EXT-2 & The system shall display understandable error messages when an external integration is unavailable. \\
+NFR-EXT-3 & Failed integration requests shall not be reported as successful. \\
+NFR-EXT-4 & The system shall use suitable request timeouts where implemented. \\
+NFR-EXT-5 & The system should support retry procedures for appropriate temporary failures. \\
+NFR-EXT-6 & Sensitive external-service errors shall be logged for administrative review without being exposed fully to standard users. \\
+NFR-EXT-7 & The system shall avoid permanent dependence on temporary files stored on the Render local filesystem. \\
+NFR-EXT-8 & The system shall monitor external-service quotas and usage limits where applicable. \\
+NFR-EXT-9 & Production deployment shall use suitable billing alerts, API restrictions, and service monitoring. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Legal and Ethical Requirements}
+\begin{longtable}{@{}p{2.6cm}p{10.8cm}@{}}
+\caption{Legal and Ethical Requirements} \label{tab:nfr-eth} \\
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endfirsthead
+\toprule \textbf{ID} & \textbf{Requirement} \\ \midrule
+\endhead
+NFR-ETH-1 & The system shall not present AI classification results as infallible. \\
+NFR-ETH-2 & Users shall be allowed to correct or request review of inaccurate AI classifications. \\
+NFR-ETH-3 & The system shall avoid discriminatory treatment based on user identity or location. \\
+NFR-ETH-4 & Personal data shall be processed only for legitimate system functions. \\
+NFR-ETH-5 & Electronic waste records shall not be used for unauthorized surveillance or unrelated purposes. \\
+NFR-ETH-6 & Marketplace listings shall not knowingly support illegal, hazardous, counterfeit, or unauthorized goods. \\
+NFR-ETH-7 & Administrative decisions affecting users shall be attributable to authorized personnel. \\
+NFR-ETH-8 & Environmental and recycling reports shall not intentionally misrepresent incomplete or unverified information. \\
+NFR-ETH-9 & The system shall distinguish implemented functionality from planned or future functionality in technical reporting. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Non-Functional Requirements Summary}
+
+The non-functional requirements define the quality standards that EcoTrace
+shall satisfy in addition to its operational functions. They address performance,
+availability, reliability, security, privacy, usability, accessibility, scalability,
+maintainability, compatibility, data integrity, backup, recovery, auditability,
+external service resilience, and ethical operation.
+
+These requirements shall guide the system architecture, database design,
+interface design, implementation decisions, deployment configuration, and
+testing activities. Chapter~\ref{ch:implementation} presents the test procedures
+and available evidence used to evaluate whether the implemented system
+satisfies these requirements -- including, per NFR-ETH-9 above, an explicit
+account of which parts of the originally proposed technology stack were
+delivered as designed and which were not.
+
+\section{System Design}
+\label{sec:system-design}
+
+System design defines the technical structure, components, interfaces, data
+models, and interactions required to implement the EcoTrace system. It
+translates the functional and non-functional requirements into a structured
+solution that can be developed, tested, deployed, and maintained.
+
+EcoTrace was designed as a modular, cross-platform, cloud-based client-server
+system. The design separates the user-interface layer, backend application layer,
+data-management layer, external-service integration layer, and artificial
+intelligence layer. This separation improves maintainability, scalability,
+security, and testability because each component performs a clearly defined
+responsibility and communicates with other components through controlled
+interfaces.
+
+The system design includes the overall system architecture, client
+applications, backend services, cloud data management, authentication and
+authorization, image-management services, location and route services,
+notification services, artificial intelligence services, external interfaces, use
+case models, data flow models, sequence diagrams, database design, and
+user-interface design.
+
+\subsection{System Architecture}
+\label{sec:system-architecture}
+
+The EcoTrace system follows a layered client-server architecture in which
+Flutter client applications communicate with a FastAPI backend through
+RESTful Application Programming Interfaces.
+
+The architecture supports three primary client platforms: an Android mobile
+application, a Web application, and a Windows desktop application. These
+applications share a common Flutter codebase while providing interfaces
+adapted to the operational requirements of different user roles and screen sizes.
+
+The FastAPI backend acts as the central coordination layer. It processes client
+requests, validates input, enforces business rules, verifies authentication and
+authorization, communicates with external cloud services, performs AI
+inference, and returns structured JSON responses.
+
+Cloud Firestore stores structured system data, including user profiles,
+electronic waste records, pickup requests, assignments, transportation records,
+repair records, refurbishment records, recycling records, marketplace listings,
+notifications, reports, and audit information.
+
+Cloudinary stores and delivers uploaded media files, particularly electronic
+waste images. Firebase Authentication manages user identity, while Firebase
+Cloud Messaging delivers push notifications. Google Maps Platform provides
+geocoding, location display, route calculation, nearby facility search, and route
+optimization services.
+
+The artificial intelligence component is implemented using PyTorch. It
+analyses uploaded electronic waste images and returns a predicted waste
+category and confidence score through the FastAPI backend.
+
+The FastAPI backend is deployed on the Render cloud platform and is
+accessed by the Flutter applications through secure HTTPS requests.
+
+\subsubsection{Architectural Style}
+
+EcoTrace combines several architectural principles.
+
+\textbf{Client-Server Architecture.} The Flutter applications operate as
+clients, while the FastAPI application provides centralized backend services.
+Client applications submit requests and receive structured responses from the
+server.
+
+\textbf{Layered Architecture.} The system is divided into logical layers,
+including presentation, application, integration, data, and infrastructure
+layers. Each layer performs related responsibilities and reduces direct
+dependency between unrelated components.
+
+\textbf{RESTful Architecture.} Communication between Flutter and FastAPI
+follows RESTful principles. Resources are accessed through HTTP endpoints,
+while JSON is used as the primary data-exchange format.
+
+\textbf{Cloud-Based Architecture.} Managed cloud services provide
+authentication, database storage, notifications, media hosting, mapping, and
+backend deployment.
+
+\textbf{Modular Architecture.} System functions are divided into modules
+such as authentication, waste registration, pickup management, repair,
+recycling, notifications, and reporting. This makes the system easier to
+maintain and extend.
+
+\subsubsection{Presentation Layer}
+
+The presentation layer consists of the Android, Web, and Windows
+applications developed using Flutter. Its responsibilities include displaying
+user interfaces, collecting user input, validating basic form data, displaying
+loading, success, and error states, presenting dashboard information,
+displaying maps, tables, charts, images, and notifications, enforcing
+role-appropriate navigation, and communicating with the FastAPI backend and
+approved Firebase services. The presentation layer does not make final
+authorization decisions -- protected operations are verified again by the
+backend.
+
+\subsubsection{Application and Business Logic Layer}
+
+The application and business logic layer is implemented using FastAPI. Its
+responsibilities include processing API requests, validating request schemas,
+verifying authentication tokens, enforcing role-based authorization, applying
+workflow rules, generating identifiers and timestamps, coordinating pickup
+assignments, processing image uploads, invoking the AI classification service,
+communicating with Firebase Cloud Messaging, requesting Google Maps
+services, creating reports and summaries, handling errors, and returning JSON
+responses. Centralizing business logic in the backend reduces duplication and
+prevents client applications from performing unauthorized operations.
+
+\subsubsection{Data Management Layer}
+
+The data-management layer uses Cloud Firestore as the primary database.
+Cloud Firestore stores data as collections and documents; this document-oriented
+model is suitable for EcoTrace because many records contain flexible
+and nested attributes. The data-management layer is responsible for storing
+structured records, retrieving records, updating workflow statuses, maintaining
+relationships between documents, storing timestamps and ownership
+information, supporting real-time synchronization, applying Firestore
+Security Rules, and supporting administrative reporting and analytics. Media
+files are not stored directly inside Firestore -- instead, Cloudinary stores the
+files, while Firestore stores the corresponding secure URLs and metadata.
+
+\subsubsection{Authentication and Authorization Layer}
+
+Firebase Authentication provides user registration, login, password recovery,
+session management, and identity tokens. After successful authentication, the
+client receives an authentication token. Protected backend requests include the
+token, which is verified before the requested operation is processed. Role and
+profile information is stored in Cloud Firestore; the backend uses this
+information to determine whether the authenticated user has permission to
+perform the requested action. This layer supports the household, business,
+collector, driver, technician, recycler, environmental officer, administrator, and
+super administrator roles.
+
+\subsubsection{Media Management Layer}
+
+Cloudinary provides media storage, transformation, optimization, and
+delivery. When a user uploads an electronic waste image: (1)~the Flutter
+application sends the image to the FastAPI backend; (2)~the backend validates
+the file; (3)~the backend uploads the file to Cloudinary; (4)~Cloudinary stores
+and optimizes the image; (5)~Cloudinary returns a secure image URL; and
+(6)~the backend stores the URL and related metadata in Cloud Firestore. This
+approach prevents permanent media files from being stored on the ephemeral
+Render filesystem.
+
+\subsubsection{Notification Layer}
+
+Firebase Cloud Messaging provides push-notification services. The
+notification layer supports events such as account verification, pickup
+submission, request approval, collector or driver assignment, pickup
+reminders, collection completion, repair-status updates, refurbishment
+completion, recycling completion, marketplace activity, and system
+announcements. Notification records are stored in Cloud Firestore so users can
+review their notification history within the application.
+
+\subsubsection{Geospatial and Routing Layer}
+
+Google Maps Platform provides the location-based services used by
+EcoTrace. The layer supports displaying interactive maps, converting addresses
+into coordinates, converting coordinates into addresses, recording pickup
+locations, locating collection and processing centres, calculating distance and
+estimated travel time, displaying suggested routes, and optimizing multiple
+pickup locations where enabled. The FastAPI backend may process server-side
+requests to Google Maps services and return only the required route or
+location information to the client.
+
+\subsubsection{Artificial Intelligence Layer}
+
+The artificial intelligence layer is responsible for electronic waste image
+classification. Its workflow includes: (1)~receiving an uploaded image;
+(2)~validating the image; (3)~resizing and normalizing the image; (4)~loading
+the trained PyTorch model; (5)~performing inference; (6)~identifying the
+predicted class; (7)~calculating a confidence score; (8)~returning the result to
+the backend; and (9)~storing the accepted result in Cloud Firestore. The model
+architecture is designed to be replaceable so that a more accurate or efficient
+model can be introduced without redesigning the complete system.
+
+\subsubsection{Deployment and Infrastructure Layer}
+
+The FastAPI backend is deployed as a Render Web Service. The deployment
+layer provides a publicly accessible HTTPS endpoint, Git-based deployment,
+environment-variable management, build and start commands, runtime logs,
+deployment logs, and health-check support. The current free deployment is
+suitable for testing and demonstration; however, the architecture permits
+migration to a more powerful hosting plan or another compatible cloud
+provider.
+
+\subsubsection{System Architecture Data Flow}
+
+The general data flow within the EcoTrace architecture is as follows:
+(1)~a user performs an operation using an Android, Web, or Windows
+application; (2)~the Flutter application validates the basic input; (3)~a secure
+request is sent to the FastAPI backend; (4)~the backend verifies the user's
+authentication token and role; (5)~the backend validates the submitted data;
+(6)~the backend applies the relevant business rules; (7)~the backend
+communicates with Cloud Firestore, Cloudinary, Firebase Cloud Messaging,
+Google Maps Platform, or PyTorch where required; (8)~the external service
+returns the requested result; (9)~the backend stores or updates the relevant
+system records; (10)~the backend returns a structured JSON response; and
+(11)~the Flutter application displays the result to the user.
+Figure~\ref{fig:system-architecture} presents the major layers, components,
+services, and communication paths within the EcoTrace system architecture, as
+proposed at the design stage of this project.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+      layer/.style={draw, rounded corners, minimum width=13.2cm, minimum height=1.15cm, align=center, font=\small},
+      svc/.style={draw, rounded corners, fill=ecotracegreen!8, minimum width=2.6cm, minimum height=1cm, align=center, font=\scriptsize},
+      node distance=6pt
+    ]
+    \node[layer, fill=ecotracegreen!18] (pres) {\textbf{Presentation Layer} -- Flutter (Android, Web, Windows)};
+    \node[layer, below=of pres, fill=ecotracegreen!14] (app) {\textbf{Application \& Business Logic Layer} -- FastAPI (RESTful API)};
+    \node[below=of app] (svcrow) {};
+    \node[svc, below=10pt of app, xshift=-5.4cm] (db) {Cloud\\Firestore};
+    \node[svc, right=6pt of db] (auth) {Firebase\\Authentication};
+    \node[svc, right=6pt of auth] (media) {Cloudinary};
+    \node[svc, right=6pt of media] (notif) {Firebase Cloud\\Messaging};
+    \node[svc, right=6pt of notif] (maps) {Google Maps\\Platform};
+    \node[svc, right=6pt of maps] (ai) {PyTorch\\AI Classifier};
+    \node[layer, below=28pt of app, fill=ecotracegreen!10] (deploy) {\textbf{Deployment Layer} -- Render Cloud Platform (HTTPS, Render Web Service)};
+
+    \draw[-Latex] (pres) -- (app);
+    \draw[-Latex] (app.south) -- (svcrow.center);
+    \foreach \s in {db,auth,media,notif,maps,ai} { \draw[-Latex] (app.south) -- (\s.north); }
+    \draw[-Latex] (db.south) |- ($(deploy.north)+(0,4pt)$);
+    \draw[-Latex] (app) -- (deploy);
+  \end{tikzpicture}
+  \caption{Overall System Architecture of EcoTrace, as proposed at the design stage. Source: Author's design.}
+  \label{fig:system-architecture}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Major Components of the EcoTrace System Architecture}
+\label{tab:architecture-components}
+\begin{tabular}{@{}p{2.6cm}p{3cm}p{7cm}@{}}
+\toprule
+\textbf{Architectural Layer} & \textbf{Technology} & \textbf{Primary Responsibility} \\
+\midrule
+Presentation Layer & Flutter (Android, Web, Windows) & Provides cross-platform user interfaces, navigation, forms, dashboards, maps, notifications, and role-specific interactions. \\
+Application Layer & FastAPI & Processes requests, validates data, applies business rules, verifies authorization, coordinates integrations, and returns JSON responses. \\
+Deployment Layer & Render & Hosts the FastAPI backend and provides HTTPS, environment variables, logging, health checks, and Git-based deployment. \\
+Database Layer & Cloud Firestore & Stores user profiles, electronic waste records, workflows, notifications, reports, settings, and audit information. \\
+Authentication Layer & Firebase Authentication & Provides account registration, login, password recovery, session management, and identity tokens. \\
+Media Layer & Cloudinary & Stores, optimizes, transforms, and delivers electronic waste images. \\
+Notification Layer & Firebase Cloud Messaging & Delivers targeted and system-wide push notifications. \\
+Geospatial Layer & Google Maps Platform & Provides mapping, geocoding, location search, distance calculation, routing, and route optimization. \\
+Artificial Intelligence Layer & PyTorch & Provides image preprocessing, electronic waste classification, and confidence-score generation. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Use Case Diagram and Actor Interactions}
+
+A use case diagram represents the interactions between external actors and the
+functions provided by a software system. It defines the system boundary,
+identifies the categories of users, and shows the principal services available to
+each actor.
+
+The EcoTrace use case model contains ten main actors: (1)~Guest User;
+(2)~Household User; (3)~Business User; (4)~Collector; (5)~Driver;
+(6)~Technician; (7)~Recycler; (8)~Environmental Officer; (9)~Administrator;
+and (10)~Super Administrator. Each actor performs different functions
+according to assigned responsibilities and access permissions. Firebase
+Authentication identifies registered users, while role-based access control
+determines the functions that each actor can access.
+
+\subsubsection{System Boundary}
+
+The EcoTrace system boundary contains the major functions delivered
+through the Android, Web, and Windows applications and the FastAPI backend.
+External actors interact with the system through interfaces provided by the
+presentation layer. The system processes requests, applies business rules,
+communicates with external cloud services, stores records, and returns the
+appropriate results.
+
+The principal use case groups within the system boundary include
+authentication and account management, electronic waste registration,
+AI-assisted waste classification, pickup scheduling, collector and driver
+assignment, collection and transportation, repair and refurbishment, recycling
+and material recovery, marketplace management, notifications, environmental
+monitoring, reporting and analytics, user and facility management, security
+and audit management, and system configuration.
+
+\subsubsection{Actor Interactions}
+
+\textbf{Guest User.} The Guest User is an unauthenticated actor who accesses
+public information and account-entry functions. The Guest User can view
+public electronic waste awareness information, view publicly available
+collection-centre information, register a new account, log in to an existing
+account, and request password recovery. The Guest User must register and
+authenticate before accessing protected EcoTrace functions.
+
+\textbf{Household User.} The Household User represents an individual or
+family that generates electronic waste. The Household User can manage a
+personal profile, register electronic waste, upload waste images, request AI
+classification, submit pickup requests, select a pickup location, track pickup
+and collection status, receive notifications, view repair, refurbishment, and
+recycling outcomes, browse marketplace listings, and view personal electronic
+waste records.
+
+\textbf{Business User.} The Business User represents an organization,
+institution, company, or public office generating electronic waste. The
+Business User can manage an organizational profile, register individual or
+multiple electronic waste items, submit bulk collection requests, upload
+images and supporting information, track organizational pickup requests,
+monitor repair, recycling, and disposal outcomes, receive notifications, access
+organizational reports, and maintain electronic waste disposal records.
+
+\textbf{Collector.} The Collector is responsible for receiving and completing
+pickup assignments. The Collector can view assigned pickup requests, accept
+or reject assignments, view pickup locations and waste details, update
+collection status, confirm item collection, upload collection evidence, report
+collection exceptions, transfer collected waste to the next responsible actor,
+and view completed collection history.
+
+\textbf{Driver.} The Driver transports electronic waste between pickup
+locations, collection centres, repair facilities, refurbishment facilities, and
+recycling centres. The Driver can view assigned transportation tasks, access
+pickup and destination locations, view suggested routes, follow optimized
+routes where enabled, update departure, transit, arrival, and delivery status,
+report delays or transportation incidents, record delivery details, and confirm
+delivery to the receiving facility.
+
+\textbf{Technician.} The Technician inspects, diagnoses, repairs, and
+refurbishes electronic devices. The Technician can view assigned devices,
+inspect and diagnose devices, determine repairability, record required parts
+and estimated costs, update repair status, record replaced components,
+perform functional testing, record refurbishment activities, assign quality
+grades, approve devices for reuse or resale where authorized, and recommend
+recycling for non-repairable devices.
+
+\textbf{Recycler.} The Recycler processes electronic waste that cannot be
+repaired or refurbished. The Recycler can view assigned recycling records,
+receive and confirm electronic waste items, record dismantling activities,
+record recovered components and materials, identify hazardous materials,
+record residual waste, specify disposal methods, update recycling status,
+confirm recycling completion, and generate recycling and material-recovery
+reports.
+
+\textbf{Environmental Officer.} The Environmental Officer monitors
+electronic waste activities, environmental performance, and
+compliance-related information. The Environmental Officer can view electronic
+waste locations, monitor collection coverage, review transportation, repair,
+refurbishment, and recycling activities, identify delayed or unresolved cases,
+review material-recovery statistics, inspect facility records, record
+environmental observations where implemented, view maps and analytical
+dashboards, and generate environmental reports.
+
+\textbf{Administrator.} The Administrator manages daily system operations
+and coordinates the major EcoTrace workflows. The Administrator can manage
+standard user accounts, verify operational users and organizations, manage
+electronic waste categories, manage collection and processing facilities,
+review pickup requests, assign collectors and drivers, monitor active
+workflows, manage marketplace listings, publish announcements, review
+operational reports, manage selected system content, and review permitted
+audit records.
+
+\textbf{Super Administrator.} The Super Administrator has the highest level
+of system authority and manages high-risk administrative and security
+operations. The Super Administrator can create and manage administrator
+accounts, manage roles and permissions, configure system-wide settings,
+review security and audit records, suspend or restore critical accounts, manage
+integration configuration, review system health information, control
+high-risk administrative functions, and monitor administrator activities.
+
+\subsubsection{Major Use Case Relationships}
+
+Some EcoTrace use cases depend on other use cases. These dependencies can
+be represented using the \emph{include} relationship. Examples include:
+Register Electronic Waste includes Validate Waste Information; Upload Waste
+Image includes Validate Image File; Classify Electronic Waste includes
+Preprocess Image; Submit Pickup Request includes Register Pickup Location;
+Assign Collector includes Review Pickup Request; Complete Collection
+includes Update Waste Lifecycle Status; Complete Repair includes Record
+Repair Outcome; Complete Recycling includes Record Recovered Materials;
+Generate Report includes Retrieve Authorized Data; and Perform Protected
+Operation includes Verify Authentication and Role.
+
+Optional or conditional behaviour may be represented using the
+\emph{extend} relationship. Examples include: AI Classification extends
+Register Electronic Waste; Upload Collection Evidence extends Complete
+Collection; Report Transportation Incident extends Transport Electronic
+Waste; Refurbish Device extends Repair Device; List Refurbished Item extends
+Complete Refurbishment; and Send Status Notification extends major
+workflow-status changes.
+
+\subsubsection{Use Case Interaction Summary}
+
+The use case model demonstrates that EcoTrace is a multi-actor system in
+which each user category performs specialized functions. Household and
+Business Users initiate the electronic waste lifecycle by registering items and
+requesting collection. Collectors and Drivers coordinate collection and
+transportation. Technicians determine whether devices can be repaired or
+refurbished, while Recyclers process non-repairable waste and recover
+materials. Environmental Officers monitor operational and environmental
+performance. Administrators coordinate daily system activities, while Super
+Administrators manage high-level security, permissions, and configuration.
+
+The separation of actor responsibilities supports accountability, security,
+workflow control, and complete electronic waste lifecycle traceability.
+Figure~\ref{fig:use-case} presents the principal actors and use cases supported
+by the EcoTrace system, and Table~\ref{tab:actor-summary} summarizes each
+actor's principal use cases.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+      actor/.style={draw, align=center, font=\scriptsize, minimum width=1.9cm},
+      uc/.style={draw, ellipse, align=center, font=\scriptsize, fill=ecotracegreen!10, minimum width=2.6cm, minimum height=0.85cm},
+      boundary/.style={draw, rounded corners, minimum width=8.6cm, minimum height=8.6cm}
+    ]
+    \node[boundary, label={[font=\small\bfseries]above:EcoTrace System Boundary}] (b) at (4.3,-4.3) {};
+    \node[actor] (guest) at (-1.6,-0.4) {Guest\\User};
+    \node[actor] (hh) at (-1.6,-1.6) {Household /\\Business User};
+    \node[actor] (coll) at (-1.6,-2.8) {Collector /\\Driver};
+    \node[actor] (tech) at (-1.6,-4.0) {Technician /\\Recycler};
+    \node[actor] (env) at (-1.6,-5.2) {Environmental\\Officer};
+    \node[actor] (admin) at (-1.6,-6.4) {Administrator /\\Super Admin};
+
+    \node[uc] (auth) at (2.4,-0.7) {Register /\\Authenticate};
+    \node[uc] (reg) at (5.6,-0.7) {Register \&\\Classify Waste};
+    \node[uc] (pick) at (2.4,-2.0) {Pickup\\Request};
+    \node[uc] (asgn) at (5.6,-2.0) {Assign \&\\Collect};
+    \node[uc] (repr) at (2.4,-3.3) {Repair \&\\Refurbish};
+    \node[uc] (recy) at (5.6,-3.3) {Recycle \&\\Recover};
+    \node[uc] (mkt) at (2.4,-4.6) {Marketplace};
+    \node[uc] (not) at (5.6,-4.6) {Notifications};
+    \node[uc] (env2) at (2.4,-5.9) {Environmental\\Monitoring};
+    \node[uc] (rpt) at (5.6,-5.9) {Reporting \&\\Analytics};
+    \node[uc] (adm2) at (2.4,-7.2) {User \&\\Facility Mgmt};
+    \node[uc] (sec) at (5.6,-7.2) {Security \&\\Audit};
+
+    \draw (guest) -- (auth);
+    \draw (hh) -- (auth); \draw (hh) -- (reg); \draw (hh) -- (pick); \draw (hh) -- (mkt); \draw (hh) -- (not);
+    \draw (coll) -- (asgn); \draw (coll) -- (not);
+    \draw (tech) -- (repr); \draw (tech) -- (recy); \draw (tech) -- (mkt);
+    \draw (env) -- (env2); \draw (env) -- (rpt);
+    \draw (admin) -- (adm2); \draw (admin) -- (sec); \draw (admin) -- (rpt); \draw (admin) -- (asgn);
+  \end{tikzpicture}
+  \caption{Overall Use Case Diagram for EcoTrace. Source: Author's design.}
+  \label{fig:use-case}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\small
+\caption{Summary of EcoTrace Actors and Principal Use Cases}
+\label{tab:actor-summary}
+\begin{tabular}{@{}p{3.2cm}p{9.4cm}@{}}
+\toprule
+\textbf{Actor} & \textbf{Principal Use Cases} \\
+\midrule
+Guest User & View public information, register an account, log in, and request password recovery. \\
+Household User & Register electronic waste, upload images, request AI classification, schedule pickups, track status, receive notifications, and browse the marketplace. \\
+Business User & Manage organizational waste records, submit bulk pickup requests, monitor recovery outcomes, and generate organizational reports. \\
+Collector & View assignments, accept pickup tasks, collect waste, upload evidence, update statuses, and complete collections. \\
+Driver & View transport assignments, access routes, update transport status, report incidents, and confirm delivery. \\
+Technician & Inspect devices, diagnose faults, repair devices, refurbish devices, record test results, and recommend recycling. \\
+Recycler & Receive waste, dismantle devices, record recovered materials, identify hazardous waste, complete recycling, and generate recovery records. \\
+Environmental Officer & Monitor activities, inspect maps and reports, review recovery performance, identify unresolved cases, and generate environmental reports. \\
+Administrator & Manage users, categories, facilities, requests, assignments, marketplace listings, announcements, and operational reports. \\
+Super Administrator & Manage administrators, roles, permissions, security, audit logs, integrations, and system-wide configuration. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textit{Note: the actor-to-use-case mapping in Table~\ref{tab:actor-summary} was
+reconstructed from the source document's own actor descriptions, since the
+original table's layout did not survive text extraction from the source PDF
+cleanly. The use-case content itself is unchanged.}
+
+\subsection{Data Flow Diagram}
+
+A Data Flow Diagram (DFD) illustrates how information moves between
+external entities, system processes, data stores, and outputs. It describes the
+logical movement and transformation of data without specifying the
+programming code or physical implementation used to perform each
+operation. The EcoTrace data flow model is presented at two levels: the
+Context-Level DFD, which represents EcoTrace as one complete process and
+shows its interactions with external entities; and the Level-One DFD, which
+decomposes the complete system into its principal operational processes and
+data stores.
+
+\subsubsection{Context-Level Data Flow Diagram}
+
+The context-level DFD represents the complete EcoTrace system as a single
+process identified as Process 0. It defines the system boundary and shows the
+principal information exchanged between EcoTrace and its external users and
+services. To maintain readability, actors with closely related responsibilities
+are grouped within the context diagram; their detailed responsibilities are
+expanded in the Level-One DFD and the use case model.
+
+The principal external entities are: (1)~Guest and Public User;
+(2)~Household and Business User; (3)~Collector and Driver; (4)~Technician
+and Recycler; (5)~Environmental Officer; (6)~Administrator and Super
+Administrator; and (7)~External Cloud and Artificial Intelligence Services
+(Firebase Authentication, Cloud Firestore, Cloudinary, Firebase Cloud
+Messaging, Google Maps Platform, PyTorch, and Render).
+Figure~\ref{fig:context-dfd} presents the principal information flows between
+EcoTrace, its users, and the external cloud services supporting the system, and
+Table~\ref{tab:context-dfd} summarizes the data exchanged with each entity.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+      ent/.style={draw, align=center, font=\scriptsize, minimum width=2.6cm, minimum height=0.9cm},
+      proc/.style={draw, circle, align=center, font=\small\bfseries, fill=ecotracegreen!14, minimum size=2.6cm},
+      arr/.style={-Latex, font=\tiny}
+    ]
+    \node[proc] (p0) at (0,0) {Process 0\\EcoTrace};
+    \node[ent] (a) at (-5.2,2.4) {Guest \&\\Public User};
+    \node[ent] (b) at (-5.2,0.8) {Household \&\\Business User};
+    \node[ent] (c) at (-5.2,-0.8) {Collector \&\\Driver};
+    \node[ent] (d) at (-5.2,-2.4) {Technician \&\\Recycler};
+    \node[ent] (e) at (5.2,2.4) {Environmental\\Officer};
+    \node[ent] (f) at (5.2,0.8) {Administrator \&\\Super Admin};
+    \node[ent] (g) at (5.2,-1.6) {External Cloud\\\& AI Services};
+    \draw[arr] (a) -- (p0); \draw[arr] (b) -- (p0); \draw[arr] (c) -- (p0); \draw[arr] (d) -- (p0);
+    \draw[arr] (p0) -- (e); \draw[arr] (p0) -- (f); \draw[arr] (p0) -- (g);
+  \end{tikzpicture}
+  \caption{Context-Level Data Flow Diagram of the EcoTrace System. Source: Author's design.}
+  \label{fig:context-dfd}
+\end{figure}
+
+\begin{longtable}{@{}p{3.1cm}p{5cm}p{5.3cm}@{}}
+\caption{External Entities and Data Flows in the EcoTrace Context Diagram} \label{tab:context-dfd} \\
+\toprule \textbf{External Entity} & \textbf{Data Sent to EcoTrace} & \textbf{Data Received from EcoTrace} \\ \midrule
+\endfirsthead
+\toprule \textbf{External Entity} & \textbf{Data Sent to EcoTrace} & \textbf{Data Received from EcoTrace} \\ \midrule
+\endhead
+Guest and Public User & Registration data, login credentials, password-recovery requests, public-information requests. & Public information, registration confirmation, authentication results, recovery instructions. \\
+Household and Business User & Profile data, electronic waste records, images, pickup requests, locations, marketplace enquiries, report requests. & Classification results, pickup status, collection updates, recovery outcomes, notifications, marketplace information, reports. \\
+Collector and Driver & Task responses, collection updates, transport updates, evidence, delivery confirmations, incident reports. & Assignments, waste details, schedules, pickup locations, destinations, route information. \\
+Technician and Recycler & Inspection findings, repair records, refurbishment records, recycling records, material-recovery information. & Assigned items, device details, lifecycle history, processing instructions. \\
+Environmental Officer & Monitoring requests, report filters, inspection observations, compliance findings. & Maps, environmental reports, alerts, recovery statistics, facility records, analytical dashboards. \\
+Administrator and Super Administrator & User-management actions, assignments, role changes, facility data, announcements, report requests, configuration changes. & Administrative dashboards, user and account records, workflow status, assignment results, system reports, audit logs, security alerts, configuration status. \\
+External Cloud and AI Services & Authentication requests, database operations, media files, notification requests, geographic requests, images for AI classification. & Authentication tokens, stored data, image URLs, delivery results, routes, location information, prediction results. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Level-One Data Flow Diagram}
+
+The Level-One DFD expands Process 0 into its major internal processes,
+data stores, and information flows. It provides a more detailed logical view of
+how data moves through the system during registration, collection, logistics,
+recovery, reporting, and administration. The system is decomposed into eight
+major processes, each reading from and writing to its own principal data
+store: 1.0~Manage Authentication and User Accounts (D1); 2.0~Manage
+Electronic Waste Registration and AI Classification (D2); 3.0~Manage Pickup
+Requests and Assignments (D3); 4.0~Manage Collection, Transportation, and
+Routing (D4); 5.0~Manage Repair, Refurbishment, and Recycling (D5);
+6.0~Manage Marketplace and Notifications (D6); 7.0~Manage Reporting and
+Environmental Monitoring (D7); and 8.0~Manage Administration, Security,
+and Configuration (D8).
+
+\begin{itemize}
+  \item \textbf{Process 1.0} handles registration, login, password recovery, and
+    profile management. It communicates with Firebase Authentication for
+    identity verification and reads/writes D1~--~User Accounts and Profiles.
+  \item \textbf{Process 2.0} manages waste registration, image upload, and
+    AI-based classification. It writes to D2~--~Electronic Waste Records,
+    uploads images through Cloudinary, and communicates with the PyTorch
+    classification service.
+  \item \textbf{Process 3.0} handles pickup scheduling, validation, review, and
+    collector/driver assignment. It reads D2 and writes D3~--~Pickup and
+    Assignment Records.
+  \item \textbf{Process 4.0} manages collection execution, transport, route
+    display, and delivery confirmation. It communicates with Google Maps
+    Platform and writes D4~--~Transportation and Route Records, updating D3.
+  \item \textbf{Process 5.0} manages inspection, repair, refurbishment,
+    recycling, and material recovery. It reads D2 and writes D5~--~Repair,
+    Refurbishment, and Recycling Records.
+  \item \textbf{Process 6.0} manages marketplace listings and notification
+    delivery. It writes D6~--~Marketplace and Notification Records and
+    communicates with Firebase Cloud Messaging.
+  \item \textbf{Process 7.0} generates dashboards, reports, and monitoring
+    views. It reads D2--D6 and writes D7~--~Reports, Monitoring, and Audit
+    Records.
+  \item \textbf{Process 8.0} manages user administration, roles, facilities,
+    audit review, and configuration. It updates D1, D7, and D8~--~Configuration
+    and Reference Data.
+\end{itemize}
+
+This decomposition shows that authentication, waste registration, pickup
+management, logistics, recovery operations, reporting, monitoring, and
+administration are handled through distinct but interconnected processes, and
+that Cloud Firestore-based records, media services, notification services,
+geospatial services, and AI services are integrated into the logical operation of
+the system. Figure~\ref{fig:level1-dfd} illustrates the major internal processes,
+data stores, and data flows, and Table~\ref{tab:level1-dfd} summarizes each
+process.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+      proc/.style={draw, rounded corners, align=center, font=\scriptsize, fill=ecotracegreen!12, minimum width=2.5cm, minimum height=0.85cm},
+      store/.style={draw, minimum width=2.3cm, minimum height=0.6cm, font=\scriptsize, align=center},
+      arr/.style={-Latex, font=\tiny}
+    ]
+    \node[proc] (p1) at (0,3.2)   {1.0 Auth \&\\User Accounts};
+    \node[proc] (p2) at (3.4,3.2) {2.0 Waste Reg.\\\& AI Classify};
+    \node[proc] (p3) at (6.8,3.2) {3.0 Pickup \&\\Assignment};
+    \node[proc] (p4) at (0,0)     {4.0 Collection,\\Transport, Routing};
+    \node[proc] (p5) at (3.4,0)   {5.0 Repair, Refurb.,\\Recycling};
+    \node[proc] (p6) at (6.8,0)   {6.0 Marketplace \&\\Notifications};
+    \node[proc] (p7) at (1.7,-3.2) {7.0 Reporting \&\\Env. Monitoring};
+    \node[proc] (p8) at (5.1,-3.2) {8.0 Admin, Security,\\Configuration};
+    \node[store] (d1) at (-2.6,3.2) {D1 Users};
+    \node[store] (d2) at (3.4,1.9) {D2 E-waste};
+    \node[store] (d3) at (9.6,3.2) {D3 Pickups};
+    \node[store] (d4) at (-2.6,0) {D4 Transport};
+    \node[store] (d5) at (3.4,-1.3) {D5 Repair/Recycle};
+    \node[store] (d6) at (9.6,0) {D6 Marketplace};
+    \node[store] (d7) at (1.7,-4.6) {D7 Reports/Audit};
+    \node[store] (d8) at (5.1,-4.6) {D8 Config};
+    \foreach \p/\d in {p1/d1,p2/d2,p3/d3,p4/d4,p5/d5,p6/d6,p7/d7,p8/d8} { \draw[arr] (\p) -- (\d); }
+  \end{tikzpicture}
+  \caption{Level-One Data Flow Diagram of the EcoTrace System. Source: Author's design.}
+  \label{fig:level1-dfd}
+\end{figure}
+
+\begin{longtable}{@{}p{1.4cm}p{4.4cm}p{6.6cm}@{}}
+\caption{Major Processes in the EcoTrace Level-One Data Flow Diagram} \label{tab:level1-dfd} \\
+\toprule \textbf{Process} & \textbf{Process Name} & \textbf{Primary Function} \\ \midrule
+\endfirsthead
+\toprule \textbf{Process} & \textbf{Process Name} & \textbf{Primary Function} \\ \midrule
+\endhead
+1.0 & Manage Authentication and User Accounts & Handles registration, login, password recovery, profile management, role retrieval, and access verification. \\
+2.0 & Manage Electronic Waste Registration and AI Classification & Handles waste registration, image upload, item storage, and AI-based classification of electronic waste images. \\
+3.0 & Manage Pickup Requests and Assignments & Handles pickup scheduling, request validation, review, and assignment of collectors and drivers. \\
+4.0 & Manage Collection, Transportation, and Routing & Handles collection operations, transportation tracking, route display, delivery updates, and related logistics. \\
+5.0 & Manage Repair, Refurbishment, and Recycling & Handles inspection, diagnosis, repair, refurbishment, recycling, and material-recovery activities. \\
+6.0 & Manage Marketplace and Notifications & Handles marketplace listings, browsing, announcements, and push notifications. \\
+7.0 & Manage Reporting and Environmental Monitoring & Handles dashboards, analytical views, reports, environmental monitoring, and related queries. \\
+8.0 & Manage Administration, Security, and Configuration & Handles user administration, roles, facilities, audit review, security oversight, and system settings. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Sequence Diagrams}
+
+A sequence diagram shows how actors and system components interact over
+time to complete a specific operation. It emphasizes the order of messages
+exchanged between the user interface, backend services, databases, and
+external platforms. The principal EcoTrace sequence diagrams cover user
+authentication, electronic waste registration and image upload, AI-based
+classification, pickup request and assignment, collection and transportation,
+repair/refurbishment/recycling, and report generation and environmental
+monitoring.
+
+\subsubsection{User Authentication Sequence}
+The sequence proceeds as follows: (1)~the user enters an email address and
+password; (2)~the Flutter application validates the required fields; (3)~the
+application submits the credentials to Firebase Authentication; (4)~Firebase
+Authentication verifies the credentials; (5)~if valid, Firebase returns an
+authentication token; (6)~the Flutter application sends the token to the
+FastAPI backend; (7)~FastAPI verifies the token and retrieves the user's
+profile and role from Cloud Firestore; (8)~Cloud Firestore returns the profile
+and role information; (9)~FastAPI returns an authorized session response; and
+(10)~the Flutter application redirects the user to the appropriate role-based
+dashboard. If authentication fails, Firebase Authentication returns an error
+and the Flutter application displays an appropriate message.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[font=\scriptsize]
+    \foreach \name/\x in {User/0,Flutter/2.4,Firebase/4.8,FastAPI/7.2,Firestore/9.6} {
+      \node at (\x,0) {\textbf{\name}};
+      \draw[dashed] (\x,-0.3) -- (\x,-6.3);
+    }
+    \draw[-Latex] (0,-1) -- (2.4,-1) node[midway,above]{credentials};
+    \draw[-Latex] (2.4,-1.7) -- (4.8,-1.7) node[midway,above]{submit login};
+    \draw[-Latex] (4.8,-2.4) -- (2.4,-2.4) node[midway,above]{auth token};
+    \draw[-Latex] (2.4,-3.1) -- (7.2,-3.1) node[midway,above]{token};
+    \draw[-Latex] (7.2,-3.8) -- (9.6,-3.8) node[midway,above]{get profile/role};
+    \draw[-Latex] (9.6,-4.5) -- (7.2,-4.5) node[midway,above]{profile/role};
+    \draw[-Latex] (7.2,-5.2) -- (2.4,-5.2) node[midway,above]{session response};
+    \draw[-Latex] (2.4,-5.9) -- (0,-5.9) node[midway,above]{role dashboard};
+  \end{tikzpicture}
+  \caption{Authentication Sequence Diagram for EcoTrace. Source: Author's design.}
+  \label{fig:seq-auth}
+\end{figure}
+
+\subsubsection{Electronic Waste Registration and Image Upload Sequence}
+(1)~The user opens the electronic waste registration form; (2)~the Flutter
+application displays the required fields; (3)~the user enters waste details and
+selects an image; (4)~the Flutter application validates the basic input; (5)~the
+application sends the image and registration data to the FastAPI backend;
+(6)~FastAPI verifies the user's authentication token and role; (7)~FastAPI
+validates the submitted data and image file; (8)~FastAPI uploads the image to
+Cloudinary; (9)~Cloudinary stores the image and returns a secure image URL;
+(10)~FastAPI creates the electronic waste record in Cloud Firestore, including
+the image URL and lifecycle status; (11)~Cloud Firestore returns the created
+record identifier; (12)~FastAPI returns a successful registration response; and
+(13)~the Flutter application displays the registered item and confirmation
+message.
+
+\subsubsection{AI Classification Sequence}
+(1)~The user selects the AI classification function; (2)~the Flutter
+application sends the image or image reference to the FastAPI backend;
+(3)~FastAPI verifies the user's authentication and authorization; (4)~FastAPI
+retrieves or receives the image; (5)~the backend validates and preprocesses the
+image; (6)~the preprocessed image is passed to the trained PyTorch model;
+(7)~the PyTorch model performs inference; (8)~the model returns the
+predicted waste category and confidence score; (9)~FastAPI formats the
+result; (10)~the result is stored with the relevant waste record in Cloud
+Firestore where appropriate; (11)~FastAPI returns the classification result to
+the Flutter application; (12)~the Flutter application displays the predicted
+category and confidence score; and (13)~the user may accept or correct the
+result.
+
+\subsubsection{Pickup Request and Assignment Sequence}
+(1)~The user selects one or more registered electronic waste items; (2)~the
+user enters a preferred pickup date, location, and collection instructions;
+(3)~the Flutter application sends the pickup request to FastAPI; (4)~FastAPI
+validates the request and user ownership; (5)~FastAPI stores the request in
+Cloud Firestore; (6)~Cloud Firestore returns the request identifier; (7)~FastAPI
+sends a notification request through Firebase Cloud Messaging; (8)~the
+administrator receives a new-request notification; (9)~the administrator opens
+the request and reviews its details; (10)~the administrator selects a collector
+and driver; (11)~the Flutter administrative interface sends the assignment to
+FastAPI; (12)~FastAPI validates the selected operational users; (13)~FastAPI
+updates the pickup and assignment records in Cloud Firestore; (14)~FastAPI
+sends assignment notifications through Firebase Cloud Messaging; and
+(15)~the household or business user, collector, and driver receive updated
+status information.
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[font=\scriptsize]
+    \foreach \name/\x in {User/0,Flutter/2.3,FastAPI/4.6,Firestore/6.9,FCM/9.2,Admin/11.3} {
+      \node at (\x,0) {\textbf{\name}};
+      \draw[dashed] (\x,-0.3) -- (\x,-5.3);
+    }
+    \draw[-Latex] (0,-0.9) -- (2.3,-0.9) node[midway,above,font=\tiny]{select items, date, location};
+    \draw[-Latex] (2.3,-1.5) -- (4.6,-1.5) node[midway,above,font=\tiny]{submit request};
+    \draw[-Latex] (4.6,-2.1) -- (6.9,-2.1) node[midway,above,font=\tiny]{store request};
+    \draw[-Latex] (4.6,-2.7) -- (9.2,-2.7) node[midway,above,font=\tiny]{notify};
+    \draw[-Latex] (9.2,-3.3) -- (11.3,-3.3) node[midway,above,font=\tiny]{new request};
+    \draw[-Latex] (11.3,-3.9) -- (4.6,-3.9) node[midway,above,font=\tiny]{assign collector/driver};
+    \draw[-Latex] (4.6,-4.5) -- (6.9,-4.5) node[midway,above,font=\tiny]{update assignment};
+    \draw[-Latex] (4.6,-5.0) -- (9.2,-5.0) node[midway,above,font=\tiny]{notify all parties};
+  \end{tikzpicture}
+  \caption{Pickup, Assignment, Collection, and Transportation Sequence Diagram. Source: Author's design.}
+  \label{fig:seq-pickup}
+\end{figure}
+
+\subsubsection{Collection and Transportation Sequence}
+(1)~The collector opens the assigned pickup task; (2)~the Flutter application
+requests the pickup details from FastAPI; (3)~FastAPI retrieves the request
+and location information from Cloud Firestore; (4)~FastAPI requests route
+information from Google Maps Platform where required; (5)~Google Maps
+Platform returns distance, route, and estimated travel information; (6)~FastAPI
+returns the task and route details to the collector or driver; (7)~the collector
+accepts the task and updates the status; (8)~FastAPI stores the updated status
+in Cloud Firestore; (9)~the collector reaches the pickup location and confirms
+collection; (10)~the collector uploads evidence where required; (11)~FastAPI
+stores the collection record and updates the waste lifecycle status; (12)~the
+driver transports the waste to the assigned destination; (13)~the driver
+updates transit and delivery status; (14)~FastAPI stores the transportation
+record; (15)~the receiving facility confirms delivery; and (16)~Firebase Cloud
+Messaging sends status notifications to the relevant users.
+
+\subsubsection{Repair, Refurbishment, and Recycling Sequence}
+(1)~The technician or recycler opens the assigned item; (2)~the Flutter
+application requests the item and lifecycle history; (3)~FastAPI retrieves the
+item, collection, and transport records from Cloud Firestore; (4)~the
+technician inspects the device and records findings; (5)~FastAPI stores the
+inspection record; (6)~if the item is repairable, the technician records repair
+or refurbishment activities; (7)~FastAPI updates the relevant records in Cloud
+Firestore; (8)~if the item is not repairable, it is assigned to the recycler;
+(9)~the recycler records dismantling, recovered materials, hazardous
+materials, and residual waste; (10)~FastAPI stores the recycling record and
+updates the waste lifecycle status; (11)~where applicable, an approved
+refurbished item is added to the marketplace; (12)~Firebase Cloud Messaging
+sends completion or status notifications; and (13)~relevant users can view the
+final recovery outcome.
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[font=\scriptsize]
+    \foreach \name/\x in {Technician/0,Flutter/2.6,FastAPI/5.2,Firestore/7.8,FCM/10.4} {
+      \node at (\x,0) {\textbf{\name}};
+      \draw[dashed] (\x,-0.3) -- (\x,-5.3);
+    }
+    \draw[-Latex] (0,-0.9) -- (2.6,-0.9) node[midway,above,font=\tiny]{open item};
+    \draw[-Latex] (2.6,-1.5) -- (5.2,-1.5) node[midway,above,font=\tiny]{request history};
+    \draw[-Latex] (5.2,-2.1) -- (7.8,-2.1) node[midway,above,font=\tiny]{fetch records};
+    \draw[-Latex] (0,-2.7) -- (2.6,-2.7) node[midway,above,font=\tiny]{inspect / repair / recycle};
+    \draw[-Latex] (2.6,-3.3) -- (5.2,-3.3) node[midway,above,font=\tiny]{submit outcome};
+    \draw[-Latex] (5.2,-3.9) -- (7.8,-3.9) node[midway,above,font=\tiny]{update record};
+    \draw[-Latex] (5.2,-4.5) -- (10.4,-4.5) node[midway,above,font=\tiny]{notify};
+  \end{tikzpicture}
+  \caption{Repair, Refurbishment, Recycling, and Reporting Sequence Diagram. Source: Author's design.}
+  \label{fig:seq-repair}
+\end{figure}
+
+\subsubsection{Report Generation and Environmental Monitoring Sequence}
+(1)~The authorized user opens the reporting dashboard; (2)~the user selects
+report type, date range, status, category, location, or other filters; (3)~the
+Flutter application sends the report request to FastAPI; (4)~FastAPI verifies
+the user's role and report permissions; (5)~FastAPI retrieves relevant data
+from Cloud Firestore; (6)~FastAPI aggregates and analyses the retrieved
+records; (7)~FastAPI may request map or location information from Google
+Maps Platform; (8)~FastAPI prepares the report data; (9)~the report is
+returned to the Flutter application; (10)~the application displays tables,
+charts, maps, and summary indicators; (11)~the authorized user may export
+the report in PDF or another supported format; and (12)~the report request or
+export action may be recorded in the audit log.
+
+\subsubsection{Sequence Diagram Summary}
+The sequence diagrams demonstrate how EcoTrace coordinates user actions,
+Flutter applications, FastAPI services, Cloud Firestore, Firebase, Cloudinary,
+Google Maps Platform, and PyTorch. They also show that authentication,
+validation, authorization, cloud storage, notification delivery, route services,
+and AI inference occur through ordered interactions rather than isolated
+system operations.
+
+\subsection{Database Design and Cloud Firestore Collections}
+
+Database design defines how application data is structured, stored, related,
+retrieved, updated, secured, and maintained. EcoTrace uses Cloud Firestore as
+its primary database because it supports flexible document-based data
+storage, real-time synchronization, cloud accessibility, security rules, and
+integration with Firebase Authentication.
+
+Cloud Firestore is a NoSQL document database. Instead of storing data in
+relational tables, it organizes information into collections and documents. A
+collection contains related documents, while each document contains fields
+represented as key-value pairs. The EcoTrace database design separates
+information according to the major system modules. This modular structure
+improves maintainability, security, query performance, and future scalability.
+
+The principal collections proposed for EcoTrace are: users, roles,
+ewaste\_records, pickup\_requests, assignments, transportation\_records,
+collection\_centres, facilities, repair\_records, refurbishment\_records,
+recycling\_records, recovered\_materials, marketplace\_listings, notifications,
+environmental\_reports, audit\_logs, system\_settings, and reference\_data.
+
+\subsubsection{Collection Descriptions}
+
+\textbf{users.} Stores profile and authorization-related information for
+registered users. Firebase Authentication manages the user's email, password
+credentials, authentication token, and authentication identifier, while Cloud
+Firestore stores additional application-specific profile information. A typical
+document may contain: userId, firebaseUid, fullName, email, phoneNumber,
+roleId, organizationName, profileImageUrl, address, district, latitude,
+longitude, accountStatus, isVerified, createdAt, updatedAt, and lastLoginAt.
+The document identifier may use the Firebase Authentication user identifier
+to simplify user-profile retrieval.
+
+\textbf{roles.} Stores the available system roles and their associated
+permissions: roleId, roleName, description, permissions, isActive, createdAt,
+updatedAt. Examples of role values include household, business, collector,
+driver, technician, recycler, environmental officer, administrator, and super
+administrator.
+
+\textbf{ewaste\_records.} Stores the main information associated with
+registered electronic waste items: ewasteId, ownerId, ownerType, categoryId,
+deviceName, brand, model, serialNumber, quantity, condition, description,
+imageUrls, aiPredictedCategory, aiConfidenceScore, classificationSource,
+latitude, longitude, address, preferredRecoveryOption, lifecycleStatus,
+createdAt, updatedAt. The lifecycleStatus field may contain values such as
+registered, pickup requested, assigned, collected, transported, under
+inspection, under repair, refurbished, recycled, listed, reused, or disposed.
+
+\textbf{pickup\_requests.} Stores requests submitted by household and
+business users: pickupRequestId, requesterId, ewasteIds, pickupAddress,
+latitude, longitude, preferredDate, preferredTime, contactName, contactPhone,
+collectionInstructions, status, rejectionReason, cancellationReason,
+submittedAt, scheduledAt, completedAt, updatedAt.
+
+\textbf{assignments.} Stores the assignment of collectors, drivers,
+technicians, and recyclers to operational records: assignmentId,
+referenceType, referenceId, assignedUserId, assignedRole, assignedBy,
+assignmentStatus, acceptedAt, rejectedAt, rejectionReason, assignedAt,
+updatedAt. The referenceType field identifies whether the assignment relates
+to pickup, transportation, repair, refurbishment, or recycling.
+
+\textbf{transportation\_records.} Stores the movement of electronic waste
+between operational locations: transportId, pickupRequestId, driverId,
+vehicleId, originAddress, originLatitude, originLongitude, destinationAddress,
+destinationLatitude, destinationLongitude, routeDistance, estimatedDuration,
+routePolyline, status, incidentDescription, departedAt, arrivedAt, deliveredAt,
+updatedAt.
+
+\textbf{collection\_centres.} Stores approved electronic waste collection
+locations: centreId, centreName, centreType, address, district, latitude,
+longitude, contactPhone, email, operatingHours, acceptedWasteCategories,
+verificationStatus, isActive, createdAt, updatedAt.
+
+\textbf{facilities.} Stores repair centres, refurbishment centres, recycling
+facilities, warehouses, and other processing locations: facilityId,
+facilityName, facilityType, operatorId, address, latitude, longitude,
+contactInformation, supportedOperations, capacity, verificationStatus,
+isActive, createdAt, updatedAt.
+
+\textbf{repair\_records.} Stores inspection, diagnosis, repair planning, and
+repair-outcome information: repairId, ewasteId, technicianId, facilityId,
+inspectionFindings, diagnosis, isRepairable, requiredParts, estimatedCost,
+actualCost, replacedComponents, repairStatus, testResults, finalOutcome,
+startedAt, completedAt, updatedAt.
+
+\textbf{refurbishment\_records.} Stores information about devices restored
+for reuse or resale: refurbishmentId, ewasteId, technicianId, facilityId,
+activitiesPerformed, componentsReplaced, softwareUpdated,
+functionalTestResults, cosmeticCondition, qualityGrade, approvalStatus,
+approvedBy, finalCondition, startedAt, completedAt, updatedAt.
+
+\textbf{recycling\_records.} Stores dismantling, processing,
+material-recovery, and final-disposal information: recyclingId, ewasteId,
+recyclerId, facilityId, quantityReceived, receivedCondition,
+dismantlingActivities, hazardousMaterials, residualWaste, disposalMethod,
+recyclingStatus, receivedAt, completedAt, updatedAt.
+
+\textbf{recovered\_materials.} Stores materials and components recovered
+during recycling: materialRecordId, recyclingId, materialType, materialName,
+quantity, unit, qualityCondition, estimatedValue, destination,
+marketplaceEligible, recordedBy, recordedAt.
+
+\textbf{marketplace\_listings.} Stores refurbished devices, reusable
+components, and recovered materials offered through the marketplace:
+listingId, sourceRecordType, sourceRecordId, sellerId, title, description,
+category, condition, qualityGrade, price, currency, quantityAvailable,
+imageUrls, listingStatus, approvalStatus, approvedBy, createdAt, updatedAt.
+
+\textbf{notifications.} Stores in-application notification records:
+notificationId, recipientId, recipientRole, title, message, notificationType,
+referenceType, referenceId, isRead, deliveryStatus, createdAt, readAt.
+
+\textbf{environmental\_reports.} Stores submitted observations, inspection
+findings, environmental assessments, and generated report metadata:
+reportId, reportType, generatedBy, facilityId, location, reportPeriodStart,
+reportPeriodEnd, observations, findings, recommendations, severity, status,
+attachmentUrls, createdAt, updatedAt.
+
+\textbf{audit\_logs.} Stores evidence of significant system and
+administrative actions: auditId, actorId, actorRole, action, referenceType,
+referenceId, previousValue, newValue, ipAddress, deviceInformation, result,
+description, createdAt. Access to this collection shall be restricted to
+authorized administrators and super administrators.
+
+\textbf{system\_settings.} Stores configurable application settings: settingId,
+settingName, settingValue, category, description, isSensitive, updatedBy,
+updatedAt. Sensitive secrets shall not be stored directly in Cloud Firestore
+when they can be managed through secure environment variables.
+
+\textbf{reference\_data.} Stores controlled values used throughout the
+system, such as electronic waste categories, account statuses, pickup statuses,
+lifecycle statuses, facility types, material types, quality grades, notification
+types, report types, and districts or operational regions. Centralizing these
+values improves consistency across Android, Web, Windows, backend, and
+reporting components.
+
+\subsubsection{Database Relationships}
+
+Although Cloud Firestore is a NoSQL database, logical relationships exist
+between the collections: one user may register multiple electronic waste
+records; one electronic waste record may belong to one owner; one pickup
+request may contain multiple electronic waste records; one pickup request
+may have one or more assignment records; one driver may complete multiple
+transportation records; one electronic waste record may have repair,
+refurbishment, or recycling records; one recycling record may contain
+multiple recovered-material records; one refurbishment or recovered-material
+record may generate a marketplace listing; one user may receive multiple
+notifications; and one actor may generate multiple audit-log entries. These
+relationships are maintained using document identifiers such as userId,
+ewasteId, pickupRequestId, assignmentId, repairId, and recyclingId.
+Figure~\ref{fig:er-diagram} presents these relationships as an entity
+relationship diagram.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[
+      ent/.style={draw, rounded corners, align=center, font=\scriptsize, fill=ecotracegreen!10, minimum width=2.5cm, minimum height=0.7cm},
+      rel/.style={font=\tiny, midway, fill=white, inner sep=1pt}
+    ]
+    \node[ent] (users) at (0,4) {users};
+    \node[ent] (ewaste) at (0,2) {ewaste\_records};
+    \node[ent] (pickup) at (0,0) {pickup\_requests};
+    \node[ent] (asgn) at (-3.4,0) {assignments};
+    \node[ent] (trans) at (-3.4,-2) {transportation\_records};
+    \node[ent] (repair) at (3.4,0) {repair\_records};
+    \node[ent] (refurb) at (3.4,-2) {refurbishment\_records};
+    \node[ent] (recyc) at (0,-2) {recycling\_records};
+    \node[ent] (mat) at (0,-4) {recovered\_materials};
+    \node[ent] (mkt) at (3.4,-4) {marketplace\_listings};
+    \node[ent] (notif) at (-3.4,2) {notifications};
+    \node[ent] (audit) at (3.4,2) {audit\_logs};
+    \draw (users) -- (ewaste) node[rel]{1:N};
+    \draw (users) -- (notif) node[rel]{1:N};
+    \draw (users) -- (audit) node[rel]{1:N};
+    \draw (ewaste) -- (pickup) node[rel]{N:M};
+    \draw (pickup) -- (asgn) node[rel]{1:N};
+    \draw (asgn) -- (trans) node[rel]{1:N};
+    \draw (ewaste) -- (repair) node[rel]{1:N};
+    \draw (repair) -- (refurb) node[rel]{1:1};
+    \draw (ewaste) -- (recyc) node[rel]{1:N};
+    \draw (recyc) -- (mat) node[rel]{1:N};
+    \draw (mat) -- (mkt) node[rel]{1:N};
+    \draw (refurb) -- (mkt) node[rel]{1:N};
+  \end{tikzpicture}
+  \caption{Cloud Firestore Database Schema (Entity Relationship Diagram) for EcoTrace. Source: Author's design.}
+  \label{fig:er-diagram}
+\end{figure}
+
+\subsubsection{Indexing and Query Considerations}
+
+Cloud Firestore queries require suitable indexing to support efficient data
+retrieval. Likely indexed fields include user role and account status, owner
+identifier and waste lifecycle status, pickup-request status and preferred date,
+assigned user and assignment status, driver identifier and transportation
+status, technician identifier and repair status, recycler identifier and recycling
+status, listing category and listing status, notification recipient and read
+status, report type and creation date, and audit actor and action date.
+Composite indexes may be required when filtering and ordering records by
+multiple fields.
+
+\subsubsection{Database Security}
+
+Cloud Firestore Security Rules shall restrict access according to
+authentication status, ownership, role, and operation type. The security design
+shall ensure that users can access only permitted personal records; users
+cannot modify another person's private records; collectors and drivers access
+only assigned operational records; technicians and recyclers access only
+authorized processing records; environmental officers access approved
+monitoring and reporting information; administrators access operational data
+according to assigned permissions; super administrators access high-level
+system data; and audit and configuration records remain protected. Backend
+authorization checks shall complement Firestore Security Rules.
+
+\subsubsection{Database Design Summary}
+
+The database design provides a structured foundation for storing and
+linking all major EcoTrace records. The proposed collections support
+authentication, electronic waste registration, pickup scheduling, logistics,
+repair, refurbishment, recycling, marketplace operations, notifications,
+reporting, environmental monitoring, audit tracking, and configuration
+management. The document-oriented structure provides flexibility while the
+use of consistent identifiers, timestamps, statuses, security rules, and indexes
+supports traceability, security, and efficient data retrieval.
+Table~\ref{tab:collections-summary} summarizes the principal Cloud Firestore
+collections and their representative fields.
+
+\begin{longtable}{@{}p{3.2cm}p{4.6cm}p{5.4cm}@{}}
+\caption{Summary of Major Cloud Firestore Collections} \label{tab:collections-summary} \\
+\toprule \textbf{Collection} & \textbf{Purpose} & \textbf{Representative Fields} \\ \midrule
+\endfirsthead
+\toprule \textbf{Collection} & \textbf{Purpose} & \textbf{Representative Fields} \\ \midrule
+\endhead
+users & Stores user profiles, roles, account status, contact information, and location data. & userId, fullName, email, roleId, accountStatus, createdAt \\
+ewaste\_records & Stores registered electronic waste details, images, AI results, and lifecycle status. & ewasteId, ownerId, categoryId, imageUrls, aiPredictedCategory, lifecycleStatus \\
+pickup\_requests & Stores pickup schedules, locations, requester information, and request status. & pickupRequestId, requesterId, ewasteIds, preferredDate, latitude, status \\
+assignments & Stores collector, driver, technician, and recycler assignments. & assignmentId, referenceId, assignedUserId, assignedRole, assignmentStatus \\
+transportation\_records & Stores route, origin, destination, driver, vehicle, and delivery data. & transportId, driverId, originAddress, destinationAddress, routeDistance, status \\
+repair\_records & Stores inspection, diagnosis, parts, costs, repair progress, and final outcome. & repairId, ewasteId, technicianId, diagnosis, repairStatus, finalOutcome \\
+refurbishment\_records & Stores refurbishment activities, testing results, quality grade, and approval status. & refurbishmentId, ewasteId, activitiesPerformed, qualityGrade, approvalStatus \\
+recycling\_records & Stores dismantling, hazardous material, residual waste, and recycling outcome information. & recyclingId, ewasteId, recyclerId, hazardousMaterials, disposalMethod, recyclingStatus \\
+recovered\_materials & Stores materials and components recovered during recycling. & materialRecordId, recyclingId, materialName, quantity, unit, estimatedValue \\
+marketplace\_listings & Stores refurbished devices, reusable components, and recovered materials listed for sale or enquiry. & listingId, sourceRecordId, title, condition, price, listingStatus \\
+notifications & Stores targeted alerts, announcements, workflow notifications, and read status. & notificationId, recipientId, notificationType, title, isRead, createdAt \\
+environmental\_reports & Stores environmental reports, observations, findings, and recommendations. & reportId, reportType, generatedBy, findings, recommendations, status \\
+audit\_logs & Stores significant user, operational, security, and administrative activities. & auditId, actorId, action, referenceId, result, createdAt \\
+system\_settings & Stores configurable non-secret system settings. & settingId, settingName, settingValue, category, updatedBy \\
+reference\_data & Stores controlled lists such as categories, statuses, grades, facility types, and report types. & referenceId, referenceType, name, code, isActive \\
+\bottomrule
+\end{longtable}
+
+\subsection{User Interface Design}
+
+User interface design defines how users interact with the EcoTrace system
+through mobile, web, and Windows applications. The interface design
+translates the functional requirements into screens, navigation structures,
+forms, dashboards, tables, maps, notifications, and interactive controls. The
+EcoTrace user interfaces were designed to be clear, consistent, role-specific,
+responsive, and accessible. Each actor is presented with functions relevant to
+their responsibilities, while restricted operations remain hidden or
+inaccessible. Flutter provides the shared presentation framework used to
+implement the Android, Web, and Windows interfaces. Although the
+applications share common components and design principles, their layouts
+are adapted to different screen sizes and usage contexts.
+
+\subsubsection{User Interface Design Objectives}
+The primary objectives of the EcoTrace interface design are to: provide
+simple and understandable navigation; present role-specific information and
+operations; reduce the number of steps required to complete common tasks;
+maintain visual consistency across mobile, web, and Windows applications;
+provide clear validation, success, loading, and error feedback; support
+different screen sizes and device orientations; make electronic waste
+workflows easy to understand; present maps, charts, reports, and status
+information clearly; protect restricted functionality through role-based
+navigation; and support users with different levels of technical experience.
+
+\subsubsection{Visual Design Principles}
+The EcoTrace visual identity uses environmental and technology-related
+design elements. Green is used to represent sustainability, recycling,
+environmental protection, and successful operations. Blue is used to represent
+technology, trust, security, and information management. The interface
+design applies consistent colour usage, readable typography, sufficient
+spacing between interface elements, clear visual hierarchy, recognizable
+icons, consistent button styles, understandable status indicators, responsive
+cards and panels, limited visual clutter, and a clear distinction between
+primary and secondary actions. Red, amber, and green status colours may be
+used carefully to represent errors, warnings, pending activities, and completed
+operations; however, important information shall not depend on colour alone.
+
+\subsubsection{Navigation Design}
+EcoTrace uses role-based navigation to ensure that users access only the
+functions relevant to their responsibilities. The mobile application may use a
+bottom navigation bar, a navigation drawer, tab-based navigation, app-bar
+actions, and floating action buttons for important operations. The Web and
+Windows applications may use a collapsible side navigation panel, a top
+navigation bar, breadcrumb navigation, page-level tabs, dashboard shortcuts,
+and contextual action menus. The navigation system shall preserve the user's
+current role and prevent unauthorized access through direct routes or
+manually entered URLs.
+
+\subsubsection{Responsive Layout Design}
+Responsive design ensures that EcoTrace interfaces remain usable across
+different screen sizes. The mobile interface uses a single-column layout for
+most forms and content cards. The Web and Windows interfaces use wider
+multi-column layouts, side panels, tables, charts, and map views where
+suitable. Responsive behaviour includes flexible widths, adaptive grids,
+scalable cards, scrollable tables, collapsible navigation, responsive charts and
+maps, alternative mobile layouts for complex dashboards, and prevention of
+horizontal overflow.
+
+\subsubsection{Screen-by-Screen Interface Summary}
+
+\textbf{Authentication interfaces} (registration, login, password recovery,
+email verification, account status) -- the login interface contains an
+email-address field, password field, show/hide password control, login
+button, forgot-password link, account-registration link, loading indicator, and
+authentication error message. Registration collects only the information
+required to create an account and establish role/account type; detailed profile
+information may be completed afterward.
+
+\textbf{Household and Business dashboard} -- total registered items, active
+pickup requests, completed collections, items under repair/recycling, recent
+notifications, nearby collection centres, environmental awareness content,
+quick actions, and recent lifecycle activity; business users additionally see
+bulk-request, organizational-record, certificate, and report information.
+
+\textbf{Electronic waste registration interface} -- category selector,
+device-name field, brand/model fields, condition selector, quantity field,
+description field, image-upload control, location selector, preferred recovery
+option, and submit button, with validation messages and a confirmation +
+generated record identifier on success.
+
+\textbf{AI classification interface} -- image preview, replacement control,
+classification button, processing indicator, predicted category, confidence
+score (displayed without implying absolute certainty), accept/correct-result
+controls, and error message.
+
+\textbf{Pickup scheduling interface} -- registered-item selector,
+pickup-address field, interactive map, latitude/longitude values, preferred
+date/time, contact details, collection instructions, estimated pickup summary,
+and submit button; status values include submitted, approved, assigned, en
+route, collected, completed, cancelled, or delayed.
+
+\textbf{Collector and Driver interfaces} -- the Collector dashboard shows
+assigned pickups, accepted tasks, upcoming schedules, completed collections,
+pickup locations, waste details, requester contact, evidence controls, and
+status-update actions; the Driver dashboard shows assigned tasks, a route map,
+origin/destination, estimated distance/time, navigation, delivery information,
+status, and incident reporting.
+
+\textbf{Technician interface} -- assigned devices, pending inspections,
+repairs in progress, completed repairs, refurbishment tasks, device
+images/history, required parts, cost information, test results, and
+final-outcome controls.
+
+\textbf{Recycler interface} -- assigned recycling items, waste received,
+tasks in progress, recovered materials, hazardous materials, residual waste,
+processing facility, status, and completed records, supporting multiple
+recovered materials per recycling process.
+
+\textbf{Environmental Officer dashboard} -- location map, coverage map,
+active/delayed cases, collection/repair/recycling statistics, recovered-material
+indicators, facility activity, alerts, inspection records, charts/trends, and
+report generation, filterable by date, district, category, facility, status, or
+actor.
+
+\textbf{Administrator dashboard} -- registered users, pending verification,
+registered waste, new requests, active assignments/collections, repair/recycling
+workflows, marketplace listings, notifications/announcements, operational
+charts, recent activity, and unresolved issues; tables support search, filtering,
+sorting, pagination, and contextual actions.
+
+\textbf{Super Administrator dashboard} -- administrator management,
+roles/permissions, audit logs, security alerts, system settings, integration and
+API configuration status, account suspensions, system-health indicators, and
+high-risk action confirmations, with clear confirmation required for sensitive
+operations.
+
+\textbf{Marketplace interface} -- product cards/images, title/category,
+condition/quality grade, price, availability, seller/facility information,
+search/filters, product-detail screen, and enquiry/purchase action; only
+approved and active listings are displayed publicly.
+
+\textbf{Notification interface} -- title, message, type, date/time, read/unread
+status, related-record link, and action button, with mark-as-read support.
+
+\textbf{Reports and analytics interface} -- summary cards, tables, bar/line/pie
+charts, map visualizations, date/category/status filters, and export controls,
+showing only information permitted for the user's role.
+
+\subsubsection{Form, Feedback, and Error-Handling Design}
+Forms across EcoTrace shall follow a consistent structure: clear title, short
+instructions where necessary, labelled fields, required-field indicators,
+suitable input controls, validation messages, primary and secondary actions,
+loading feedback, and success or error response; long forms should be divided
+into logical sections or steps. Feedback mechanisms include confirmation
+dialogs, snack-bar messages, notification banners, loading and progress
+indicators, error messages, empty states, status badges, and completion
+summaries, with status labels kept consistent across platforms. Error messages
+should describe what went wrong, whether the user can correct the issue,
+whether to retry, whether a service is temporarily unavailable, and whether
+administrator support is required -- technical stack traces, credentials,
+internal service information, and sensitive error details shall not be displayed
+to standard users.
+
+\subsubsection{Accessibility Considerations}
+The interface design shall consider accessibility through readable font sizes,
+suitable colour contrast, clear form labels, descriptive icons, sufficiently large
+touch controls, logical navigation order, keyboard support for the Web
+application, responsive layouts, and visible error and status information.
+
+\subsubsection{User Interface Design Summary}
+The EcoTrace user interface design provides role-specific access through
+Android, Web, and Windows applications. The design supports electronic
+waste registration, pickup scheduling, collection, transportation, repair,
+recycling, monitoring, reporting, administration, and marketplace activities.
+The use of consistent layouts, responsive components, clear navigation,
+validation feedback, dashboards, maps, charts, and workflow statuses is
+intended to improve usability and reduce operational errors.
+Figure~\ref{fig:ui-framework} illustrates the role-based and cross-platform
+user interface design structure adopted for EcoTrace, and
+Table~\ref{tab:ui-summary} summarizes the major interfaces.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{User Interface Design Framework for EcoTrace}
+  \caption{User Interface Design Framework for EcoTrace. Source: Author's design.}
+  \label{fig:ui-framework}
+\end{figure}
+
+\begin{longtable}{@{}p{3.6cm}p{3.4cm}p{6.2cm}@{}}
+\caption{Summary of Major EcoTrace User Interfaces} \label{tab:ui-summary} \\
+\toprule \textbf{Interface} & \textbf{Primary Users} & \textbf{Principal Functions} \\ \midrule
+\endfirsthead
+\toprule \textbf{Interface} & \textbf{Primary Users} & \textbf{Principal Functions} \\ \midrule
+\endhead
+Authentication interface & All users & Registration, login, password recovery, email verification, and account status feedback. \\
+Household and Business dashboard & Household and Business Users & Waste registration, pickup requests, tracking, notifications, marketplace access, and personal or organizational reports. \\
+Collector dashboard & Collectors & Pickup assignments, waste details, location access, collection status, evidence upload, and task history. \\
+Driver dashboard & Drivers & Transportation assignments, routes, origin and destination information, status updates, incident reporting, and delivery confirmation. \\
+Technician dashboard & Technicians & Inspection, diagnosis, repair, refurbishment, parts, testing, quality grading, and final outcomes. \\
+Recycler dashboard & Recyclers & Waste receipt, dismantling, recovered materials, hazardous materials, residual waste, processing status, and recycling completion. \\
+Environmental Officer dashboard & Environmental Officers & Maps, monitoring, collection coverage, environmental indicators, facility review, alerts, analytics, and reports. \\
+Administrator dashboard & Administrators & User management, pickup review, assignments, facilities, categories, marketplace management, announcements, reports, and operational monitoring. \\
+Super Administrator dashboard & Super Administrators & Administrator management, roles, permissions, audit logs, security, configuration, integrations, and system oversight. \\
+Marketplace interface & Registered Users and Authorized Sellers & Browse listings, search, filter, view product details, manage approved listings, and submit enquiries. \\
+Reporting interface & Business Users, Environmental Officers, Administrators, and Super Administrators & Tables, charts, maps, filters, summaries, analytics, and report export. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Hardware, Software, and Platform Requirements}
+
+The successful development, deployment, and use of EcoTrace depend on
+appropriate hardware, software, network, development, and cloud-service
+requirements. These requirements define the minimum resources needed by
+developers, administrators, operational personnel, and end users. The
+requirements are grouped into client-device requirements, development
+requirements, server and cloud requirements, network requirements,
+external-service requirements, and platform-specific requirements.
+
+\subsubsection{Client Hardware Requirements}
+EcoTrace supports Android mobile devices, Web browsers, and Windows
+desktop computers. The Android application should operate on a device with
+a multi-core mobile processor, at least 2~GB RAM, at least 200~MB available
+storage, a touchscreen display, a rear camera, GPS/location-service support,
+and Wi-Fi or mobile-data connectivity; a device with at least 4~GB RAM, a
+modern processor, reliable GPS, and a high-quality camera is recommended
+for field roles. The Web application requires a dual-core or higher processor,
+at least 4~GB RAM, a display of at least 1366$\times$768, keyboard and
+pointing device, and a stable Internet connection. The Windows application
+requires a 64-bit processor, at least 4~GB RAM, at least 500~MB storage, a
+display of at least 1366$\times$768, keyboard/mouse or touch input, Internet
+connectivity, and a supported Windows version; administrators and
+environmental officers are recommended at least 8~GB RAM and a Full HD
+display.
+
+\textbf{Optional operational hardware} that may improve efficiency
+includes QR-code or barcode scanners, digital weighing scales, label printers,
+GPS-enabled collection vehicles, mobile receipt printers, external cameras,
+rugged mobile devices, power banks, and protective equipment. Future
+versions may integrate IoT sensors, smart bins, vehicle-tracking devices, and
+weighing systems.
+
+\subsubsection{Development Hardware Requirements}
+The minimum development hardware includes a 64-bit multi-core
+processor, at least 8~GB RAM, at least 20~GB free storage, reliable Internet
+connectivity, a display of at least 1366$\times$768, and hardware
+virtualization support where an Android emulator is used. The recommended
+configuration is an Intel Core i5/AMD Ryzen 5 or equivalent processor,
+16~GB or more RAM, solid-state storage with at least 50~GB free, a Full HD
+display, hardware virtualization support, and graphics capable of supporting
+the development tools. A GPU may improve PyTorch model training speed,
+though training may also be performed on CPU or an external cloud
+environment.
+
+\subsubsection{Client Software Requirements}
+The Android device requires a supported Android OS version, Google Play
+Services where required by Firebase and Google Maps, camera/location/file/
+notification permissions where applicable, current security updates, and the
+installed EcoTrace application. The Web application requires a current
+mainstream browser (Google Chrome, Microsoft Edge, Mozilla Firefox, or
+another standards-compliant browser verified during testing) supporting
+JavaScript, HTTPS, responsive layouts, and the Web APIs required by Flutter
+Web. The Windows application requires a supported 64-bit Windows OS, the
+installed EcoTrace application, required runtime components, and access to
+the Internet and required cloud-service endpoints.
+
+\subsubsection{Development Software Requirements}
+The development environment includes the Flutter SDK, the Dart
+programming language, Visual Studio Code or Android Studio, the Android
+SDK, the Python programming language, FastAPI, the Uvicorn ASGI server,
+PyTorch and TorchVision, Firebase command-line and configuration tools,
+Git and GitHub, Web browser development tools, Postman or an equivalent
+API-testing tool, LaTeX and Overleaf for documentation, and platform-specific
+build tools for Windows and Android. \textit{The exact software versions used
+in the final implementation are recorded in Chapter~\ref{ch:implementation},
+since compatibility may change between Flutter, Dart, Python, PyTorch,
+Firebase, and operating-system releases.}
+
+\subsubsection{Backend and Server Software Requirements}
+The EcoTrace backend requires a Python runtime, FastAPI, Uvicorn,
+Pydantic, the Firebase Admin SDK, the Cloudinary Python SDK, Google Maps
+service integration, Firebase Cloud Messaging integration, PyTorch
+model-loading and inference dependencies, environment-variable
+management, dependency specification through \texttt{requirements.txt}, and
+secure HTTPS access through the deployment platform. The backend shall
+expose RESTful API endpoints and exchange structured data using JSON.
+
+\subsubsection{Cloud Platform Requirements}
+\textbf{Render} hosts the FastAPI backend and provides Git-based
+deployment, build/start commands, a public HTTPS endpoint, environment
+variables, runtime and deployment logs, and health-check support; the free
+tier is suitable for academic demonstration but may experience cold starts and
+limited compute capacity. \textbf{Cloud Firestore} requires a configured
+Firebase project, an approved database region, collections and indexes,
+Firebase Security Rules, service-account access for the backend, and network
+access to Firebase services. \textbf{Firebase Authentication} requires enabled
+authentication providers, configured client applications, approved domains
+for Web authentication, email/password authentication where used, and
+secure token verification by the backend. \textbf{Firebase Cloud Messaging}
+requires configured application identifiers, registered device/browser tokens,
+notification permissions, backend messaging credentials, and supported
+client-platform notification services. \textbf{Cloudinary} requires a configured
+cloud account, cloud name, securely stored API key/secret, approved upload
+settings, media-transformation configuration, and secure media URLs.
+\textbf{Google Maps Platform} requires enabled Maps APIs/SDKs, restricted
+API keys, an authorized Android package name and certificate where
+applicable, authorized Web domains, billing/quota configuration, usage
+monitoring, and network access to Google Maps services.
+
+\subsubsection{Artificial Intelligence Requirements}
+The AI component requires a labelled electronic waste image dataset, an
+image-preprocessing pipeline, training/validation/test datasets, PyTorch and
+TorchVision, a selected CNN or transfer-learning architecture, trained model
+parameters, model evaluation metrics, model-loading logic within the
+FastAPI backend, image validation and transformation, sufficient CPU/
+memory/storage resources, and acceptable model size and inference time for
+the deployment environment. The final model architecture was to be selected
+after evaluating classification accuracy, precision, recall, F1-score, model
+size, memory usage, and inference time.
+
+\subsubsection{Network, Security, Storage, and Platform Compatibility
+Requirements}
+EcoTrace depends on stable Internet connectivity, HTTPS access to Firebase,
+Cloudinary, Google Maps Platform, and the Render-hosted backend, and
+sufficient upload/download speed for images, maps, reports, and dashboard
+data; the system should provide loading states, retry options, and clear error
+messages when network services are unavailable. Security-related platform
+requirements include HTTPS for client-server communication, Firebase
+Authentication token verification, role-based backend authorization, Firestore
+Security Rules, restricted Google Maps API keys, environment variables for
+backend secrets, secure Cloudinary credentials, controlled service-account
+permissions, validation of uploaded files, secure error handling, audit
+logging, and separation of development/production configuration where
+possible -- secrets shall not be committed to the GitHub repository or
+embedded in public client code. Structured data is stored in Cloud Firestore
+and images in Cloudinary; the system shall avoid storing permanent records
+only on local device/browser/desktop storage or the ephemeral Render
+filesystem. The Android, Web, and Windows applications shall support
+consistent core functionality (authentication, role-based navigation, waste
+records, pickup requests, workflow status, notifications, reports, and secure
+backend communication), while some platform-specific functions may differ
+(e.g. direct camera/GPS access on Android, browser permissions on Web,
+wider desktop-oriented layouts on Windows).
+
+\subsubsection{Recommended Production Requirements}
+For large-scale or public production deployment, recommended
+improvements include upgrading from the Render Free tier, deploying
+multiple backend instances where required, configuring monitoring and
+alerting, establishing formal backup procedures, configuring API quotas and
+budget alerts, using production-grade logging and error monitoring,
+performing security and load/performance testing, establishing
+disaster-recovery procedures, introducing automated CI/CD, reviewing
+applicable privacy and environmental regulations, and providing operational
+support and incident-response procedures.
+
+\subsubsection{Requirements Summary}
+The hardware, software, network, and platform requirements define the
+technical environment necessary to develop, deploy, and operate EcoTrace.
+The system can be accessed through Android mobile devices, Web browsers,
+and Windows computers. Its backend and cloud functionality depend, as
+proposed at this stage of the project, on FastAPI, Render, Cloud Firestore,
+Firebase Authentication, Firebase Cloud Messaging, Cloudinary, Google Maps
+Platform, and PyTorch. \textit{Chapter~\ref{ch:implementation} records the
+exact devices, operating systems, package versions, development tools, cloud
+configuration, and deployment environment actually used during system
+development and testing.} Table~\ref{tab:hw-requirements} and
+Table~\ref{tab:sw-requirements} summarize the minimum and recommended
+requirements.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Minimum and Recommended Client Hardware Requirements}
+\label{tab:hw-requirements}
+\begin{tabular}{@{}p{2.6cm}p{5.4cm}p{5.4cm}@{}}
+\toprule
+\textbf{Platform} & \textbf{Minimum Requirement} & \textbf{Recommended Requirement} \\
+\midrule
+Android Mobile & Multi-core processor, 2~GB RAM, camera, GPS, Internet connection, sufficient storage. & Modern processor, at least 4~GB RAM, reliable GPS, quality camera, stable mobile-data or Wi-Fi. \\
+Web Client & Dual-core processor, 4~GB RAM, modern browser, 1366$\times$768 display, Internet connection. & Quad-core processor, at least 8~GB RAM, Full HD display, current browser, stable broadband. \\
+Windows Desktop & 64-bit processor, 4~GB RAM, 500~MB free storage, 1366$\times$768 display, Internet connection. & Modern 64-bit processor, at least 8~GB RAM, SSD storage, Full HD display, stable broadband. \\
+Development Computer & 64-bit multi-core processor, 8~GB RAM, 20~GB free storage, virtualization support. & Core i5/Ryzen 5 equivalent, 16~GB RAM, SSD storage, at least 50~GB free space, optional GPU. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{longtable}{@{}p{3cm}p{4cm}p{6.2cm}@{}}
+\caption{Software and Platform Requirements for EcoTrace} \label{tab:sw-requirements} \\
+\toprule \textbf{Category} & \textbf{Technology or Service} & \textbf{Purpose} \\ \midrule
+\endfirsthead
+\toprule \textbf{Category} & \textbf{Technology or Service} & \textbf{Purpose} \\ \midrule
+\endhead
+Client Development & Flutter and Dart & Development of Android, Web, and Windows applications from a shared codebase. \\
+Backend Development & Python, FastAPI, Uvicorn, and Pydantic & Implementation of REST APIs, validation, business logic, and backend services. \\
+Database & Cloud Firestore & Storage and synchronization of structured application data. \\
+Authentication & Firebase Authentication & Registration, login, password recovery, identity tokens, and session management. \\
+Notifications & Firebase Cloud Messaging & Delivery of targeted alerts, workflow updates, and announcements. \\
+Media Hosting & Cloudinary & Storage, optimization, transformation, and delivery of images. \\
+Mapping and Routing & Google Maps Platform & Maps, geocoding, locations, routes, distance calculation, and route optimization. \\
+Backend Deployment & Render & Hosting, HTTPS, logging, environment variables, and Git-based deployment. \\
+Artificial Intelligence & PyTorch and TorchVision & Training and deployment of the electronic waste image-classification model. \\
+Source Control & Git and GitHub & Version control, collaboration, change tracking, and deployment integration. \\
+Development Environment & Visual Studio Code or Android Studio & Editing, debugging, testing, and running Flutter and Python code. \\
+API Testing & Postman or equivalent tool & Testing backend endpoints, requests, responses, authentication, and error handling. \\
+Documentation & LaTeX and Overleaf & Preparation and formatting of the final project documentation. \\
+\bottomrule
+\end{longtable}
+
+\section{Chapter Summary}
+
+This chapter presented the analysis and design of the EcoTrace: Intelligent
+Electronic Waste Recovery and Circular Economy Management System.
+
+The chapter began by describing the adapted Agile software development
+methodology used during the project. The methodology supported iterative
+planning, analysis, design, implementation, testing, review, deployment, and
+continuous refinement of the system modules.
+
+The existing electronic waste management process was then analysed. The
+analysis showed that the current process is largely manual, fragmented, and
+dependent on informal communication and unstructured records. Major
+problems identified included poor lifecycle traceability, inefficient pickup
+scheduling, limited route planning, weak stakeholder coordination, unsafe
+disposal practices, inadequate environmental monitoring, weak reporting,
+limited security, and insufficient support for circular economy activities.
+
+The proposed EcoTrace system was presented as an integrated,
+cross-platform, and cloud-based solution intended to address these problems.
+The system supports household users, business users, collectors, drivers,
+technicians, recyclers, environmental officers, administrators, and super
+administrators.
+
+The functional requirements defined the services that EcoTrace shall
+provide, including authentication, role-based access control, electronic waste
+registration, AI-assisted classification, pickup scheduling, collection,
+transportation, repair, refurbishment, recycling, marketplace management,
+notifications, reporting, environmental monitoring, administration, audit
+tracking, and external-service integration.
+
+The non-functional requirements defined the expected quality attributes of
+the system, including performance, availability, reliability, security, privacy,
+usability, accessibility, scalability, maintainability, compatibility, data
+integrity, backup, recovery, auditability, portability, external-service
+resilience, and ethical operation.
+
+The system design described the layered architecture of EcoTrace, as
+proposed at this stage of the project: Flutter provides the Android, Web, and
+Windows presentation layers, while FastAPI provides the central application
+and business-logic layer, deployed on Render and communicating with Cloud
+Firestore, Firebase Authentication, Firebase Cloud Messaging, Cloudinary,
+Google Maps Platform, and a PyTorch artificial intelligence component. The
+use case model identified the responsibilities and interactions of the major
+actors; the context-level and Level-One Data Flow Diagrams described the
+movement of information between users, processes, data stores, and external
+services; and sequence diagrams illustrated the order of interactions involved
+in authentication, waste registration, AI classification, pickup assignment,
+logistics, recovery, and reporting workflows.
+
+The database design presented the major Cloud Firestore collections and
+their logical relationships, supporting user profiles, electronic waste records,
+pickup requests, assignments, transportation, repair, refurbishment, recycling,
+recovered materials, marketplace listings, notifications, environmental
+reports, audit logs, settings, and reference data.
+
+The user interface design established a shared Flutter design system with
+responsive, role-based interfaces for Android, Web, and Windows. The
+chapter also specified the hardware, software, network, cloud, security, and
+platform requirements necessary for development, deployment, and
+operation.
+
+The analysis and design presented in this chapter provide the technical
+foundation for the implementation, testing, results, and evaluation described
+in Chapter~\ref{ch:implementation} -- which, per NFR-ETH-9
+(Section~\ref{sec:nfr}), reports plainly where the delivered system's
+technology stack and functional coverage followed this chapter's proposal and
+where it took a different, equally deliberate path.

@@ -1,0 +1,156 @@
+% =====================================================================
+% EcoTrace: Intelligent Electronic Waste Recovery and Circular Economy
+% Management System -- B.Sc. Project Documentation
+% Njala University, School of Technology, Department of Computer Science
+%
+% Compiles with pdfLaTeX on Overleaf.
+% =====================================================================
+
+\documentclass[12pt,a4paper,oneside]{report}
+
+% ---------------------------------------------------------------------
+% Page geometry, spacing, fonts
+% ---------------------------------------------------------------------
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+\usepackage{mathptmx}      % Times New Roman-equivalent text + math font
+\usepackage[T1]{fontenc}
+
+% ---------------------------------------------------------------------
+% Graphics, floats, tables
+% ---------------------------------------------------------------------
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{subcaption}
+\captionsetup{font=small,labelfont=bf}
+
+% ---------------------------------------------------------------------
+% Headings, headers/footers, lists, colour, math
+% ---------------------------------------------------------------------
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{amsmath}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[authoryear,round]{natbib}
+\definecolor{ecotracegreen}{HTML}{167D57}
+
+% ---------------------------------------------------------------------
+% Diagrams (System Architecture, ER, Use Case, Sequence, Activity, DFD)
+% ---------------------------------------------------------------------
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning,fit,calc,shadows}
+
+% ---------------------------------------------------------------------
+% Hyperlinks and cross-references (load late, after most packages)
+% ---------------------------------------------------------------------
+\usepackage[hidelinks]{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=ecotracegreen,
+  pdftitle={EcoTrace: Intelligent Electronic Waste Recovery and Circular Economy Management System},
+  pdfauthor={Abass David Komeh and Nyuma Pessima}
+}
+
+% ---------------------------------------------------------------------
+% Chapter / section heading style -- "CHAPTER ONE" / "INTRODUCTION"
+% ---------------------------------------------------------------------
+\newcommand{\chapternumbertoword}[1]{%
+  \ifcase#1\or ONE\or TWO\or THREE\or FOUR\or FIVE\or SIX\or SEVEN\or EIGHT\fi}
+
+\titleformat{\chapter}[display]
+  {\normalfont\centering}
+  {\Large\bfseries CHAPTER \chapternumbertoword{\thechapter}}
+  {8pt}
+  {\Huge\bfseries\centering}
+\titlespacing*{\chapter}{0pt}{0pt}{28pt}
+
+\titleformat{\section}
+  {\normalfont\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}
+  {\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+
+% ---------------------------------------------------------------------
+% Running headers/footers
+% ---------------------------------------------------------------------
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[L]{\small\nouppercase{\leftmark}}
+\fancyhead[R]{\small EcoTrace Project Documentation}
+\fancyfoot[C]{\thepage}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+% ---------------------------------------------------------------------
+% Convenience: figure/image placeholder box (used only where a real
+% image is not yet available in figures/ -- see chapters for usage)
+% ---------------------------------------------------------------------
+\newcommand{\imageplaceholder}[1]{%
+  \fbox{%
+    \begin{minipage}[c][6cm][c]{0.9\textwidth}
+      \centering
+      \textbf{IMAGE PLACEHOLDER}\\[0.5cm]
+      Insert: #1
+    \end{minipage}%
+  }%
+}
+
+\begin{document}
+
+% =====================================================================
+% FRONT MATTER
+% =====================================================================
+\pagenumbering{roman}
+
+\input{frontmatter/titlepage}
+\input{frontmatter/declaration}
+\input{frontmatter/certification}
+\input{frontmatter/dedication}
+\input{frontmatter/acknowledgement}
+\input{frontmatter/abstract}
+
+\tableofcontents
+\clearpage
+\listoffigures
+\clearpage
+\listoftables
+\clearpage
+\input{frontmatter/abbreviations}
+
+% =====================================================================
+% MAIN CHAPTERS
+% =====================================================================
+\clearpage
+\pagenumbering{arabic}
+
+\input{chapters/chapter1}
+\input{chapters/chapter2}
+\input{chapters/chapter3}
+\input{chapters/chapter4}
+\input{chapters/chapter5}
+
+% =====================================================================
+% REFERENCES
+% =====================================================================
+\clearpage
+\addcontentsline{toc}{chapter}{References}
+\bibliographystyle{apalike}
+\bibliography{references}
+
+% =====================================================================
+% APPENDICES
+% =====================================================================
+\appendix
+\input{appendices/appendix}
+
+\end{document}

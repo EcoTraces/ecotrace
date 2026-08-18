@@ -1,0 +1,502 @@
+\chapter{Introduction}
+\label{ch:introduction}
+
+\section{Background of the Study}
+\label{sec:background}
+
+Electronic waste (e-waste), commonly referred to as Waste Electrical and Electronic
+Equipment (WEEE), is one of the fastest-growing solid waste streams in the world. The
+rapid advancement of technology, increasing consumer demand for electronic devices,
+shortened product life cycles, and continuous innovation have significantly increased
+the production and disposal of electrical and electronic equipment. Devices such as
+mobile phones, laptops, desktop computers, televisions, printers, refrigerators,
+batteries, and other electronic appliances become obsolete within relatively short
+periods, leading to substantial growth in electronic waste generation. As illustrated in
+Figure~\ref{fig:ewaste-growth}, the volume of electronic waste generated worldwide
+has increased steadily over the past decade, highlighting the growing need for
+effective collection, recovery, and recycling systems.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Growth of Electronic Waste Management chart (adapted from the Global E-waste Monitor, 2024)}
+  \caption{Growth of Electronic Waste Management. Source: Adapted from the Global E-waste Monitor (2024).}
+  \label{fig:ewaste-growth}
+\end{figure}
+
+Globally, electronic waste has emerged as a major environmental, economic, and
+public health concern. Unlike ordinary municipal waste, electronic waste contains both
+valuable and hazardous materials. Components such as gold, silver, copper,
+aluminium, and rare earth metals can be recovered and reused through appropriate
+recycling processes. However, electronic waste also contains hazardous substances,
+including lead, mercury, cadmium, chromium, brominated flame retardants, and other
+toxic chemicals capable of contaminating soil, water resources, and the atmosphere
+when improperly handled or disposed of. Consequently, ineffective electronic waste
+management contributes to environmental pollution, climate change, biodiversity
+loss, and serious health risks for individuals involved in informal recycling activities.
+
+The concept of the circular economy has gained increasing international attention
+as a sustainable approach to addressing the growing electronic waste challenge.
+Unlike the traditional linear economy, which follows the sequence of production,
+consumption, and disposal, the circular economy promotes resource efficiency by
+extending product life cycles through repair, refurbishment, reuse, remanufacturing,
+and recycling. This approach minimizes waste generation while maximizing resource
+recovery and environmental sustainability. International organizations such as the
+United Nations, the International Telecommunication Union (ITU), and the Global
+E-waste Monitor continue to advocate for technology-driven solutions that enhance
+traceability, accountability, and efficient recovery of electronic waste.
+Figure~\ref{fig:ewaste-lifecycle} illustrates the complete electronic waste lifecycle,
+beginning with product design and use, followed by collection, transportation,
+treatment, recycling, and resource recovery within a circular economy framework.
+
+\begin{figure}[H]
+  \centering
+  \imageplaceholder{Global Electronic Waste Lifecycle diagram (adapted from the Global E-waste Monitor, 2024)}
+  \caption{Global Electronic Waste Lifecycle. Source: Adapted from the Global E-waste Monitor (2024).}
+  \label{fig:ewaste-lifecycle}
+\end{figure}
+
+Recent advances in digital technologies have transformed waste management
+practices worldwide. Cloud computing, mobile applications, artificial intelligence,
+geographic information systems (GIS), Internet of Things (IoT) technologies, and big
+data analytics are increasingly being integrated into modern environmental
+management systems. Mobile applications enable citizens to report waste locations,
+schedule collection services, and receive notifications, while cloud platforms
+facilitate centralized data management, scalability, and real-time information sharing.
+Artificial intelligence has also demonstrated significant potential in automating waste
+classification through image recognition, thereby improving sorting accuracy and
+reducing manual effort. Geographic information systems further support route
+planning, location tracking, and optimized collection logistics.
+
+Despite these technological advancements, electronic waste management in many
+developing countries remains largely manual and fragmented. Collection processes
+often rely on informal practices with limited record-keeping, inefficient transportation
+planning, inadequate monitoring mechanisms, and poor coordination among
+stakeholders. Consequently, electronic waste frequently ends up in open dumpsites,
+landfills, or informal recycling operations where unsafe handling practices expose
+workers and surrounding communities to hazardous materials.
+
+In Sierra Leone, the increasing adoption of information and communication
+technologies has significantly increased the number of electronic devices used by
+households, businesses, educational institutions, healthcare facilities, and government
+organizations. However, the country's electronic waste management infrastructure
+has not expanded at the same pace. Most electronic waste management activities
+continue to rely on manual documentation, informal collection, limited recycling
+facilities, and inadequate mechanisms for tracking electronic waste throughout its
+lifecycle. Furthermore, there is limited public awareness regarding responsible
+electronic waste disposal, resulting in environmentally harmful disposal practices.
+
+The absence of integrated digital platforms further complicates electronic waste
+management. Existing approaches generally lack centralized information systems
+capable of registering electronic waste, tracking collection activities, coordinating
+transportation, facilitating repair and refurbishment, supporting recycling operations,
+or generating comprehensive environmental reports. Similarly, many existing systems
+do not leverage artificial intelligence to classify electronic waste automatically or
+utilize geospatial technologies to optimize collection routes and improve operational
+efficiency.
+
+Advances in cross-platform software development now provide opportunities to
+address these limitations through integrated digital solutions. Frameworks such as
+Flutter enable developers to build applications that operate consistently across
+Android, web, and Windows platforms from a single codebase. Backend frameworks
+such as FastAPI provide high-performance web services for secure communication
+between client applications and cloud infrastructure. Cloud-based technologies
+including Firebase Authentication, Cloud Firestore, Cloudinary, Firebase Cloud
+Messaging, and Google Maps Platform further enable secure authentication, scalable
+data management, cloud image storage, push notifications, and location-based
+services.
+
+Motivated by these challenges and opportunities, this project proposes the
+development of EcoTrace: Intelligent Electronic Waste Recovery and Circular
+Economy Management System. EcoTrace is designed as a cross-platform intelligent
+information system that supports the entire electronic waste management lifecycle.
+The system enables users to register electronic waste, upload device images, request
+waste collection, monitor transportation activities, support repair, refurbishment, and
+recycling processes, generate administrative reports, and improve stakeholder
+collaboration through a centralized digital platform. The system also integrates cloud
+technologies, geographic information systems, and artificial intelligence to enhance
+traceability, operational efficiency, and environmental sustainability.
+
+The development of EcoTrace aligns with global sustainable development
+initiatives by promoting responsible consumption, environmental protection, and
+circular economy practices through the application of modern software engineering
+principles and intelligent computing technologies. The project therefore contributes
+not only to improving electronic waste management processes but also to
+demonstrating the practical application of cloud computing, artificial intelligence, and
+cross-platform software development in addressing real-world environmental
+challenges.
+
+\section{Statement of the Problem}
+\label{sec:problem-statement}
+
+The rapid increase in the consumption of electrical and electronic equipment has
+resulted in a corresponding increase in the generation of electronic waste worldwide.
+While many developed countries have adopted integrated digital systems and
+regulatory frameworks to support electronic waste collection, tracking, recycling, and
+environmental compliance, many developing countries continue to face significant
+challenges in managing electronic waste effectively. The absence of efficient
+information management systems contributes to poor monitoring, limited
+accountability, environmental pollution, and the loss of valuable recyclable materials.
+
+In Sierra Leone, electronic waste management is still characterized by
+fragmented and largely manual processes. Households, businesses, educational
+institutions, healthcare facilities, and government agencies frequently dispose of
+obsolete electronic devices without structured collection mechanisms or proper
+documentation. In many cases, electronic waste is mixed with municipal solid waste,
+openly burned, or handled by informal recyclers using unsafe techniques that expose
+both people and the environment to hazardous substances. These practices increase
+the risk of soil contamination, water pollution, air pollution, and adverse public health
+effects.
+
+Existing electronic waste management practices also suffer from limited
+coordination among key stakeholders. Waste generators, collectors, transporters,
+technicians, recyclers, environmental officers, and regulatory authorities often operate
+independently with little or no centralized information sharing. Consequently, it
+becomes difficult to monitor electronic waste from the point of generation to its final
+recovery or disposal. The lack of traceability reduces transparency, limits
+accountability, and makes it difficult for authorities to evaluate the effectiveness of
+electronic waste management programmes.
+
+Furthermore, the absence of intelligent digital tools limits operational efficiency.
+Most existing practices do not provide automated electronic waste classification,
+optimized collection routes, centralized cloud storage, real-time notifications, or
+comprehensive reporting capabilities. Decision-makers therefore lack timely and
+accurate information required for planning, resource allocation, policy formulation,
+and environmental monitoring. Similarly, citizens have limited access to convenient
+digital platforms through which they can register electronic waste, schedule
+collections, or track the progress of their requests.
+
+Although several waste management applications have been developed in
+different parts of the world, many of them focus primarily on general solid waste
+management rather than the complete lifecycle of electronic waste. In addition, many
+existing systems do not integrate artificial intelligence for automated electronic waste
+classification, cloud-based cross-platform accessibility, image management,
+geospatial services, and end-to-end lifecycle tracking within a single platform. These
+limitations reduce their suitability for addressing the specific electronic waste
+management challenges experienced in Sierra Leone.
+
+The absence of a comprehensive, intelligent, and integrated electronic waste
+management platform therefore creates significant challenges in electronic waste
+registration, collection, transportation, repair, refurbishment, recycling, monitoring,
+reporting, and environmental decision-making. There is consequently a need for a
+modern digital solution capable of supporting the complete electronic waste
+management lifecycle while improving operational efficiency, stakeholder
+collaboration, transparency, traceability, and environmental sustainability.
+
+This study addresses these challenges through the design and implementation of
+the EcoTrace: Intelligent Electronic Waste Recovery and Circular Economy
+Management System, which integrates cross-platform mobile, web, and desktop
+applications with cloud computing, artificial intelligence, geospatial technologies, and
+secure backend services to improve the management of electronic waste in Sierra
+Leone.
+
+\section{Aim and Objectives of the Study}
+\label{sec:aim-objectives}
+
+\subsection{Aim of the Study}
+
+The main aim of this study is to design, develop, and implement an intelligent
+cross-platform electronic waste recovery and circular economy management system
+that leverages cloud computing, artificial intelligence, and geospatial technologies to
+improve the registration, collection, tracking, recovery, and sustainable management
+of electronic waste in Sierra Leone.
+
+\subsection{Specific Objectives}
+
+The specific objectives of this study are to:
+
+\begin{enumerate}[label=\arabic*.,leftmargin=1.4cm]
+  \item Design and develop a secure cross-platform electronic waste management
+    system that operates on Android, Web, and Windows platforms.
+  \item Develop a centralized cloud-based platform for registering, storing, managing,
+    and tracking electronic waste information using Cloud Firestore.
+  \item Implement secure user authentication and role-based access control for
+    different categories of system users using Firebase Authentication.
+  \item Integrate artificial intelligence to support the automatic classification of
+    electronic waste from uploaded images.
+  \item Develop an intelligent electronic waste pickup scheduling and collection
+    management module for households and business organizations.
+  \item Integrate Google Maps Platform to support location services, display
+    collection locations, visualize routes, and improve collection operations.
+  \item Develop modules for electronic waste transportation, repair, refurbishment,
+    recycling, and lifecycle tracking to promote circular economy practices.
+  \item Implement real-time notification services using Firebase Cloud Messaging to
+    keep users informed about collection requests, status updates, and system
+    activities.
+  \item Generate administrative reports and analytics to support environmental
+    monitoring, operational planning, and informed decision-making.
+  \item Evaluate the effectiveness, usability, and performance of the developed
+    EcoTrace system in improving electronic waste management processes.
+\end{enumerate}
+
+\section{Significance of the Study}
+\label{sec:significance}
+
+This study is significant because it provides a practical technological solution for
+improving electronic waste management through the integration of cloud computing,
+artificial intelligence, geospatial technologies, and cross-platform software
+development. The developed EcoTrace system is expected to benefit various
+stakeholders involved in electronic waste generation, collection, recovery,
+environmental management, policy formulation, research, and sustainable
+development.
+
+\subsection{Households and Individual Users}
+EcoTrace provides households and individual users with a convenient and secure
+platform for registering electronic waste, scheduling collection requests, monitoring
+collection progress, and receiving real-time notifications. The system encourages
+responsible disposal practices and improves public participation in environmental
+conservation.
+
+\subsection{Business Organizations}
+Business organizations frequently generate large quantities of obsolete electronic
+equipment. EcoTrace enables organizations to maintain proper records of electronic
+waste, schedule collections efficiently, monitor asset disposal, and ensure
+environmentally responsible management of obsolete electronic devices.
+
+\subsection{Electronic Waste Collectors}
+The system assists electronic waste collectors by providing organized pickup
+requests, optimized collection schedules, customer location information, and
+real-time status updates. These features improve operational efficiency while
+reducing unnecessary travel time and fuel consumption.
+
+\subsection{Drivers and Logistics Personnel}
+Through the integration of Google Maps Platform, drivers can visualize collection
+locations, follow optimized routes, and update the status of transportation activities.
+This contributes to more efficient logistics, reduced operational costs, and improved
+coordination during electronic waste collection.
+
+\subsection{Technicians and Refurbishment Centres}
+Technicians responsible for inspecting, repairing, and refurbishing electronic devices
+benefit from centralized records that support the tracking of repair activities,
+refurbishment status, and equipment history. This promotes accountability while
+extending the useful life of electronic devices in accordance with circular economy
+principles.
+
+\subsection{Recycling Companies}
+Recycling organizations benefit from improved traceability of electronic waste
+received for processing. The system maintains digital records of recycling activities,
+enabling better inventory management, regulatory reporting, and resource recovery.
+
+\subsection{Environmental Protection Agencies}
+Environmental officers and regulatory institutions can use EcoTrace to monitor
+electronic waste generation, collection, transportation, recycling activities, and
+environmental performance. Administrative reports and analytical dashboards support
+evidence-based decision-making, policy implementation, and environmental
+compliance monitoring.
+
+\subsection{Government and Policy Makers}
+Government institutions can utilize the information generated by the system to
+formulate policies, evaluate electronic waste management programmes, allocate
+resources effectively, and develop national strategies that promote environmental
+sustainability and responsible electronic waste management.
+
+\subsection{Researchers and Academic Institutions}
+The study contributes to existing knowledge in software engineering, environmental
+informatics, and intelligent waste management by demonstrating the practical
+integration of cloud computing, artificial intelligence, mobile computing, geospatial
+technologies, and modern software development frameworks. The project may also
+serve as a useful reference for future academic research in related fields.
+
+\subsection{The Computer Science Profession}
+The project demonstrates the application of software engineering principles to
+solving a real-world environmental problem. It highlights how modern computing
+technologies can be integrated to develop scalable, secure, and intelligent
+information systems capable of supporting sustainable development objectives.
+
+\subsection{The General Public}
+The successful implementation of EcoTrace is expected to improve public awareness
+of responsible electronic waste disposal, reduce environmental pollution, encourage
+recycling and resource recovery, and contribute to the protection of public health. By
+promoting environmentally responsible practices, the system supports sustainable
+development and the long-term conservation of natural resources.
+
+\section{Scope of the Study}
+\label{sec:scope}
+
+The scope of this study covers the analysis, design, development, implementation,
+and evaluation of the EcoTrace: Intelligent Electronic Waste Recovery and
+Circular Economy Management System. The study focuses on developing an
+integrated cross-platform solution that supports the efficient management of
+electronic waste throughout its lifecycle, from registration and collection to
+transportation, repair, refurbishment, recycling, and final reporting.
+
+The developed system is implemented as a cross-platform application using
+Flutter, enabling deployment on Android mobile devices, web browsers, and Windows
+desktop computers from a unified codebase. The backend services are implemented
+using FastAPI and deployed on the Render cloud platform to provide secure, scalable,
+and high-performance application programming interfaces (APIs). Cloud Firestore
+serves as the primary cloud database for storing system data, while Firebase
+Authentication provides secure user authentication and role-based access control.
+Cloudinary is used for cloud-based image storage, Firebase Cloud Messaging delivers
+push notifications, and Google Maps Platform supports location services, route
+visualization, and collection route optimization. Artificial intelligence functionality is
+implemented using PyTorch to support electronic waste image classification.
+Chapter~\ref{ch:implementation} documents the technology stack exactly as
+implemented, including the points at which the delivered system took a different
+technical path from what is described here.
+
+The system supports multiple categories of users, including household users,
+business organizations, electronic waste collectors, drivers, technicians, recyclers,
+environmental officers, administrators, and super administrators. Each user category
+is provided with specific functionalities based on assigned roles and responsibilities
+within the electronic waste management process.
+
+The functional scope of EcoTrace includes user registration and authentication,
+electronic waste registration, image upload, artificial-intelligence-based waste
+classification, pickup request management, collection scheduling, transportation
+monitoring, repair and refurbishment management, recycling management, location
+visualization, notification services, reporting, analytics, and administrative
+management.
+
+Geographically, the study is designed with Sierra Leone as its primary
+application context. However, the architecture and technologies used are designed to
+be scalable and adaptable for deployment in other regions with similar electronic
+waste management requirements.
+
+This study does not include the physical construction or operation of electronic
+waste recycling facilities, the manufacturing of recycling equipment, or the direct
+processing of hazardous electronic waste. Similarly, the study does not evaluate
+national environmental policies or perform large-scale environmental impact
+assessments. Instead, its primary focus is the development and evaluation of an
+intelligent software platform that supports efficient electronic waste management
+through modern information and communication technologies.
+
+\section{Limitations of the Study}
+\label{sec:limitations-intro}
+
+Although the EcoTrace system was successfully designed and implemented to
+support intelligent electronic waste management, the study was subject to several
+limitations that may influence the deployment, evaluation, and future enhancement of
+the system.
+
+Firstly, the backend services were deployed using the free tier of the Render
+cloud platform. While this deployment environment is adequate for development,
+demonstration, and small-scale usage, it provides limited computing resources and
+may experience delayed response times due to automatic service suspension during
+periods of inactivity. Consequently, the system may not provide the same level of
+performance expected from a production-grade deployment hosted on dedicated
+cloud infrastructure.
+
+Secondly, the operation of the system depends on a stable Internet connection
+because cloud-based services are used for authentication, database management,
+image hosting, notifications, and backend communication. Users operating in areas
+with unreliable or limited Internet connectivity may experience delays in data
+synchronization, image uploads, and real-time system updates.
+
+Another limitation relates to the artificial intelligence component. Although the
+system integrates PyTorch to support intelligent classification of electronic waste, the
+performance of the AI model is dependent on the quality, diversity, and quantity of the
+training dataset. Variations in lighting conditions, camera quality, image resolution,
+and device orientation may affect classification accuracy, particularly for damaged,
+uncommon, or visually similar electronic devices.
+
+The system also relies on several third-party cloud services, including Cloud
+Firestore, Firebase Authentication, Firebase Cloud Messaging, Cloudinary, Google
+Maps Platform, and Render. Any temporary service interruptions, API changes,
+pricing adjustments, or usage limitations introduced by these service providers may
+affect the availability or performance of specific system functionalities.
+
+Furthermore, this study focuses primarily on the software engineering aspects of
+electronic waste management. The project does not include the construction or
+operation of physical recycling facilities, laboratory testing of hazardous electronic
+materials, or large-scale environmental impact assessments. Consequently, the
+evaluation of the system is based on software functionality, usability, and system
+performance rather than the direct measurement of environmental outcomes.
+
+Finally, the study was developed using Sierra Leone as the primary case study.
+Although the overall system architecture is scalable and can be adapted for
+deployment in other countries, certain operational procedures, institutional
+arrangements, and regulatory requirements may vary across jurisdictions and would
+require appropriate customization before large-scale implementation.
+
+\section{Definition of Terms}
+\label{sec:definitions}
+
+For the purpose of this study, the following terms are defined as follows:
+
+\begin{description}[leftmargin=0cm,style=nextline]
+  \item[Electronic Waste (E-waste)] Discarded electrical and electronic equipment
+    that has reached the end of its useful life or is no longer required by its owner.
+  \item[Circular Economy] An economic model that promotes the reuse, repair,
+    refurbishment, remanufacturing, and recycling of products and materials to
+    minimize waste generation and maximize resource utilization.
+  \item[Waste Electrical and Electronic Equipment (WEEE)] Electrical and
+    electronic devices that have become obsolete, damaged, or unwanted and require
+    proper collection, treatment, recycling, or disposal.
+  \item[Artificial Intelligence (AI)] A branch of computer science that enables
+    computer systems to perform tasks that normally require human intelligence,
+    such as learning, classification, prediction, and decision-making.
+  \item[Machine Learning] A subset of artificial intelligence that enables computer
+    systems to learn patterns from data and improve performance without being
+    explicitly programmed for every task.
+  \item[PyTorch] An open-source machine learning framework used in this study to
+    develop and deploy the electronic waste image classification model.
+  \item[Cloud Computing] The delivery of computing services such as servers,
+    databases, networking, storage, and software over the Internet.
+  \item[Cloud Firestore] A cloud-hosted NoSQL database provided by Firebase for
+    storing, synchronizing, and managing application data in real time.
+  \item[Firebase Authentication] A cloud-based authentication service used to
+    securely identify users and manage access to system resources.
+  \item[Firebase Cloud Messaging (FCM)] A cloud messaging service that enables
+    the delivery of real-time push notifications to registered application users.
+  \item[Cloudinary] A cloud-based media management platform used for storing,
+    managing, and delivering electronic waste images uploaded by users.
+  \item[FastAPI] A modern Python web framework used to develop high-performance
+    backend Application Programming Interfaces (APIs) for the EcoTrace system.
+  \item[Flutter] Google's open-source cross-platform software development
+    framework used to develop Android, Web, and Windows applications from a
+    single codebase.
+  \item[Google Maps Platform] A collection of geospatial services used for
+    displaying maps, visualizing collection locations, and supporting route planning
+    within the EcoTrace system.
+  \item[Route Optimization] The process of determining the most efficient travel
+    route between multiple collection locations to reduce travel distance, time, and
+    operational cost.
+  \item[Application Programming Interface (API)] A set of rules and protocols
+    that enables communication between software applications and backend
+    services.
+  \item[Role-Based Access Control (RBAC)] A security mechanism that restricts
+    system access based on the roles and responsibilities assigned to authenticated
+    users.
+  \item[Cross-Platform Application] A software application developed once and
+    deployed across multiple operating systems with minimal platform-specific
+    modifications.
+\end{description}
+
+\section{Organization of the Report}
+\label{sec:organization}
+
+This report is organized into five chapters, each addressing a specific aspect of the
+study.
+
+Chapter One introduces the study by presenting the background of the study,
+statement of the problem, aim and objectives, significance of the study, scope,
+limitations, definition of terms, and the organization of the report.
+
+Chapter Two reviews relevant literature related to electronic waste management,
+circular economy principles, cloud computing, artificial intelligence, cross-platform
+application development, and existing electronic waste management systems. It also
+identifies the research gap addressed by this study.
+
+Chapter Three describes the research methodology and presents the analysis
+and design of the proposed EcoTrace system. It discusses the existing system, system
+requirements, software architecture, database design, system models, user interface
+design, and the technologies used in the development process.
+
+Chapter Four presents the implementation and testing of the EcoTrace system.
+It describes the development environment, system modules, implementation
+procedures, testing activities, evaluation results, and screenshots of the developed
+application.
+
+Chapter Five summarizes the study, presents the conclusions drawn from the
+research findings, highlights the contribution of the study, provides recommendations
+for stakeholders, and suggests areas for future research and system enhancement.
+
+\section{Chapter Summary}
+
+This chapter introduced the study by discussing the background of electronic waste
+management, identifying the research problem, presenting the aim and objectives of
+the study, describing its significance, defining its scope and limitations, explaining
+key terms, and outlining the organization of the report. The next chapter reviews
+relevant literature, existing technologies, and related electronic waste management
+systems that provide the theoretical and technological foundation for the
+development of EcoTrace.

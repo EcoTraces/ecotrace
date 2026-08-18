@@ -1,0 +1,265 @@
+\chapter{Summary, Conclusion, and Recommendations}
+\label{ch:conclusion}
+
+\section{Introduction}
+
+This final chapter draws the project documentation to a close. It summarises
+the study reported in Chapters~\ref{ch:introduction}--\ref{ch:implementation},
+assesses the extent to which the specific objectives set out in
+Section~\ref{sec:aim-objectives} were achieved by the delivered system,
+states the overall conclusion that follows from that assessment, and offers
+recommendations -- both to whoever deploys and operates EcoTrace going
+forward, and to any team that continues its development. In keeping with the
+approach taken throughout Chapter~\ref{ch:implementation} -- most notably
+the module-status audit (Table~\ref{tab:module-status}) and the testing
+results of Section~\ref{sec:testing} -- this chapter reports achievement
+honestly against what was actually built and tested, rather than against
+what was originally proposed. Non-Functional Requirement NFR-ETH-9
+(Table~\ref{tab:nfr-eth}, Chapter~\ref{ch:analysis-design}) explicitly
+requires the system and its documentation to distinguish implemented
+functionality from planned functionality; this chapter applies that same
+requirement to the project as a whole.
+
+\section{Summary of the Study}
+
+Electronic waste is one of the fastest-growing waste streams in the world,
+and Sierra Leone, like many developing countries, lacks a coordinated
+digital system for registering, collecting, tracking, and recovering value
+from discarded electrical and electronic equipment (Chapter~\ref{ch:introduction}).
+This study set out to design, develop, and implement EcoTrace, a
+cross-platform electronic waste recovery and circular economy management
+system intended to connect households and businesses that generate e-waste
+with the collectors, technicians, recyclers, and administrators who process
+it, while giving environmental officers and administrators the visibility
+needed for monitoring and reporting.
+
+Chapter~\ref{ch:literature} reviewed the conceptual foundations of
+electronic waste management and the circular economy, surveyed the
+technologies available for building a system of this kind, and examined
+comparable existing systems, identifying the gaps that EcoTrace was intended
+to fill. Chapter~\ref{ch:analysis-design} analysed the existing (manual and
+fragmented) approach to e-waste handling, specified the proposed system's
+functional and non-functional requirements as roughly 200 and 90 individual
+requirement statements respectively, and presented its architecture, use
+cases, data flows, sequence diagrams, database design, and user-interface
+design. Chapter~\ref{ch:implementation} reported how the system was actually
+built -- a Flutter client for Android, Web, and Windows; a TypeScript/Express
+backend on Firebase Cloud Functions; Cloud Firestore as the primary
+database; and a Monime mobile-money payment integration that was added
+during development and is not part of the original proposal -- and reported
+the results of the testing performed on it, including one real, live-money
+end-to-end payment transaction (test case T-06, Table~\ref{tab:test-cases}).
+
+Taken together, the four preceding chapters document a system that was
+carried from a stated problem, through a formal analysis and design, to a
+working, partially-tested implementation. The remainder of this chapter
+evaluates that outcome against the objectives that were set for it at the
+outset.
+
+\section{Achievement of the Specific Objectives}
+\label{sec:achievement-objectives}
+
+Section~\ref{sec:aim-objectives} of Chapter~\ref{ch:introduction} set out
+ten specific objectives for this study. Table~\ref{tab:objective-achievement}
+assesses each objective against the implementation and testing evidence
+reported in Chapter~\ref{ch:implementation}. Three status values are used,
+consistent with the implementation-status classification introduced in
+Chapter~\ref{ch:implementation} (Table~\ref{tab:module-status}):
+\textbf{Achieved} (built, integrated, and observed working, though not
+necessarily exhaustively tested); \textbf{Partially Achieved} (a working
+implementation exists but departs from the objective as originally worded,
+or covers only part of it); and \textbf{Not Achieved} (the objective, as
+originally worded, was not delivered).
+
+\begin{longtable}{@{}p{0.6cm}p{6.6cm}p{2.4cm}p{4.3cm}@{}}
+\caption{Achievement of the Specific Objectives of the Study} \label{tab:objective-achievement} \\
+\toprule \textbf{\#} & \textbf{Objective (as stated in Section~\ref{sec:aim-objectives})} & \textbf{Status} & \textbf{Evidence / Remarks} \\ \midrule
+\endfirsthead
+\toprule \textbf{\#} & \textbf{Objective} & \textbf{Status} & \textbf{Evidence / Remarks} \\ \midrule
+\endhead
+1 & Design and develop a secure cross-platform electronic waste management system for Android, Web, and Windows. & Achieved & A single Flutter codebase builds and runs for all three targets; \texttt{flutter build web} and \texttt{flutter build apk} both succeeded with the payment module included (T-15, Table~\ref{tab:test-cases}). \\
+2 & Develop a centralized cloud-based platform for registering, storing, managing, and tracking e-waste information using Cloud Firestore. & Achieved & Eighteen Firestore collections are implemented and in active use (Table~\ref{tab:collections-summary}, Chapter~\ref{ch:analysis-design}; database implementation, Chapter~\ref{ch:implementation}). \\
+3 & Implement secure user authentication and role-based access control for different categories of system users using Firebase Authentication. & Achieved & Firebase Authentication is live for email/password sign-in across all roles, backed by custom claims and Firestore security rules that were themselves the subject of a real bug fix during testing (T-05/T-05b, Table~\ref{tab:test-cases}); social-provider sign-in and multi-factor enrolment remain outstanding (Table~\ref{tab:module-status}). \\
+4 & Integrate artificial intelligence to support automatic classification of electronic waste from uploaded images. & Partially Achieved & A pluggable classification interface was implemented and is exercised through manual and assisted review workflows, but the assisted path uses a heuristic fallback classifier rather than a trained PyTorch model as originally specified; see Section~\ref{sec:classification-module} for the reasoning behind this substitution. \\
+5 & Develop an intelligent e-waste pickup scheduling and collection management module for households and businesses. & Achieved & Pickup drafting, server-side fee estimation, Cloudinary photo capture, GPS capture, scheduling, cancellation/rescheduling, and rating are implemented and tested; payment is now a required gate before a pickup can be submitted (Section~\ref{sec:pickup-module}). \\
+6 & Integrate Google Maps Platform to support location services, display collection locations, visualize routes, and improve collection operations. & Not Achieved & Location capture and route generation use the \texttt{geolocator} plugin and haversine-distance calculations rather than the Google Maps Platform; no interactive map or visual route display was integrated. This is the clearest departure from the original proposal and is discussed in the conformance note at the start of Chapter~\ref{ch:implementation}. \\
+7 & Develop modules for e-waste transportation, repair, refurbishment, recycling, and lifecycle tracking to promote circular economy practices. & Achieved & Collection/logistics, repair, recycling, resource-recovery, and reverse-logistics modules are all implemented and API-backed (Table~\ref{tab:module-status}). \\
+8 & Implement real-time notification services using Firebase Cloud Messaging to keep users informed of requests, status updates, and system activities. & Partially Achieved & In-app and event-driven notifications are implemented via a dedicated notification microservice capable of fanning out to FCM, SMS, and email; production configuration of those external providers had not been completed at the time of writing (Table~\ref{tab:module-status}). \\
+9 & Generate administrative reports and analytics to support environmental monitoring, operational planning, and informed decision-making. & Partially Achieved & Role-specific dashboards and underlying analytics queries are implemented and were exercised during testing; production PDF/XLSX export and large-dataset performance testing remain outstanding (Table~\ref{tab:module-status}). \\
+10 & Evaluate the effectiveness, usability, and performance of the developed EcoTrace system in improving e-waste management processes. & Partially Achieved & The system was evaluated through structured functional and security testing (Section~\ref{sec:testing}), including one real, live-money payment transaction, but no formal usability study or field evaluation with end users was conducted; this is identified as a priority for future work in Section~\ref{sec:future-work}. \\
+\bottomrule
+\end{longtable}
+
+Of the ten objectives, five were fully achieved, four were partially
+achieved, and one -- the integration of the Google Maps Platform -- was not
+achieved as originally specified. The single largest unplanned addition to
+the system, the Monime mobile-money payment module
+(Section~\ref{sec:payment-module}), was not among the original objectives
+at all, but was implemented, integrated into the pickup workflow as a
+required gate, and verified with a real transaction, making it the most
+thoroughly tested part of the delivered system.
+
+\section{Contributions of the Study}
+
+Notwithstanding the partial achievement of some objectives, this study
+makes the following contributions:
+
+\begin{enumerate}[leftmargin=1.4cm]
+  \item It delivers a working, cross-platform e-waste management system
+    covering the full lifecycle from household/business pickup request
+    through collection, repair, recycling, and resource recovery, built on
+    a modern cloud-native stack (Flutter, Firebase, Cloud Firestore, and a
+    TypeScript/Express API).
+  \item It demonstrates a complete, real-money mobile payment integration
+    (Monime, covering Orange Money and Afrimoney) embedded directly in the
+    pickup-request workflow as a state-machine gate rather than a
+    bolted-on afterthought, including handling for two undocumented
+    provider-API behaviours discovered during integration
+    (Section~\ref{sec:payment-module}).
+  \item It documents, rather than hides, the specific points at which an
+    ambitious original design (Google Maps Platform integration, a trained
+    PyTorch classifier, a FastAPI backend) had to be adapted during
+    implementation, together with the reasoning behind each substitution.
+    This is offered as a realistic account of how a student software
+    project's scope evolves under real technical and time constraints,
+    consistent with the honesty requirement of NFR-ETH-9.
+  \item It produces a substantial, reusable set of functional and
+    non-functional requirements (Sections~\ref{sec:functional-requirements}
+    and~\ref{sec:nfr}, Chapter~\ref{ch:analysis-design})
+    and a module-by-module implementation and test-status audit
+    (Table~\ref{tab:module-status}) that can guide any continuation of the
+    project beyond this documentation.
+\end{enumerate}
+
+\section{Conclusion}
+
+This study designed and implemented EcoTrace, a cross-platform electronic
+waste recovery and circular economy management system, and evaluated it
+against the ten specific objectives set out for it. The system's core
+data-management, authentication, pickup-scheduling, collection, repair,
+recycling, and payment functionality was implemented and, in the areas
+covered by Section~\ref{sec:testing}, tested successfully, including one
+genuine live-money mobile-money transaction. Two objectives -- automatic
+AI-based classification using a trained model, and Google Maps Platform
+integration -- were not delivered as originally specified; the first was
+substituted with a pluggable heuristic classifier and the second with
+device GPS and haversine-distance calculations, both of which are
+functional but materially narrower than what was proposed. Formal usability
+and field evaluation with real users, called for by the tenth objective,
+was not performed within the scope of this study.
+
+On balance, the study concludes that EcoTrace, as delivered, is a
+functioning proof of the system envisioned in Chapter~\ref{ch:introduction}:
+it demonstrates that a coordinated, cloud-based, cross-platform approach to
+e-waste registration, collection, and payment is technically achievable in
+the Sierra Leonean context, while also demonstrating -- through the
+substitutions and outstanding items catalogued in
+Table~\ref{tab:module-status} -- exactly which parts of that vision still
+require further work before the system could be considered
+production-ready.
+
+\section{Recommendations}
+
+Based on the outcome of this study, the following recommendations are made.
+
+\subsection{Recommendations for Deployment and Operation}
+
+\begin{enumerate}[leftmargin=1.4cm]
+  \item The backend should be moved from Render's free tier to a paid tier
+    or an equivalent dedicated hosting arrangement before any real-world
+    pilot, to remove the cold-start delays and resource limits identified
+    as a limitation in Section~\ref{sec:limitations-intro}.
+  \item Production credentials for the notification providers (FCM, SMS,
+    and email) referenced in Table~\ref{tab:module-status} should be
+    provisioned and verified end-to-end before the system is relied upon
+    for time-sensitive alerts such as pickup confirmations or payment
+    status changes.
+  \item Because the Monime webhook signature could not be independently
+    verified during this study (Section~\ref{sec:payment-module}), the
+    payment-confirmation logic that re-queries Monime's API for the
+    authoritative transaction status, rather than trusting the webhook
+    payload directly, should be retained even if signature verification
+    later becomes possible, as defence in depth.
+  \item Firestore security rules, and in particular any newly added
+    collection, should be checked against the deny-by-default catch-all
+    rule as a standard step before deployment; the missing
+    \texttt{paymentTransactions} rule found and fixed during this study
+    (T-05, Table~\ref{tab:test-cases}) shows how easily such a gap can
+    otherwise reach production undetected.
+\end{enumerate}
+
+\subsection{Recommendations for Continued Development}
+
+\begin{enumerate}[leftmargin=1.4cm]
+  \item Replace the heuristic-fallback classifier with a trained image
+    classification model once a sufficiently large and diverse labelled
+    e-waste image dataset is available, using the pluggable classifier
+    interface already implemented (Section~\ref{sec:classification-module})
+    so that the rest of the system requires no change.
+  \item Integrate a mapping and routing provider (whether Google Maps
+    Platform as originally proposed, or an open alternative such as
+    OpenStreetMap-based routing) to add interactive map display and visual
+    route optimisation on top of the GPS/haversine foundation already in
+    place.
+  \item Complete the integration-test coverage flagged as outstanding for
+    the majority of "Partial" modules in Table~\ref{tab:module-status};
+    most of these modules are functionally complete and require test
+    coverage rather than new development.
+  \item Extend the Monime integration with support for insufficient-funds
+    detection once Monime exposes a corresponding webhook event, to remove
+    the current reliance on a fixed client-side timeout
+    (Section~\ref{sec:payment-module}).
+\end{enumerate}
+
+\section{Suggestions for Further Work}
+\label{sec:future-work}
+
+The following are suggested as areas for further work beyond the scope of
+this study:
+
+\begin{enumerate}[leftmargin=1.4cm]
+  \item \textbf{Formal usability and field evaluation.} A structured
+    usability study, and ideally a small field pilot with real households,
+    businesses, and collectors in a defined area of Sierra Leone, would
+    directly address the tenth objective, which this study was not able to
+    evaluate empirically.
+  \item \textbf{Support for additional mobile-money providers and
+    countries.} The current Monime integration covers Orange Money and
+    Afrimoney within Sierra Leone; extending payment support to other
+    providers or countries would require re-examining the
+    \texttt{authorizedProviders} versus \texttt{authorizedPhoneNumber}
+    behaviour documented in Section~\ref{sec:payment-module} for each new
+    provider.
+  \item \textbf{Offline support.} Given the Internet-dependency limitation
+    identified in Section~\ref{sec:limitations-intro}, future work could
+    add local caching and background synchronisation so that collectors
+    and technicians in areas of unreliable connectivity can continue
+    working and sync once connectivity is restored.
+  \item \textbf{Environmental impact methodology validation.} The
+    environmental-impact calculations implemented in the current system
+    (Table~\ref{tab:module-status}) should be validated against an
+    established environmental-accounting methodology or reviewed by a
+    domain expert before being used for external reporting.
+  \item \textbf{Independent security assessment.} An independent
+    penetration test or security audit, beyond the functional and security
+    testing reported in Section~\ref{sec:testing}, is recommended before
+    any production deployment that will handle real payment traffic at
+    scale.
+\end{enumerate}
+
+\section{Chapter Summary}
+
+This chapter summarised the study, assessed the ten specific objectives set
+out in Chapter~\ref{ch:introduction} against the implementation and testing
+evidence reported in Chapter~\ref{ch:implementation}, and found that five
+objectives were achieved, four were partially achieved, and one was not
+achieved as originally specified, while a substantial payment-integration
+module outside the original objectives was delivered and verified. It
+concluded that EcoTrace, as implemented, is a working demonstration of the
+system envisioned at the outset of the study, with specific, clearly
+identified gaps remaining before it could be considered production-ready.
+Recommendations were offered for deploying and operating the system as it
+stands, for continuing its development, and for further work -- most
+notably formal usability evaluation -- that falls outside the scope of this
+study. This concludes the main body of the project documentation; the
+references and appendices that follow provide supporting material.
