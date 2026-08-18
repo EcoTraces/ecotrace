@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/validation/form_validators.dart';
 import '../data/auth_repository.dart';
 import '../domain/app_role.dart';
 import '../domain/user_profile.dart';
@@ -271,28 +272,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _emailFocus = FocusNode();
   AppRole _role = AppRole.household;
   bool _accepted = false;
   bool _busy = false;
+  bool _emailTouched = false;
+
+  static const _nameMaxLength = 60;
+
+  bool get _nameValid => _name.text.trim().length >= 2;
+  bool get _emailValid => emailError(_email.text) == null;
+  bool get _passwordValid => passwordMeetsRequirements(_password.text);
+  bool get _canSubmit =>
+      _nameValid && _emailValid && _passwordValid && _accepted;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final controller in [_name, _email, _password]) {
+      controller.addListener(() => setState(() {}));
+    }
+    _emailFocus.addListener(() {
+      if (!_emailFocus.hasFocus) setState(() => _emailTouched = true);
+    });
+  }
 
   @override
   void dispose() {
     _name.dispose();
     _email.dispose();
     _password.dispose();
+    _emailFocus.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (!_accepted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Accept the terms and privacy policy to continue.'),
-        ),
-      );
-      return;
-    }
+    if (!_formKey.currentState!.validate() || !_canSubmit) return;
     setState(() => _busy = true);
     try {
       await widget.repository.register(
@@ -324,12 +339,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Text(
+            '* Required field',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
           TextFormField(
             controller: _name,
             textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              labelText: 'Full name',
-              prefixIcon: Icon(Icons.person_outline),
+            maxLength: _nameMaxLength,
+            decoration: InputDecoration(
+              labelText: 'Full name *',
+              prefixIcon: const Icon(Icons.person_outline),
+              counterText:
+                  '${_nameMaxLength - _name.text.length} characters left',
             ),
             validator: (value) => value == null || value.trim().length < 2
                 ? 'Enter your name.'
@@ -338,29 +363,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
           const SizedBox(height: 14),
           TextFormField(
             controller: _email,
+            focusNode: _emailFocus,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              labelText: 'Email',
-              prefixIcon: Icon(Icons.email_outlined),
+            decoration: InputDecoration(
+              labelText: 'Email *',
+              prefixIcon: const Icon(Icons.email_outlined),
+              errorText: _emailTouched ? emailError(_email.text) : null,
             ),
-            validator: (value) => value == null || !value.contains('@')
-                ? 'Enter a valid email.'
-                : null,
+            validator: (value) => emailError(value ?? ''),
           ),
           const SizedBox(height: 14),
           TextFormField(
             controller: _password,
             obscureText: true,
             decoration: const InputDecoration(
-              labelText: 'Password',
+              labelText: 'Password *',
               prefixIcon: Icon(Icons.lock_outline),
-              helperText: 'At least 8 characters',
             ),
-            validator: (value) => value == null || value.length < 8
-                ? 'Use at least 8 characters.'
-                : null,
+            validator: (value) => passwordMeetsRequirements(value ?? '')
+                ? null
+                : 'Password does not meet all requirements.',
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 6),
+          ...passwordRequirements.map(
+            (requirement) => _RequirementRow(
+              label: requirement.label,
+              met: requirement.met(_password.text),
+            ),
+          ),
+          const SizedBox(height: 10),
           DropdownButtonFormField<AppRole>(
             initialValue: _role,
             decoration: const InputDecoration(
@@ -382,13 +413,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ? null
                 : (value) => setState(() => _accepted = value ?? false),
             title: const Text(
-              'I accept the Terms of Service and Privacy Policy.',
+              'I accept the Terms of Service and Privacy Policy. *',
             ),
             controlAffinity: ListTileControlAffinity.leading,
           ),
           const SizedBox(height: 8),
           FilledButton(
-            onPressed: _busy ? null : _submit,
+            onPressed: (_busy || !_canSubmit) ? null : _submit,
             child: _busy
                 ? const SizedBox.square(
                     dimension: 20,
@@ -396,6 +427,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   )
                 : const Text('Create account'),
           ),
+          if (!_busy && !_canSubmit)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Complete all required fields to create your account.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ),
           TextButton(
             onPressed: _busy ? null : () => Navigator.of(context).pop(),
             child: const Text('Back to sign in'),
@@ -404,6 +447,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     ),
   );
+}
+
+class _RequirementRow extends StatelessWidget {
+  const _RequirementRow({required this.label, required this.met});
+  final String label;
+  final bool met;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = met
+        ? Colors.green
+        : Theme.of(context).colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Icon(
+            met ? Icons.check_circle : Icons.radio_button_unchecked,
+            size: 16,
+            color: color,
+          ),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(color: color, fontSize: 12)),
+        ],
+      ),
+    );
+  }
 }
 
 class ResetPasswordScreen extends StatefulWidget {

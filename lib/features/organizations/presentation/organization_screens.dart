@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 
+import '../../../core/validation/form_validators.dart';
 import '../data/organization_repository.dart';
 import '../domain/organization.dart';
 
@@ -249,8 +251,50 @@ class _RegisterOrganizationScreenState
   final _phone = TextEditingController();
   final _address = TextEditingController();
   final _areas = TextEditingController();
+  final _emailFocus = FocusNode();
+  final _phoneFocus = FocusNode();
   OrganizationType _type = OrganizationType.business;
   bool _busy = false;
+  bool _emailTouched = false;
+  bool _phoneTouched = false;
+
+  static const _nameMaxLength = 120;
+  static const _registrationMaxLength = 40;
+  static const _addressMaxLength = 200;
+  static const _areasMaxLength = 200;
+
+  bool get _canSubmit =>
+      _name.text.trim().isNotEmpty &&
+      _registration.text.trim().isNotEmpty &&
+      emailError(_email.text) == null &&
+      phoneError(_phone.text) == null &&
+      _address.text.trim().isNotEmpty &&
+      _areas.text.trim().isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    final signedInEmail = FirebaseAuth.instance.currentUser?.email;
+    if (signedInEmail != null && signedInEmail.isNotEmpty) {
+      _email.text = signedInEmail;
+    }
+    for (final controller in [
+      _name,
+      _registration,
+      _email,
+      _phone,
+      _address,
+      _areas,
+    ]) {
+      controller.addListener(() => setState(() {}));
+    }
+    _emailFocus.addListener(() {
+      if (!_emailFocus.hasFocus) setState(() => _emailTouched = true);
+    });
+    _phoneFocus.addListener(() {
+      if (!_phoneFocus.hasFocus) setState(() => _phoneTouched = true);
+    });
+  }
 
   @override
   void dispose() {
@@ -264,11 +308,13 @@ class _RegisterOrganizationScreenState
     ]) {
       controller.dispose();
     }
+    _emailFocus.dispose();
+    _phoneFocus.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate() || !_canSubmit) return;
     setState(() => _busy = true);
     try {
       final id = await widget.repository.create(
@@ -277,7 +323,7 @@ class _RegisterOrganizationScreenState
         type: _type,
         registrationNumber: _registration.text,
         contactEmail: _email.text,
-        contactPhone: _phone.text,
+        contactPhone: normalizePhone(_phone.text),
         address: _address.text,
         serviceAreas: _areas.text
             .split(',')
@@ -319,12 +365,20 @@ class _RegisterOrganizationScreenState
             'Organization details',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 4),
+          Text(
+            '* Required field',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 16),
           _field(
             _name,
-            'Legal or registered name',
+            'Legal or registered name *',
             Icons.apartment,
             required: true,
+            maxLength: _nameMaxLength,
           ),
           const SizedBox(height: 14),
           DropdownButtonFormField<OrganizationType>(
@@ -344,42 +398,72 @@ class _RegisterOrganizationScreenState
           const SizedBox(height: 14),
           _field(
             _registration,
-            'Registration number',
+            'Registration number *',
             Icons.numbers,
             required: true,
+            maxLength: _registrationMaxLength,
           ),
           const SizedBox(height: 14),
-          _field(
-            _email,
-            'Contact email',
-            Icons.email_outlined,
-            required: true,
-            email: true,
+          TextFormField(
+            controller: _email,
+            focusNode: _emailFocus,
+            keyboardType: TextInputType.emailAddress,
+            decoration: InputDecoration(
+              labelText: 'Contact email *',
+              prefixIcon: const Icon(Icons.email_outlined),
+              errorText: _emailTouched ? emailError(_email.text) : null,
+            ),
+            validator: (value) => emailError(value ?? ''),
           ),
           const SizedBox(height: 14),
-          _field(_phone, 'Contact phone', Icons.phone_outlined, required: true),
+          TextFormField(
+            controller: _phone,
+            focusNode: _phoneFocus,
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(
+              labelText: 'Contact phone *',
+              prefixIcon: const Icon(Icons.phone_outlined),
+              helperText: 'Any format is fine, e.g. (076) 123-456',
+              errorText: _phoneTouched ? phoneError(_phone.text) : null,
+            ),
+            validator: (value) => phoneError(value ?? ''),
+          ),
           const SizedBox(height: 14),
           _field(
             _address,
-            'Primary address',
+            'Primary address *',
             Icons.location_on_outlined,
             required: true,
             lines: 2,
+            maxLength: _addressMaxLength,
           ),
           const SizedBox(height: 14),
           _field(
             _areas,
-            'Service areas (comma separated)',
+            'Service areas (comma separated) *',
             Icons.map_outlined,
             required: true,
             lines: 2,
+            maxLength: _areasMaxLength,
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: _busy ? null : _submit,
+            onPressed: (_busy || !_canSubmit) ? null : _submit,
             icon: const Icon(Icons.send_outlined),
             label: Text(_busy ? 'Submitting…' : 'Submit for verification'),
           ),
+          if (!_busy && !_canSubmit)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Complete all required fields to submit for verification.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ),
         ],
       ),
     ),
@@ -390,19 +474,22 @@ class _RegisterOrganizationScreenState
     String label,
     IconData icon, {
     required bool required,
-    bool email = false,
     int lines = 1,
+    int? maxLength,
   }) => TextFormField(
     controller: controller,
     maxLines: lines,
-    keyboardType: email ? TextInputType.emailAddress : TextInputType.text,
-    decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
+    maxLength: maxLength,
+    decoration: InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      counterText: maxLength == null
+          ? null
+          : '${maxLength - controller.text.length} characters left',
+    ),
     validator: (value) {
       if (required && (value == null || value.trim().isEmpty)) {
         return 'This field is required.';
-      }
-      if (email && value != null && !value.contains('@')) {
-        return 'Enter a valid email.';
       }
       return null;
     },
