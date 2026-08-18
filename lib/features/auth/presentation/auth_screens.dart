@@ -354,7 +354,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               labelText: 'Full name *',
               prefixIcon: const Icon(Icons.person_outline),
               counterText:
-                  '${_nameMaxLength - _name.text.length} characters left',
+                  '${_nameMaxLength - _name.text.characters.length} characters left',
             ),
             validator: (value) => value == null || value.trim().length < 2
                 ? 'Enter your name.'

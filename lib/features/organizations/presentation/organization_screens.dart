@@ -485,7 +485,7 @@ class _RegisterOrganizationScreenState
       prefixIcon: Icon(icon),
       counterText: maxLength == null
           ? null
-          : '${maxLength - controller.text.length} characters left',
+          : '${maxLength - controller.text.characters.length} characters left',
     ),
     validator: (value) {
       if (required && (value == null || value.trim().isEmpty)) {
