@@ -23,6 +23,7 @@
     }
   },
   "hosting": {
+    "site": "wastemanagementsystem-902eb",
     "public": "build/web",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
