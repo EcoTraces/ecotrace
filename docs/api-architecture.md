@@ -119,22 +119,43 @@ The same Express application remains deployable as a Firebase Function.
 4. When prompted, paste the clipboard value into
    `FIREBASE_SERVICE_ACCOUNT_BASE64`.
 5. Set `API_ALLOWED_ORIGINS` to the comma-separated deployed Flutter web
-   origins. For example:
+   origins — this must include the Firebase Hosting site if the web build is
+   deployed there. For example:
 
    ```text
-   https://ecotrace.example.com,https://ecotrace-web.onrender.com
+   https://wastemanagementsystem-902eb.web.app,https://wastemanagementsystem-902eb.firebaseapp.com
    ```
 
-6. After the health check succeeds, build Flutter with the Render service URL:
+   There is no wildcard fallback (`functions/src/app.ts`): an origin missing
+   from this list is silently rejected by CORS, which surfaces in the browser
+   as a failed fetch with no useful error from the API itself.
 
-   ```powershell
-   flutter build apk --release --dart-define=API_BASE_URL=https://ecotrace-api.onrender.com
-   ```
+6. After the health check succeeds, note the *actual* URL Render assigned the
+   service (visible on the service's Render dashboard page) — it commonly
+   differs from the plain `render.yaml` service name because Render appends a
+   random suffix when the exact name is taken. As of this writing it is
+   `https://ecotrace-api-ixev.onrender.com`; verify with
+   `curl https://<service-url>/health` before building against it.
 
 Delete the downloaded key after saving the Render secret. If the key is ever
 exposed in source control, logs, screenshots, or chat, revoke it immediately
 in Google Cloud IAM and create a replacement. Render's free service can sleep
 after inactivity, so the first API request after an idle period may be slow.
+
+## Flutter Web (Firebase Hosting) production build
+
+```powershell
+flutter build web --release --dart-define=API_BASE_URL=https://ecotrace-api-ixev.onrender.com
+firebase deploy --only hosting
+```
+
+`API_BASE_URL` has no default value (`lib/core/api/api_config.dart`), so
+omitting it silently disables the whole API layer in the built app —
+including Cloudinary image uploads — rather than failing the build. There is
+no CI step that does this automatically; it must be run by hand (or wired
+into a pipeline) before every Hosting deploy. `firebase.json`'s `hosting`
+block pins `"site": "wastemanagementsystem-902eb"`, which newer
+`firebase-tools` versions require even when the project has only one site.
 
 ### Cloudinary image storage
 
