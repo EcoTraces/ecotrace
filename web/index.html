@@ -18,18 +18,18 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="EcoTrace: Intelligent Electronic Waste Recovery and Circular Economy Management System.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="wastemanagementsystem">
+  <meta name="apple-mobile-web-app-title" content="EcoTrace">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>wastemanagementsystem</title>
+  <title>EcoTrace</title>
   <link rel="manifest" href="manifest.json">
   <style>
     html, body {
@@ -50,10 +50,18 @@
       padding: 32px;
       max-width: 420px;
     }
+    .ecotrace-mark-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: #e8f5ee;
+      border-radius: 24px;
+    }
     .ecotrace-mark {
-      color: #167d57;
-      font-size: 56px;
-      line-height: 1;
+      width: 72px;
+      height: 72px;
+      display: block;
     }
     .ecotrace-spinner {
       width: 34px;
@@ -70,7 +78,9 @@
 <body>
   <div id="ecotrace-loading" role="status" aria-live="polite">
     <div class="ecotrace-loading-card">
-      <div class="ecotrace-mark" aria-hidden="true">♻</div>
+      <div class="ecotrace-mark-badge">
+        <img class="ecotrace-mark" src="icons/Icon-192.png" alt="" aria-hidden="true">
+      </div>
       <h1>EcoTrace</h1>
       <div class="ecotrace-spinner" aria-hidden="true"></div>
       <p id="ecotrace-loading-message">Loading the application…</p>

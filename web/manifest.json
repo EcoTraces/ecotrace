@@ -1,11 +1,11 @@
 {
-    "name": "wastemanagementsystem",
-    "short_name": "wastemanagementsystem",
+    "name": "EcoTrace",
+    "short_name": "EcoTrace",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#167D57",
+    "description": "EcoTrace: Intelligent Electronic Waste Recovery and Circular Economy Management System.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

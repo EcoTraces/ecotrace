@@ -85,7 +85,17 @@ class _EcoTraceBootstrapState extends State<_EcoTraceBootstrap> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.recycling, size: 72),
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE8F5EE),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Image.asset(
+                        'assets/icons/ecotrace_app_icon.png',
+                        height: 72,
+                      ),
+                    ),
                     const SizedBox(height: 18),
                     Text(
                       'EcoTrace',

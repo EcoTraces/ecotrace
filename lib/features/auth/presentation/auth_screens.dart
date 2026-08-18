@@ -97,10 +97,18 @@ class _AuthFrame extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(
-                      Icons.recycling,
-                      size: 54,
-                      color: Theme.of(context).colorScheme.primary,
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5EE),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Image.asset(
+                          'assets/icons/ecotrace_app_icon.png',
+                          height: 54,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(
