@@ -6,6 +6,11 @@ import '../../audit/data/audit_repository.dart';
 import '../../audit/domain/audit_event.dart';
 import '../domain/billing.dart';
 
+class HostedCheckoutResult {
+  const HostedCheckoutResult({required this.id, required this.checkoutUrl});
+  final String id, checkoutUrl;
+}
+
 class BillingRepository {
   BillingRepository({
     FirebaseFirestore? firestore,
@@ -44,6 +49,44 @@ class BillingRepository {
                       .where('customerId', isEqualTo: userId))
             .snapshots()
             .map((s) => s.docs.map(BillingInvoice.fromDoc).toList());
+
+  /// Real-time status for a single transaction via a direct Firestore
+  /// listener — unconditional, like [MonimePaymentRepository.watch], since
+  /// the Firestore rule already permits payer-direct reads regardless of
+  /// API mode and there is no single-document REST equivalent to poll.
+  Stream<BillingTransaction> watchTransaction(String id) => _db
+      .collection('paymentTransactions')
+      .doc(id)
+      .snapshots()
+      .map(BillingTransaction.fromDoc);
+
+  Future<HostedCheckoutResult> initiateStripeCheckout({
+    required String purpose,
+    required String referenceId,
+  }) async {
+    final data = await _api.post('/api/v1/payments/stripe/checkout', {
+      'purpose': purpose,
+      'referenceId': referenceId,
+    });
+    return HostedCheckoutResult(
+      id: (data['id'] ?? '').toString(),
+      checkoutUrl: (data['checkoutUrl'] ?? '').toString(),
+    );
+  }
+
+  Future<HostedCheckoutResult> initiatePaypalCheckout({
+    required String purpose,
+    required String referenceId,
+  }) async {
+    final data = await _api.post('/api/v1/payments/paypal/checkout', {
+      'purpose': purpose,
+      'referenceId': referenceId,
+    });
+    return HostedCheckoutResult(
+      id: (data['id'] ?? '').toString(),
+      checkoutUrl: (data['approveUrl'] ?? '').toString(),
+    );
+  }
 
   Stream<List<T>> _pollList<T>(
     String path,

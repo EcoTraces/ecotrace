@@ -382,6 +382,49 @@ describe("EcoTrace API", () => {
     expect(response.body.error.code).toBe("unauthenticated");
   });
 
+  it("protects Stripe checkout with Firebase authentication", async () => {
+    const response = await request(app)
+      .post("/api/v1/payments/stripe/checkout")
+      .send({ purpose: "pickupFee", referenceId: "pickup-1" });
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("protects PayPal checkout with Firebase authentication", async () => {
+    const response = await request(app)
+      .post("/api/v1/payments/paypal/checkout")
+      .send({ purpose: "pickupFee", referenceId: "pickup-1" });
+    expect(response.status).toBe(401);
+    expect(response.body.error.code).toBe("unauthenticated");
+  });
+
+  it("reports the Stripe gateway as unconfigured rather than crashing", async () => {
+    // No STRIPE_WEBHOOK_SECRET in the test environment, so signature
+    // verification can't proceed -- this route intentionally has no
+    // Firebase auth (Stripe can't obtain one), so it must fail gracefully
+    // rather than expose an unauthenticated crash surface.
+    const response = await request(app)
+      .post("/api/v1/payments/stripe/webhook")
+      .set("stripe-signature", "test-signature")
+      .send({ type: "checkout.session.completed" });
+    expect(response.status).toBe(503);
+    expect(response.body.error.code).toBe("stripe_not_configured");
+  });
+
+  it("redirects to the web app after a PayPal capture attempt with no token", async () => {
+    const response = await request(app).get("/api/v1/payments/paypal/capture");
+    expect(response.status).toBe(302);
+    expect(response.headers.location).toContain("wastemanagementsystem-902eb.web.app");
+  });
+
+  it("acknowledges an unrecognized PayPal webhook event without error", async () => {
+    const response = await request(app)
+      .post("/api/v1/payments/paypal/webhook")
+      .send({ event_type: "SOMETHING.ELSE" });
+    expect(response.status).toBe(200);
+    expect(response.body.received).toBe(true);
+  });
+
   it("protects environmental impact workflows with Firebase authentication", async () => {
     const response = await request(app).get("/api/v1/impact/summary");
     expect(response.status).toBe(401);

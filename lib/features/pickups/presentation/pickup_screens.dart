@@ -3,11 +3,94 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
+import '../../billing/data/billing_repository.dart';
+import '../../billing/domain/billing.dart';
 import '../../payments/data/monime_payment_repository.dart';
 import '../../payments/domain/monime_payment.dart';
+import '../../payments/presentation/hosted_checkout_screen.dart';
 import '../../payments/presentation/monime_payment_screen.dart';
 import '../data/pickup_repository.dart';
 import '../domain/pickup.dart';
+
+enum _PaymentMethodChoice { mobileMoney, card, paypal }
+
+Future<_PaymentMethodChoice?> _choosePaymentMethod(BuildContext context) {
+  return showModalBottomSheet<_PaymentMethodChoice>(
+    context: context,
+    builder: (context) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.phone_android),
+            title: const Text('Mobile money'),
+            subtitle: const Text('Orange Money, Afrimoney'),
+            onTap: () =>
+                Navigator.pop(context, _PaymentMethodChoice.mobileMoney),
+          ),
+          ListTile(
+            leading: const Icon(Icons.credit_card),
+            title: const Text('Card'),
+            subtitle: const Text('Visa, Mastercard'),
+            onTap: () => Navigator.pop(context, _PaymentMethodChoice.card),
+          ),
+          ListTile(
+            leading: const Icon(Icons.account_balance_wallet_outlined),
+            title: const Text('PayPal'),
+            onTap: () => Navigator.pop(context, _PaymentMethodChoice.paypal),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Shows the payment-method picker, then pushes the matching payment screen
+/// for [pickupId]. Returns true once a payment is confirmed (the caller's
+/// webhook-driven backend has already advanced the pickup accordingly).
+Future<bool> _payPickupFee(
+  BuildContext context, {
+  required String pickupId,
+  required double amount,
+  required String currency,
+}) async {
+  final choice = await _choosePaymentMethod(context);
+  if (choice == null || !context.mounted) return false;
+  if (choice == _PaymentMethodChoice.mobileMoney) {
+    final result = await Navigator.of(context).push<MonimePayment>(
+      MaterialPageRoute(
+        builder: (_) => MonimePaymentScreen(
+          repository: MonimePaymentRepository(),
+          purpose: 'pickupFee',
+          referenceId: pickupId,
+          amount: amount,
+          currency: currency,
+          title: 'Pickup payment',
+          submitLabel: 'Pay & submit pickup request',
+        ),
+      ),
+    );
+    return result != null;
+  }
+  final result = await Navigator.of(context).push<BillingTransaction>(
+    MaterialPageRoute(
+      builder: (_) => HostedCheckoutScreen(
+        repository: BillingRepository(),
+        gateway: choice == _PaymentMethodChoice.card
+            ? HostedGateway.stripe
+            : HostedGateway.paypal,
+        purpose: 'pickupFee',
+        referenceId: pickupId,
+        amount: amount,
+        currency: currency,
+        title: 'Pickup payment',
+        submitLabel: 'Pay & submit pickup request',
+      ),
+    ),
+  );
+  return result != null;
+}
 
 class PickupListScreen extends StatelessWidget {
   const PickupListScreen({
@@ -391,24 +474,23 @@ class _CreatePickupState extends State<CreatePickupScreen> {
     try {
       final pickupId = await _createDraft(context);
       if (!context.mounted) return;
-      final result = await Navigator.of(context).push<MonimePayment>(
-        MaterialPageRoute(
-          builder: (_) => MonimePaymentScreen(
-            repository: MonimePaymentRepository(),
-            purpose: 'pickupFee',
-            referenceId: pickupId,
-            amount: fee.total,
-            currency: fee.currency,
-            title: 'Pickup payment',
-            submitLabel: 'Pay & submit pickup request',
-          ),
-        ),
+      if (pickupId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save pickup: no pickup ID returned.')),
+        );
+        return;
+      }
+      final paid = await _payPickupFee(
+        context,
+        pickupId: pickupId,
+        amount: fee.total,
+        currency: fee.currency,
       );
       // A confirmed result means the backend has already flipped the pickup
-      // from draft to submitted (via the Monime webhook). If the citizen
-      // backs out without paying, the pickup simply stays a draft — visible
-      // under "My pickups" so they can resume payment later.
-      if (result != null && context.mounted) Navigator.pop(context);
+      // from draft to submitted (via the payment gateway's webhook). If the
+      // citizen backs out without paying, the pickup simply stays a draft —
+      // visible under "My pickups" so they can resume payment later.
+      if (paid && context.mounted) Navigator.pop(context);
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -514,18 +596,11 @@ class PickupDetailScreen extends StatelessWidget {
             FilledButton.icon(
               onPressed: pickup.photoUrls.isEmpty
                   ? null
-                  : () => Navigator.of(c).push<MonimePayment>(
-                      MaterialPageRoute(
-                        builder: (_) => MonimePaymentScreen(
-                          repository: MonimePaymentRepository(),
-                          purpose: 'pickupFee',
-                          referenceId: pickup.id,
-                          amount: pickup.fee,
-                          currency: 'SLE',
-                          title: 'Pickup payment',
-                          submitLabel: 'Pay & submit pickup request',
-                        ),
-                      ),
+                  : () => _payPickupFee(
+                      c,
+                      pickupId: pickup.id,
+                      amount: pickup.fee,
+                      currency: 'SLE',
                     ),
               icon: const Icon(Icons.payment_outlined),
               label: Text(

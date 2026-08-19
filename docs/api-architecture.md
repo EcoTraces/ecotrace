@@ -178,6 +178,60 @@ collection evidence, incident, donation, support, compliance, partner, and
 reverse-logistics images are stored under role-scoped `ecotrace/` folders.
 General document/PDF storage remains a separate workflow.
 
+### Card (Stripe) and PayPal payments
+
+Alongside Monime mobile money, citizens can pay with a card (via Stripe
+Checkout) or PayPal. Both use a hosted-checkout redirect rather than an
+embedded card form — this app targets Android/iOS/web/Windows, and
+`flutter_stripe` (the native card-form SDK) has no Windows support, so the
+backend creates a session/order and the app opens the returned URL in an
+external browser tab, then watches `paymentTransactions/{id}` in Firestore
+for the result exactly like the Monime flow does. Both gateways settle in
+USD (Stripe/PayPal don't support Sierra Leone's SLE); the SLE amount stays
+the source of truth on the transaction doc, converted to USD at
+checkout-creation time using `systemSettings/billing.sleToUsdRate` (a
+placeholder default lives in `payment-routes.ts` — an administrator must set
+this Firestore field to a real, current rate before accepting real payments).
+
+**Stripe**: create an account at <https://dashboard.stripe.com>, then set on
+the Render `ecotrace-api` service:
+
+```text
+STRIPE_SECRET_KEY=<sk_test_... while testing, sk_live_... in production>
+STRIPE_WEBHOOK_SECRET=<whsec_... from the webhook endpoint below>
+```
+
+In the Stripe dashboard, add a webhook endpoint pointing at
+`https://<the Render API URL>/api/v1/payments/stripe/webhook`, subscribed to
+`checkout.session.completed` and `checkout.session.expired`, then copy its
+signing secret into `STRIPE_WEBHOOK_SECRET`.
+
+**PayPal**: create an app at
+<https://developer.paypal.com/dashboard/applications> (sandbox first), then
+set:
+
+```text
+PAYPAL_CLIENT_ID=<from the PayPal app>
+PAYPAL_CLIENT_SECRET=<from the PayPal app>
+PAYPAL_API_BASE_URL=https://api-m.sandbox.paypal.com   # https://api-m.paypal.com in production
+```
+
+PayPal redirects the payer's browser directly to
+`/api/v1/payments/paypal/capture` after approval (a plain backend route, not
+a webhook) to finalize the charge, so no dashboard configuration is required
+for that path. Optionally also register a webhook at
+`/api/v1/payments/paypal/webhook` subscribed to `CHECKOUT.ORDER.APPROVED`
+and `PAYMENT.CAPTURE.COMPLETED` — this is a backup confirmation path for
+when a payer approves on PayPal but never returns to the app (closed tab,
+lost network), used alongside a scheduled job
+(`payment-expiry-scheduler.ts`) that fails any card/PayPal payment left
+`pending` for more than 3 hours.
+
+Also set `API_PUBLIC_URL` (this API's own public URL, used to build the
+PayPal return URL — distinct from `WEB_APP_URL`, the Flutter web frontend
+both gateways redirect back to once payment is settled) if it differs from
+the default in `payment-routes.ts`.
+
 ## Migration roadmap
 
 1. Authentication profile mutations and audit delivery.

@@ -14,3 +14,4 @@ export {
 export {deliverScheduledReports} from "./report-scheduler.js";
 export {sendScheduledReminders} from "./reminder-scheduler.js";
 export {dispatchOutboxNotification} from "./outbox-dispatcher.js";
+export {expireStalePaymentTransactions} from "./payment-expiry-scheduler.js";

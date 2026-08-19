@@ -10,7 +10,7 @@ enum BillingPurpose {
   refund,
 }
 
-enum BillingMethod { mobileMoney, bankTransfer, card, manual }
+enum BillingMethod { mobileMoney, bankTransfer, card, paypal, manual }
 
 enum PaymentMethod { mobileMoney, bankTransfer, card, manual }
 

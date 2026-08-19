@@ -37,6 +37,20 @@ services:
         sync: false
       - key: MONIME_SPACE_ID
         sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_API_BASE_URL
+        value: https://api-m.sandbox.paypal.com
+      - key: API_PUBLIC_URL
+        value: https://ecotrace-api-ixev.onrender.com
+      - key: WEB_APP_URL
+        value: https://wastemanagementsystem-902eb.web.app
       - fromGroup: ecotrace-notification-events
   - type: web
     name: ecotrace-notifications
