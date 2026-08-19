@@ -1526,6 +1526,12 @@ class _ProfileScreenState extends State<_ProfileScreen> {
                       backgroundImage: NetworkImage(
                         widget.profile.profilePictureUrl!,
                       ),
+                      // A transient network failure loading the image
+                      // (Render/Cloudinary free tier) would otherwise reach
+                      // Flutter as an uncaught exception; fall back to the
+                      // placeholder icon underneath instead of crashing.
+                      onBackgroundImageError: (_, _) {},
+                      child: const Icon(Icons.person, size: 60),
                     )
                   : const CircleAvatar(
                       radius: 60,
