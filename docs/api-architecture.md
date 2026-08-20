@@ -232,6 +232,42 @@ PayPal return URL — distinct from `WEB_APP_URL`, the Flutter web frontend
 both gateways redirect back to once payment is settled) if it differs from
 the default in `payment-routes.ts`.
 
+## Federated sign-in (Google, Apple, GitHub)
+
+Google, Apple, and GitHub sign-in use Firebase Authentication's built-in
+generic OAuth provider flow (`FirebaseAuth.signInWithProvider`) directly —
+no separate `google_sign_in`/`sign_in_with_apple` package, no backend route
+or code change at all. Supported on Android, iOS, and web only; the buttons
+are hidden on Windows/macOS/Linux desktop, where the Flutter plugin has no
+implementation.
+
+Each provider needs to be enabled once in the Firebase Console
+(Authentication → Sign-in method) before its button will work — nothing to
+configure in `render.yaml`:
+
+- **Google**: enable the provider; Firebase handles the OAuth client for
+  you. On Android, add the app's SHA-1/SHA-256 fingerprints under Project
+  Settings → your Android app (`keytool -list -v -keystore <path>` for a
+  release keystore) or Google Sign-In will fail silently there.
+- **Apple**: requires an active Apple Developer Program membership. Create a
+  Services ID and a Sign in with Apple key in the Apple Developer portal,
+  then enter them under the Apple provider's configuration in Firebase.
+  Required on iOS by App Store guidelines whenever another third-party
+  sign-in option (Google here) is offered.
+- **GitHub**: create an OAuth App at
+  <https://github.com/settings/developers> with its callback URL set to the
+  one Firebase's GitHub provider screen shows, then paste the resulting
+  Client ID/Secret into Firebase.
+
+A first-time sign-in with any of these creates the Firebase Auth user
+without a `users` profile document — there's no form to collect a role or
+terms acceptance from, unlike email/password registration. `AuthGate`
+(`lib/features/auth/presentation/auth_gate.dart`) detects the missing
+profile and shows `CompleteProfileScreen`, which calls the same
+`/api/v1/identity/bootstrap` endpoint (or the equivalent direct-Firestore
+write) email/password registration already uses — so the profile shape and
+Firestore rules are identical regardless of how the account signed in.
+
 ## Migration roadmap
 
 1. Authentication profile mutations and audit delivery.

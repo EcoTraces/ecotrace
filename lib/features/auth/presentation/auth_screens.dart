@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 
 import '../../../core/validation/form_validators.dart';
@@ -73,6 +74,11 @@ String _errorMessage(Object error) {
       'network-request-failed' =>
         'Firebase could not be reached. Check the network connection and retry.',
       'too-many-requests' => 'Too many attempts. Please wait and try again.',
+      'account-exists-with-different-credential' =>
+        'An account already exists with this email using a different sign-in method.',
+      'popup-closed-by-user' || 'web-context-cancelled' || 'canceled' =>
+        'Sign-in was cancelled.',
+      'user-disabled' => 'This account has been disabled.',
       _ => error.message ?? 'Authentication failed.',
     };
   }
@@ -144,6 +150,15 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
+// Firebase's generic OAuth provider sign-in (signInWithProvider, used for
+// all three federated providers below) is implemented on Android, iOS, and
+// web only -- there is no Windows/macOS/Linux desktop implementation in the
+// Flutter plugin, so the buttons are hidden there rather than shown broken.
+bool get _federatedSignInSupported =>
+    kIsWeb ||
+    defaultTargetPlatform == TargetPlatform.android ||
+    defaultTargetPlatform == TargetPlatform.iOS;
+
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
@@ -166,6 +181,23 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _email.text,
         password: _password.text,
       );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_errorMessage(error))));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _signInWithProvider(
+    Future<void> Function() signIn,
+  ) async {
+    setState(() => _busy = true);
+    try {
+      await signIn();
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -253,6 +285,51 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
             child: const Text('Create account'),
           ),
+          if (_federatedSignInSupported) ...[
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    'or continue with',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton(
+              onPressed: _busy
+                  ? null
+                  : () => _signInWithProvider(
+                      widget.repository.signInWithGoogle,
+                    ),
+              child: const Text('Continue with Google'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _busy
+                  ? null
+                  : () => _signInWithProvider(
+                      widget.repository.signInWithApple,
+                    ),
+              child: const Text('Continue with Apple'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _busy
+                  ? null
+                  : () => _signInWithProvider(
+                      widget.repository.signInWithGithub,
+                    ),
+              child: const Text('Continue with GitHub'),
+            ),
+          ],
         ],
       ),
     ),
@@ -604,6 +681,129 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
     footer: TextButton(
       onPressed: _busy ? null : widget.repository.signOut,
       child: const Text('Use another account'),
+    ),
+  );
+}
+
+/// Shown by AuthGate whenever a signed-in Firebase user has no EcoTrace
+/// profile yet -- the normal path for a first-time federated (Google/Apple/
+/// GitHub) sign-in, which creates the Firebase Auth user without any of the
+/// role/terms information email/password registration collects up front.
+/// Also doubles as a self-service recovery path for the rarer case of an
+/// auth user whose profile document is missing for any other reason.
+class CompleteProfileScreen extends StatefulWidget {
+  const CompleteProfileScreen({
+    super.key,
+    required this.repository,
+    required this.user,
+  });
+  final AuthRepository repository;
+  final User user;
+
+  @override
+  State<CompleteProfileScreen> createState() => _CompleteProfileScreenState();
+}
+
+class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
+  late final TextEditingController _name;
+  AppRole _role = AppRole.household;
+  bool _accepted = false;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _name = TextEditingController(text: widget.user.displayName ?? '');
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() => _busy = true);
+    try {
+      await widget.repository.completeOAuthRegistration(
+        displayName: _name.text,
+        role: _role,
+        acceptedTerms: _accepted,
+      );
+      // No navigation needed: AuthGate's profile stream picks up the new
+      // document reactively and swaps this screen out on its own.
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(_errorMessage(error))));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => _AuthFrame(
+    title: 'Finish setting up your account',
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Signed in as ${widget.user.email ?? widget.user.displayName ?? 'your account'}.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _name,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Full name',
+            prefixIcon: Icon(Icons.person_outline),
+          ),
+        ),
+        const SizedBox(height: 14),
+        DropdownButtonFormField<AppRole>(
+          initialValue: _role,
+          decoration: const InputDecoration(
+            labelText: 'Account type',
+            prefixIcon: Icon(Icons.badge_outlined),
+          ),
+          items: AppRole.selfServiceRoles
+              .map(
+                (role) => DropdownMenuItem(value: role, child: Text(role.label)),
+              )
+              .toList(),
+          onChanged: _busy ? null : (role) => setState(() => _role = role!),
+        ),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          value: _accepted,
+          onChanged: _busy
+              ? null
+              : (value) => setState(() => _accepted = value ?? false),
+          title: const Text(
+            'I accept the Terms of Service and Privacy Policy.',
+          ),
+          controlAffinity: ListTileControlAffinity.leading,
+        ),
+        const SizedBox(height: 8),
+        FilledButton(
+          onPressed: _busy ? null : _submit,
+          child: _busy
+              ? const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Continue'),
+        ),
+        TextButton(
+          onPressed: _busy ? null : widget.repository.signOut,
+          child: const Text('Use another account'),
+        ),
+      ],
     ),
   );
 }

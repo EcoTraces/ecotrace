@@ -161,6 +161,129 @@ class AuthRepository {
     }
   }
 
+  /// Signs in with Google via Firebase's built-in generic OAuth provider
+  /// flow -- no separate `google_sign_in` package needed. Supported on
+  /// Android, iOS, and web; not on Windows/macOS/Linux desktop.
+  Future<void> signInWithGoogle() =>
+      _signInWithOAuthProvider(GoogleAuthProvider());
+
+  /// Signs in with GitHub. Same platform support as Google.
+  Future<void> signInWithGithub() => _signInWithOAuthProvider(
+    GithubAuthProvider()..addScope('read:user'),
+  );
+
+  /// Signs in with Apple. Requesting `email`/`name` scopes matters here
+  /// specifically -- Apple only ever includes them on a user's very first
+  /// authorization, so a dropped bootstrap step (see completeOAuthRegistration)
+  /// could otherwise never recover a display name for that user again.
+  Future<void> signInWithApple() => _signInWithOAuthProvider(
+    AppleAuthProvider()..addScope('email')..addScope('name'),
+  );
+
+  /// Runs the shared post-sign-in bookkeeping for any federated provider.
+  /// A brand-new EcoTrace account (no `users` profile yet, regardless of
+  /// whether Firebase considers the underlying auth user "new" -- someone
+  /// can have a federated auth user but no completed profile if they closed
+  /// the app mid-onboarding) skips session/login bookkeeping entirely: it
+  /// isn't a real account yet until completeOAuthRegistration runs, and
+  /// AuthGate routes a missing profile to that step reactively.
+  Future<void> _signInWithOAuthProvider(AuthProvider provider) async {
+    final credential = await _auth.signInWithProvider(provider);
+    final user = credential.user!;
+    if (await _hasProfile(user.uid)) {
+      if (_useApi) {
+        await _registerSession();
+        await _api.post('/api/v1/identity/verification/sync', {});
+      } else {
+        await _firestore.collection('users').doc(user.uid).update({
+          'lastLoginAt': FieldValue.serverTimestamp(),
+        });
+      }
+      try {
+        await _audit.record(
+          action: AuditAction.login,
+          entityType: 'authenticationSession',
+          entityId: user.uid,
+          description: 'User signed in with ${provider.providerId}.',
+        );
+      } catch (_) {
+        // Authentication remains available if audit delivery is temporarily offline.
+      }
+    }
+  }
+
+  Future<bool> _hasProfile(String uid) async {
+    if (_useApi) {
+      final data = await _api.get('/api/v1/identity/profile');
+      return data['profile'] != null;
+    }
+    final doc = await _firestore.collection('users').doc(uid).get();
+    return doc.exists;
+  }
+
+  /// Completes onboarding for a federated sign-in that has no EcoTrace
+  /// profile yet -- the counterpart to [register] for accounts that didn't
+  /// go through createUserWithEmailAndPassword, since that Firebase user
+  /// already exists by the time this runs. Reuses the same bootstrap
+  /// endpoint/document shape as email/password registration.
+  Future<void> completeOAuthRegistration({
+    required String displayName,
+    required AppRole role,
+    required bool acceptedTerms,
+  }) async {
+    if (!AppRole.selfServiceRoles.contains(role)) {
+      throw StateError('This role must be assigned by an administrator.');
+    }
+    if (!acceptedTerms) {
+      throw StateError('You must accept the terms and privacy policy.');
+    }
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw StateError('No signed-in user to complete registration for.');
+    }
+    final name = displayName.trim();
+    if (name.length < 2) {
+      throw StateError('Enter your name.');
+    }
+    await user.updateDisplayName(name);
+    if (_useApi) {
+      await _api.post('/api/v1/identity/bootstrap', {
+        'displayName': name,
+        'role': role.value,
+        'termsVersion': '2026-01',
+        'privacyVersion': '2026-01',
+        'acceptedTerms': true,
+        'acceptedPrivacy': true,
+      });
+    } else {
+      await _firestore.collection('users').doc(user.uid).set({
+        'email': (user.email ?? '').trim().toLowerCase(),
+        'displayName': name,
+        'role': role.value,
+        'accountStatus': AccountStatus.active.name,
+        'emailVerified': user.emailVerified,
+        'phoneVerified': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'lastLoginAt': FieldValue.serverTimestamp(),
+        'termsAcceptedAt': FieldValue.serverTimestamp(),
+        'privacyAcceptedAt': FieldValue.serverTimestamp(),
+      });
+    }
+    try {
+      await _audit.record(
+        action: AuditAction.create,
+        entityType: 'user',
+        entityId: user.uid,
+        description: 'Self-service account registered via federated sign-in.',
+        actorName: name,
+        actorRole: role.value,
+      );
+    } catch (_) {
+      // Registration remains valid if audit delivery is temporarily offline.
+    }
+  }
+
   Future<void> sendPasswordReset(String email) =>
       _auth.sendPasswordResetEmail(email: email.trim());
 
