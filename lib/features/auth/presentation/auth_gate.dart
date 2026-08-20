@@ -75,7 +75,7 @@ class _AuthGateState extends State<AuthGate> {
             final profile = profileSnapshot.data;
             if (profile == null) {
               // The normal path here is a first-time federated (Google/
-              // Apple/GitHub) sign-in, which creates the Firebase Auth user
+              // GitHub) sign-in, which creates the Firebase Auth user
               // without the role/terms step email/password registration
               // collects up front -- this screen collects it. It also
               // covers the rarer case of any other profile-less auth user.

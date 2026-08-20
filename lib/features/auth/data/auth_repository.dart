@@ -172,14 +172,6 @@ class AuthRepository {
     GithubAuthProvider()..addScope('read:user'),
   );
 
-  /// Signs in with Apple. Requesting `email`/`name` scopes matters here
-  /// specifically -- Apple only ever includes them on a user's very first
-  /// authorization, so a dropped bootstrap step (see completeOAuthRegistration)
-  /// could otherwise never recover a display name for that user again.
-  Future<void> signInWithApple() => _signInWithOAuthProvider(
-    AppleAuthProvider()..addScope('email')..addScope('name'),
-  );
-
   /// Runs the shared post-sign-in bookkeeping for any federated provider.
   /// A brand-new EcoTrace account (no `users` profile yet, regardless of
   /// whether Firebase considers the underlying auth user "new" -- someone

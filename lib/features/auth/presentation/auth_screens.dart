@@ -316,15 +316,6 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: _busy
                   ? null
                   : () => _signInWithProvider(
-                      widget.repository.signInWithApple,
-                    ),
-              child: const Text('Continue with Apple'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: _busy
-                  ? null
-                  : () => _signInWithProvider(
                       widget.repository.signInWithGithub,
                     ),
               child: const Text('Continue with GitHub'),
@@ -686,7 +677,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
 }
 
 /// Shown by AuthGate whenever a signed-in Firebase user has no EcoTrace
-/// profile yet -- the normal path for a first-time federated (Google/Apple/
+/// profile yet -- the normal path for a first-time federated (Google/
 /// GitHub) sign-in, which creates the Firebase Auth user without any of the
 /// role/terms information email/password registration collects up front.
 /// Also doubles as a self-service recovery path for the rarer case of an
