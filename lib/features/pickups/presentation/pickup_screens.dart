@@ -9,38 +9,103 @@ import '../../payments/data/monime_payment_repository.dart';
 import '../../payments/domain/monime_payment.dart';
 import '../../payments/presentation/hosted_checkout_screen.dart';
 import '../../payments/presentation/monime_payment_screen.dart';
+import '../../payments/presentation/payment_status.dart';
 import '../data/pickup_repository.dart';
 import '../domain/pickup.dart';
 
 enum _PaymentMethodChoice { mobileMoney, card, paypal }
 
+class _PaymentMethodOption extends StatelessWidget {
+  const _PaymentMethodOption({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+  final IconData icon;
+  final Color color;
+  final String title, subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(16),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: Row(
+        children: [
+          PaymentMethodIcon(icon: icon, color: color),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.chevron_right,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 Future<_PaymentMethodChoice?> _choosePaymentMethod(BuildContext context) {
+  final scheme = Theme.of(context).colorScheme;
   return showModalBottomSheet<_PaymentMethodChoice>(
     context: context,
+    showDragHandle: true,
     builder: (context) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.phone_android),
-            title: const Text('Mobile money'),
-            subtitle: const Text('Orange Money, Afrimoney'),
-            onTap: () =>
-                Navigator.pop(context, _PaymentMethodChoice.mobileMoney),
-          ),
-          ListTile(
-            leading: const Icon(Icons.credit_card),
-            title: const Text('Card'),
-            subtitle: const Text('Visa, Mastercard'),
-            onTap: () => Navigator.pop(context, _PaymentMethodChoice.card),
-          ),
-          ListTile(
-            leading: const Icon(Icons.account_balance_wallet_outlined),
-            title: const Text('PayPal'),
-            onTap: () => Navigator.pop(context, _PaymentMethodChoice.paypal),
-          ),
-          const SizedBox(height: 8),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Text(
+                'Choose how to pay',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            _PaymentMethodOption(
+              icon: Icons.phone_android,
+              color: scheme.primary,
+              title: 'Mobile money',
+              subtitle: 'Orange Money, Afrimoney — pay by USSD prompt',
+              onTap: () =>
+                  Navigator.pop(context, _PaymentMethodChoice.mobileMoney),
+            ),
+            _PaymentMethodOption(
+              icon: Icons.credit_card,
+              color: scheme.tertiary,
+              title: 'Card',
+              subtitle: 'Visa, Mastercard — pay in your browser',
+              onTap: () => Navigator.pop(context, _PaymentMethodChoice.card),
+            ),
+            _PaymentMethodOption(
+              icon: Icons.account_balance_wallet_outlined,
+              color: scheme.secondary,
+              title: 'PayPal',
+              subtitle: 'Pay with your PayPal balance or linked card',
+              onTap: () => Navigator.pop(context, _PaymentMethodChoice.paypal),
+            ),
+          ],
+        ),
       ),
     ),
   );

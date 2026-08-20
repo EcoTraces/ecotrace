@@ -6,6 +6,7 @@ import '../../../core/api/api_client.dart';
 import '../../../core/app_currency.dart';
 import '../data/monime_payment_repository.dart';
 import '../domain/monime_payment.dart';
+import 'payment_status.dart';
 
 /// Collects a mobile-money payment through Monime: pick a provider, enter the
 /// phone number, submit, then watch the payment reach a final state in real
@@ -219,6 +220,8 @@ class _MonimePaymentScreenState extends State<MonimePaymentScreen> {
                 )
               : Text(widget.submitLabel ?? 'Pay with ${_provider.label}'),
         ),
+        const SizedBox(height: 12),
+        const Center(child: PaymentTrustNote(provider: 'Monime')),
       ],
     );
   }
@@ -348,7 +351,14 @@ class _MonimePaymentScreenState extends State<MonimePaymentScreen> {
   ];
 
   List<Widget> _success(MonimePayment payment) => [
-    Icon(Icons.check_circle, color: Colors.green.shade600, size: 64),
+    Icon(
+      Icons.check_circle,
+      color: PaymentStatusVisuals.forStatus(
+        'confirmed',
+        Theme.of(context).colorScheme,
+      ).color,
+      size: 64,
+    ),
     const SizedBox(height: 16),
     Text('Payment successful', style: Theme.of(context).textTheme.titleLarge),
     const SizedBox(height: 8),

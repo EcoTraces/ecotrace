@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/app_currency.dart';
 import '../../billing/data/billing_repository.dart';
 import '../../billing/domain/billing.dart';
+import 'payment_status.dart';
 
 enum HostedGateway { stripe, paypal }
 
@@ -11,6 +12,18 @@ extension HostedGatewayLabel on HostedGateway {
   String get label => switch (this) {
     HostedGateway.stripe => 'card',
     HostedGateway.paypal => 'PayPal',
+  };
+
+  /// The gateway's own name, for copy that refers to the provider rather
+  /// than the payment method (e.g. "processed securely by Stripe").
+  String get providerName => switch (this) {
+    HostedGateway.stripe => 'Stripe',
+    HostedGateway.paypal => 'PayPal',
+  };
+
+  IconData get icon => switch (this) {
+    HostedGateway.stripe => Icons.credit_card,
+    HostedGateway.paypal => Icons.account_balance_wallet_outlined,
   };
 }
 
@@ -115,8 +128,19 @@ class _HostedCheckoutScreenState extends State<HostedCheckoutScreen> {
   }
 
   Widget _buildForm() {
+    final scheme = Theme.of(context).colorScheme;
     return ListView(
       children: [
+        Center(
+          child: PaymentMethodIcon(
+            icon: widget.gateway.icon,
+            color: widget.gateway == HostedGateway.stripe
+                ? scheme.tertiary
+                : scheme.secondary,
+            size: 56,
+          ),
+        ),
+        const SizedBox(height: 16),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -134,8 +158,8 @@ class _HostedCheckoutScreenState extends State<HostedCheckoutScreen> {
         ),
         const SizedBox(height: 16),
         Text(
-          "You'll be taken to ${widget.gateway.label == 'card' ? 'Stripe' : widget.gateway.label} "
-          'to complete payment in your browser, then return to this screen.',
+          "You'll be taken to ${widget.gateway.providerName} to complete "
+          'payment in your browser, then return to this screen.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium,
         ),
@@ -158,6 +182,8 @@ class _HostedCheckoutScreenState extends State<HostedCheckoutScreen> {
                 )
               : Text(widget.submitLabel ?? 'Pay with ${widget.gateway.label}'),
         ),
+        const SizedBox(height: 12),
+        Center(child: PaymentTrustNote(provider: widget.gateway.providerName)),
       ],
     );
   }
@@ -228,7 +254,14 @@ class _HostedCheckoutScreenState extends State<HostedCheckoutScreen> {
   ];
 
   List<Widget> _success(BillingTransaction transaction) => [
-    Icon(Icons.check_circle, color: Colors.green.shade600, size: 64),
+    Icon(
+      Icons.check_circle,
+      color: PaymentStatusVisuals.forStatus(
+        'confirmed',
+        Theme.of(context).colorScheme,
+      ).color,
+      size: 64,
+    ),
     const SizedBox(height: 16),
     Text('Payment successful', style: Theme.of(context).textTheme.titleLarge),
     const SizedBox(height: 8),

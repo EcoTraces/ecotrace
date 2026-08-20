@@ -5,8 +5,48 @@ import 'package:printing/printing.dart';
 import '../../../core/app_currency.dart';
 import '../../payments/data/monime_payment_repository.dart';
 import '../../payments/presentation/monime_payment_screen.dart';
+import '../../payments/presentation/payment_status.dart';
 import '../data/billing_repository.dart';
 import '../domain/billing.dart';
+
+IconData _methodIcon(BillingMethod method) => switch (method) {
+  BillingMethod.mobileMoney => Icons.phone_android,
+  BillingMethod.card => Icons.credit_card,
+  BillingMethod.paypal => Icons.account_balance_wallet_outlined,
+  BillingMethod.bankTransfer => Icons.account_balance_outlined,
+  BillingMethod.manual => Icons.receipt_long_outlined,
+};
+
+class _EmptyPaymentsState extends StatelessWidget {
+  const _EmptyPaymentsState();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 32),
+    child: Column(
+      children: [
+        Icon(
+          Icons.receipt_long_outlined,
+          size: 40,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'No payments yet',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Payments you make or receive will show up here.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
 class BillingScreen extends StatelessWidget {
   const BillingScreen({
@@ -80,19 +120,44 @@ class BillingScreen extends StatelessWidget {
                 'Transaction history',
                 style: Theme.of(c).textTheme.titleLarge,
               ),
-              for (final x in t.data!)
-                Card(
-                  child: ListTile(
-                    title: Text('${x.number} • ${x.purpose.name}'),
-                    subtitle: Text(
-                      '${x.method.name} • ${x.status.name} • ${x.providerReference}${x.failureReason.isEmpty ? '' : '\nFailed: ${x.failureReason}'}',
-                    ),
-                    trailing: Column(
-                      children: [
-                        Text(
-                          AppCurrency.format(x.total, currencyCode: x.currency),
+              if (t.data!.isEmpty)
+                const _EmptyPaymentsState()
+              else
+                for (final x in t.data!)
+                  Card(
+                    child: ListTile(
+                      leading: PaymentMethodIcon(
+                        icon: _methodIcon(x.method),
+                        color: Theme.of(c).colorScheme.primary,
+                        size: 40,
+                      ),
+                      title: Text('${x.number} • ${x.purpose.name}'),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            PaymentStatusChip(status: x.status.name),
+                            Text(
+                              [
+                                x.method.name,
+                                if (x.providerReference.isNotEmpty)
+                                  x.providerReference,
+                              ].join(' • '),
+                              style: Theme.of(c).textTheme.bodySmall,
+                            ),
+                          ],
                         ),
-                        if (canManage)
+                      ),
+                      isThreeLine: x.failureReason.isNotEmpty,
+                      trailing: Column(
+                        children: [
+                          Text(
+                            AppCurrency.format(x.total, currencyCode: x.currency),
+                          ),
+                          if (canManage)
                           PopupMenuButton<String>(
                             onSelected: (a) async {
                               if (a == 'confirm') {
@@ -151,18 +216,31 @@ class BillingScreen extends StatelessWidget {
                   ),
                 ),
               Text('Invoices', style: Theme.of(c).textTheme.titleLarge),
-              for (final x in i.data!)
-                ListTile(
-                  leading: const Icon(Icons.receipt_long),
-                  title: Text('${x.number} • ${x.description}'),
-                  subtitle: Text('${x.status.name} • Due ${x.dueAt}'),
-                  trailing: TextButton(
-                    onPressed: () => _receipt(x),
-                    child: Text(
-                      AppCurrency.format(x.amount, currencyCode: x.currency),
+              if (i.data!.isEmpty)
+                const _EmptyPaymentsState()
+              else
+                for (final x in i.data!)
+                  ListTile(
+                    leading: const Icon(Icons.receipt_long),
+                    title: Text('${x.number} • ${x.description}'),
+                    subtitle: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      children: [
+                        PaymentStatusChip(status: x.status.name),
+                        Text(
+                          'Due ${x.dueAt}',
+                          style: Theme.of(c).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                    trailing: TextButton(
+                      onPressed: () => _receipt(x),
+                      child: Text(
+                        AppCurrency.format(x.amount, currencyCode: x.currency),
+                      ),
                     ),
                   ),
-                ),
             ],
           ),
         );
